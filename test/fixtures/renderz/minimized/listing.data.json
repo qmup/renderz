@@ -1,0 +1,20 @@
+{
+  "type": "data",
+  "nodes": [
+    {
+      "type": "data",
+      "data": [
+        { "ssrPlayers": 1 },
+        [2, 6],
+        { "href": 3, "name": 4, "rating": 5 },
+        "/player/24029971-messi",
+        "Messi",
+        114,
+        { "href": 7, "name": 8, "rating": 9 },
+        "/player/24044714-mbappe",
+        "Mbappe",
+        120
+      ]
+    }
+  ]
+}

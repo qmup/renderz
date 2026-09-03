@@ -1,0 +1,45 @@
+{
+  "type": "data",
+  "nodes": [
+    null,
+    {
+      "type": "data",
+      "data": [
+        { "player": 1 },
+        {
+          "id": 2,
+          "cardName": 3,
+          "firstName": 4,
+          "lastName": 3,
+          "rating": 5,
+          "position": 6,
+          "source": 7,
+          "clubName": 8,
+          "nationName": 9,
+          "leagueName": 10,
+          "auctionable": 11,
+          "avgStats": 12,
+          "stats": 13,
+          "images": 14
+        },
+        24044714,
+        "Mbappe",
+        "Kylian",
+        120,
+        "LW",
+        "PROGRAM_TOTS26",
+        "TeamName_243",
+        "NationName_18",
+        "LeagueName_53",
+        false,
+        { "avg1": 15 },
+        { "acc": 16, "total": 17 },
+        { "playerCardImage": 18 },
+        130,
+        129,
+        3000,
+        "https://images-v2.renderz.app/player_25_mbappe?verify=1-abc"
+      ]
+    }
+  ]
+}
