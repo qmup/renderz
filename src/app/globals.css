@@ -184,3 +184,40 @@
     animation: none;
   }
 }
+
+@keyframes credit-letter {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    color: #c2410c;
+  }
+  50% {
+    transform: translateY(-4px) scale(1.12);
+    color: #fbbf24;
+  }
+}
+
+.credit-name {
+  display: inline;
+  text-decoration: none;
+}
+
+.credit-letter {
+  display: inline-block;
+  animation: credit-letter 1.4s ease-in-out infinite;
+}
+
+.credit-letter-space {
+  display: inline-block;
+  width: 0.28em;
+}
+
+.credit-name:hover .credit-letter {
+  animation-play-state: paused;
+}
+
+.credit-name:hover {
+  text-decoration: underline;
+  text-decoration-color: #ea580c;
+  text-underline-offset: 3px;
+}

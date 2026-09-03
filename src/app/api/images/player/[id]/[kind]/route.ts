@@ -1,5 +1,10 @@
 import { getPlayerCatalog } from "@/lib/catalog/runtime";
+import {
+  readCachedImage,
+  writeCachedImage,
+} from "@/lib/catalog/image-cache";
 import { enrichDiscoveredPlayer } from "@/lib/catalog/enrichment";
+import { isDev } from "@/lib/dev";
 import {
   isPlayerIconImageKind,
   playerImageKindSchema,
@@ -11,9 +16,9 @@ import {
   ImageProxyRejectedError,
   isAppError,
   NotFoundError,
-  publicErrorMessage,
 } from "@/lib/http/errors";
 import { PLACEHOLDER_SVG } from "@/lib/providers/renderz/image-policy";
+import { isExpiredImageError } from "@/lib/providers/renderz/image-errors";
 import { fetchAllowlistedImage } from "@/lib/providers/renderz/image-proxy";
 import { getRenderzSource } from "@/lib/providers/renderz/renderz-source";
 import { ZodError } from "zod";
@@ -27,6 +32,18 @@ function placeholder(): Response {
     headers: {
       "Content-Type": "image/svg+xml; charset=utf-8",
       "Cache-Control": "no-store",
+    },
+  });
+}
+
+function imageResponse(bytes: Uint8Array, contentType: string, immutable: boolean): Response {
+  return new Response(Buffer.from(bytes), {
+    status: 200,
+    headers: {
+      "Content-Type": contentType,
+      "Cache-Control": immutable
+        ? "public, max-age=86400, stale-while-revalidate=604800"
+        : "private, max-age=3600",
     },
   });
 }
@@ -46,6 +63,16 @@ async function resolveAsset(
   return catalog.findSharedIconAsset(kind);
 }
 
+async function fetchAndCache(
+  playerId: string,
+  kind: PlayerImageKind,
+  url: string,
+): Promise<{ bytes: Uint8Array; contentType: string }> {
+  const image = await fetchAllowlistedImage(url);
+  writeCachedImage(playerId, kind, image.bytes);
+  return image;
+}
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string; kind: string }> },
@@ -54,6 +81,11 @@ export async function GET(
     const params = await context.params;
     const id = playerIdSchema.parse(params.id);
     const kind = playerImageKindSchema.parse(params.kind);
+    const cached = readCachedImage(id, kind);
+    if (cached) {
+      return imageResponse(cached.bytes, cached.contentType, true);
+    }
+
     const catalog = getPlayerCatalog();
     if (!(await catalog.exists(id))) {
       throw new NotFoundError();
@@ -61,37 +93,23 @@ export async function GET(
 
     let asset = await resolveAsset(catalog, id, kind);
     if (!asset) {
-      return new Response(JSON.stringify({ error: "Image not found" }), {
-        status: 404,
-        headers: { "Content-Type": "application/json" },
-      });
+      return placeholder();
     }
 
     try {
-      const image = await fetchAllowlistedImage(asset.upstreamUrl);
-      return new Response(Buffer.from(image.bytes), {
-        status: 200,
-        headers: {
-          "Content-Type": image.contentType,
-          "Cache-Control": "private, max-age=3600",
-        },
-      });
+      const image = await fetchAndCache(id, kind, asset.upstreamUrl);
+      return imageResponse(image.bytes, image.contentType, false);
     } catch (error) {
-      if (
-        error instanceof ImageProxyRejectedError &&
-        error.message.includes("expired")
-      ) {
-        await enrichDiscoveredPlayer(catalog, getRenderzSource(), id);
-        asset = await resolveAsset(catalog, id, kind);
-        if (asset) {
-          const image = await fetchAllowlistedImage(asset.upstreamUrl);
-          return new Response(Buffer.from(image.bytes), {
-            status: 200,
-            headers: {
-              "Content-Type": image.contentType,
-              "Cache-Control": "private, max-age=3600",
-            },
-          });
+      if (isExpiredImageError(error) && isDev) {
+        try {
+          await enrichDiscoveredPlayer(catalog, getRenderzSource(), id);
+          asset = await resolveAsset(catalog, id, kind);
+          if (asset) {
+            const image = await fetchAndCache(id, kind, asset.upstreamUrl);
+            return imageResponse(image.bytes, image.contentType, false);
+          }
+        } catch {
+          return placeholder();
         }
       }
       return placeholder();
@@ -103,14 +121,11 @@ export async function GET(
         headers: { "Content-Type": "application/json" },
       });
     }
-    if (isAppError(error)) {
-      return new Response(
-        JSON.stringify({ error: publicErrorMessage(error), code: error.code }),
-        {
-          status: error.status,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+    if (isAppError(error) && error instanceof NotFoundError) {
+      return placeholder();
+    }
+    if (error instanceof ImageProxyRejectedError) {
+      return placeholder();
     }
     return placeholder();
   }

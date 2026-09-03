@@ -13,6 +13,12 @@ export const ALLOWED_IMAGE_HOSTS = new Set([
   "cdn-p2.frzdb.net",
 ]);
 
+export const IMAGE_FETCH_HEADERS = {
+  Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+  Referer: "https://www.renderz.app/",
+} as const;
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export const IMAGE_FETCH_TIMEOUT_MS = 10_000;
 

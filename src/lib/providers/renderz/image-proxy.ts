@@ -1,5 +1,6 @@
 import { ImageProxyRejectedError } from "@/lib/http/errors";
 import {
+  IMAGE_FETCH_HEADERS,
   IMAGE_FETCH_TIMEOUT_MS,
   MAX_IMAGE_BYTES,
   isAllowedImageContentType,
@@ -73,7 +74,7 @@ export async function fetchAllowlistedImage(
         method: "GET",
         redirect: "manual",
         signal: controller.signal,
-        headers: { Accept: "image/*,application/octet-stream" },
+        headers: { ...IMAGE_FETCH_HEADERS },
       });
     } catch (error) {
       if (controller.signal.aborted) {

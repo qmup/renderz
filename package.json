@@ -15,10 +15,12 @@
     "probe:renderz": "npx tsx scripts/probe-renderz.ts",
     "seed": "npx tsx scripts/seed-listing.ts",
     "ingest": "npx tsx scripts/ingest.ts",
-    "catalog:verify": "npx tsx scripts/verify-catalog.ts"
+    "catalog:verify": "npx tsx scripts/verify-catalog.ts",
+    "catalog:cache-images": "npx tsx scripts/cache-images.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.102.8",
+    "@vercel/analytics": "^2.0.1",
     "better-sqlite3": "^13.0.3",
     "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",

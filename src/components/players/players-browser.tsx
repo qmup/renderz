@@ -8,6 +8,7 @@ import { CatalogNotice } from '@/components/catalog-notice';
 import { PlayerFilters } from '@/components/players/player-filters';
 import { PlayerCardArt } from '@/components/players/player-card-art';
 import { PlayerGroupedStats } from '@/components/players/player-grouped-stats';
+import { PlayerPagination } from '@/components/players/player-pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,16 +39,6 @@ function listingSearch(search: string): string {
   const params = new URLSearchParams(search);
   params.delete('view');
   return params.toString();
-}
-
-function pageWindow(current: number, total: number): number[] {
-  const start = Math.max(1, current - 2);
-  const end = Math.min(total, current + 2);
-  const pages: number[] = [];
-  for (let page = start; page <= end; page += 1) {
-    pages.push(page);
-  }
-  return pages;
 }
 
 export function PlayersBrowser({
@@ -200,58 +191,18 @@ export function PlayersBrowser({
                     ))}
                   </ul>
                 )}
-                <nav
-                  className="mt-4 flex flex-col items-center gap-3"
-                  aria-label="Pagination"
-                >
-                  <div className="flex flex-wrap items-center justify-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={query.page <= 1}
-                      onClick={() =>
-                        replaceQuery({
-                          ...query,
-                          q: searchDraft,
-                          page: query.page - 1,
-                        })
-                      }
-                    >
-                      Previous
-                    </Button>
-                    {pageWindow(query.page, totalPages).map((page) => (
-                      <Button
-                        key={page}
-                        type="button"
-                        size="sm"
-                        variant={page === query.page ? 'default' : 'outline'}
-                        aria-current={page === query.page ? 'page' : undefined}
-                        onClick={() =>
-                          replaceQuery({ ...query, q: searchDraft, page })
-                        }
-                      >
-                        {page}
-                      </Button>
-                    ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={query.page >= totalPages}
-                      onClick={() =>
-                        replaceQuery({
-                          ...query,
-                          q: searchDraft,
-                          page: query.page + 1,
-                        })
-                      }
-                    >
-                      Next
-                    </Button>
-                  </div>
-                  <p className="text-muted-foreground text-sm">
-                    Page {data.page} of {totalPages}
-                  </p>
-                </nav>
+                <PlayerPagination
+                  page={data.page}
+                  pageSize={query.pageSize}
+                  total={data.total}
+                  totalPages={totalPages}
+                  onPageChange={(page) =>
+                    replaceQuery({ ...query, q: searchDraft, page })
+                  }
+                  onPageSizeChange={(pageSize, page) =>
+                    replaceQuery({ ...query, q: searchDraft, pageSize, page })
+                  }
+                />
               </>
             )}
           </>

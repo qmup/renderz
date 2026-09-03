@@ -42,6 +42,25 @@ describe("image-policy", () => {
 });
 
 describe("fetchAllowlistedImage", () => {
+  it("sends a browser-like Referer so CDN fetches match the public site", async () => {
+    let accept: string | null = null;
+    let referer: string | null = null;
+    await fetchAllowlistedImage("https://images-v2.renderz.app/card?verify=1-a", {
+      lookupFn: publicLookup,
+      fetchImpl: async (_url, init) => {
+        const headers = new Headers(init.headers);
+        accept = headers.get("Accept");
+        referer = headers.get("Referer");
+        return new Response(png, {
+          status: 200,
+          headers: { "Content-Type": "image/png" },
+        });
+      },
+    });
+    expect(accept).toContain("image/");
+    expect(referer).toBe("https://www.renderz.app/");
+  });
+
   it("fetches an allowlisted image without following off-allowlist redirects", async () => {
     const image = await fetchAllowlistedImage(
       "https://images-v2.renderz.app/card?verify=1-a",

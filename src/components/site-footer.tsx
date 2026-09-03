@@ -1,4 +1,3 @@
-import { MadeByCredit } from "@/components/made-by-credit";
 import { isDev } from "@/lib/dev";
 
 export function SiteFooter() {
@@ -14,7 +13,6 @@ export function SiteFooter() {
             </p>
           </>
         ) : null}
-        <MadeByCredit />
       </div>
     </footer>
   );
