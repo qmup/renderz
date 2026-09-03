@@ -128,3 +128,59 @@
     @apply font-sans;
   }
 }
+
+.credit-line {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.credit-chunk {
+  white-space: pre;
+}
+
+.credit-word {
+  display: inline-block;
+  animation-name: credit-hop;
+  animation-timing-function: cubic-bezier(0.33, 0.12, 0.28, 1);
+  animation-iteration-count: infinite;
+}
+
+.credit-letter {
+  display: inline-block;
+}
+
+.credit-link {
+  text-decoration: none;
+}
+
+.credit-link:hover .credit-word {
+  animation-play-state: paused;
+}
+
+.credit-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+@keyframes credit-hop {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  28% {
+    transform: translateY(-0.55em);
+  }
+  52% {
+    transform: translateY(0.12em);
+  }
+  70% {
+    transform: translateY(-0.18em);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .credit-word {
+    animation: none;
+  }
+}

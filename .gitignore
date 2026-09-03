@@ -13,6 +13,7 @@
 # sqlite catalog
 /data/*.sqlite
 /data/*.sqlite-*
+!/data/catalog.snapshot.sqlite
 /data/*.db
 
 # full third-party HTML / JSON (minimized fixtures are committed)

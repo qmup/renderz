@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { isDev } from "@/lib/dev";
 import { cn } from "@/lib/utils";
 
 export function CatalogNotice({
@@ -10,6 +11,9 @@ export function CatalogNotice({
   children?: ReactNode;
   tone?: "info" | "warning" | "danger";
 }) {
+  if (!isDev) {
+    return null;
+  }
   return (
     <div
       role="status"

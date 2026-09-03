@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { enrichDiscoveredPlayer } from "@/lib/catalog/enrichment";
 import { getPlayerCatalog } from "@/lib/catalog/runtime";
+import { isDev } from "@/lib/dev";
 import {
   catalogRowNeedsEnrich,
   displayProgramName,
@@ -185,12 +186,16 @@ export default async function PlayerDetailPage({
         </p>
       )}
 
-      <Separator />
-      <p className="text-muted-foreground text-xs">
-        Parser v{player.parseVersion}. Detail stats use full group names
-        (Pace, Shooting, …). Playstyle and hidden-stat labels come from the
-        public RenderZ player page.
-      </p>
+      {isDev ? (
+        <>
+          <Separator />
+          <p className="text-muted-foreground text-xs">
+            Parser v{player.parseVersion}. Detail stats use full group names
+            (Pace, Shooting, …). Playstyle and hidden-stat labels come from the
+            public RenderZ player page.
+          </p>
+        </>
+      ) : null}
     </main>
   );
 }

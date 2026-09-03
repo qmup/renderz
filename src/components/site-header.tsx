@@ -19,13 +19,7 @@ export async function SiteHeader() {
             FC Mobile catalog
           </span>
         </Link>
-        {showCatalogUpdate ? (
-          <CatalogUpdateControl />
-        ) : (
-          <p className="text-muted-foreground hidden text-xs sm:block">
-            Local SQLite · same-origin images
-          </p>
-        )}
+        {showCatalogUpdate ? <CatalogUpdateControl /> : null}
       </div>
     </header>
   );
