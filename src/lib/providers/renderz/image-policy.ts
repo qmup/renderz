@@ -118,4 +118,27 @@ export function looksLikeImage(bytes: Uint8Array): boolean {
   return png || jpeg || gif || webp;
 }
 
+export function sniffImageContentType(
+  contentType: string | null,
+  bytes: Uint8Array,
+): string {
+  const mime = contentType?.split(";")[0]?.trim().toLowerCase() ?? "";
+  if (mime.startsWith("image/")) {
+    return mime;
+  }
+  if (bytes[0] === 0x89 && bytes[1] === 0x50) {
+    return "image/png";
+  }
+  if (bytes[0] === 0xff && bytes[1] === 0xd8) {
+    return "image/jpeg";
+  }
+  if (bytes[0] === 0x47 && bytes[1] === 0x49) {
+    return "image/gif";
+  }
+  if (bytes.length >= 12 && bytes[8] === 0x57 && bytes[9] === 0x45) {
+    return "image/webp";
+  }
+  return mime || "application/octet-stream";
+}
+
 export const PLACEHOLDER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><rect fill="#e5e5e5" width="128" height="128"/><text x="64" y="70" text-anchor="middle" font-size="14" fill="#737373">No image</text></svg>`;

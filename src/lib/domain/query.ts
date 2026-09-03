@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { playerIdSchema } from "@/lib/domain/player";
+import { playerSummarySchema } from "@/lib/domain/player";
 
 export const PLAYER_LIST_DEFAULT_PAGE_SIZE = 24;
 export const PLAYER_LIST_MAX_PAGE_SIZE = 100;
@@ -13,6 +13,9 @@ export const playerSortSchema = z.enum([
   "fetched_desc",
 ]);
 export type PlayerSort = z.infer<typeof playerSortSchema>;
+
+export const playerViewSchema = z.enum(["list", "grid"]);
+export type PlayerView = z.infer<typeof playerViewSchema>;
 
 export const playerListFiltersSchema = z.object({
   positions: z.array(z.string().min(1)).default([]),
@@ -35,7 +38,8 @@ export const playerListQuerySchema = z.object({
     .min(1)
     .max(PLAYER_LIST_MAX_PAGE_SIZE)
     .default(PLAYER_LIST_DEFAULT_PAGE_SIZE),
-  sort: playerSortSchema.default("rating_desc"),
+  sort: playerSortSchema.default("added_desc"),
+  view: playerViewSchema.catch("list").default("list"),
   filters: playerListFiltersSchema.default({
     positions: [],
     programIds: [],
@@ -62,24 +66,7 @@ export const playerListFacetsSchema = z.object({
 export type PlayerListFacets = z.infer<typeof playerListFacetsSchema>;
 
 export const playerListResultSchema = z.object({
-  items: z.array(
-    z.object({
-      id: playerIdSchema,
-      slug: z.string(),
-      name: z.string(),
-      rating: z.number().int(),
-      position: z.string().optional(),
-      programId: z.string().optional(),
-      clubName: z.string().optional(),
-      nationName: z.string().optional(),
-      leagueName: z.string().optional(),
-      auctionable: z.boolean().optional(),
-      availableImageKinds: z.array(z.string()),
-      addedAt: z.number().int().optional(),
-      fetchedAt: z.number().int(),
-      parseVersion: z.number().int(),
-    }),
-  ),
+  items: z.array(playerSummarySchema),
   total: z.number().int().nonnegative(),
   page: z.number().int().min(1),
   pageSize: z.number().int().min(1),
@@ -126,6 +113,85 @@ function optionalBool(value: string | undefined): boolean | undefined {
   return undefined;
 }
 
+export function playerListQueryToSearchParams(query: PlayerListQuery): URLSearchParams {
+  const params = new URLSearchParams();
+  const q = query.q.trim();
+  if (q) {
+    params.set("q", q);
+  }
+  if (query.page > 1) {
+    params.set("page", String(query.page));
+  }
+  if (query.pageSize !== PLAYER_LIST_DEFAULT_PAGE_SIZE) {
+    params.set("pageSize", String(query.pageSize));
+  }
+  if (query.sort !== "added_desc") {
+    params.set("sort", query.sort);
+  }
+  if (query.view === "grid") {
+    params.set("view", "grid");
+  }
+  if (query.filters.positions.length > 0) {
+    params.set("position", query.filters.positions.join(","));
+  }
+  if (query.filters.programIds.length > 0) {
+    params.set("program", query.filters.programIds.join(","));
+  }
+  if (query.filters.nations.length > 0) {
+    params.set("nation", query.filters.nations.join(","));
+  }
+  if (query.filters.clubs.length > 0) {
+    params.set("club", query.filters.clubs.join(","));
+  }
+  if (query.filters.leagues.length > 0) {
+    params.set("league", query.filters.leagues.join(","));
+  }
+  if (query.filters.ratingMin !== undefined) {
+    params.set("ratingMin", String(query.filters.ratingMin));
+  }
+  if (query.filters.ratingMax !== undefined) {
+    params.set("ratingMax", String(query.filters.ratingMax));
+  }
+  if (query.filters.auctionable !== undefined) {
+    params.set("auctionable", query.filters.auctionable ? "true" : "false");
+  }
+  return params;
+}
+
+export function countPlayerListFilters(query: PlayerListQuery): number {
+  const filters = query.filters;
+  let count = 0;
+  if (filters.positions.length > 0) {
+    count += 1;
+  }
+  if (filters.programIds.length > 0) {
+    count += 1;
+  }
+  if (filters.nations.length > 0) {
+    count += 1;
+  }
+  if (filters.clubs.length > 0) {
+    count += 1;
+  }
+  if (filters.leagues.length > 0) {
+    count += 1;
+  }
+  if (filters.ratingMin !== undefined) {
+    count += 1;
+  }
+  if (filters.ratingMax !== undefined) {
+    count += 1;
+  }
+  if (filters.auctionable !== undefined) {
+    count += 1;
+  }
+  return count;
+}
+
+export function playerListQueryIsFiltered(query: PlayerListQuery): boolean {
+  return query.q.trim().length > 0 || countPlayerListFilters(query) > 0;
+}
+
 export function playerListQueryFromSearchParams(
   params: URLSearchParams | Record<string, string | string[] | undefined>,
 ): PlayerListQuery {
@@ -141,6 +207,7 @@ export function playerListQueryFromSearchParams(
     page: optionalInt(get("page")),
     pageSize: optionalInt(get("pageSize") ?? get("page_size")),
     sort: get("sort"),
+    view: get("view"),
     filters: {
       positions: csv(get("position") ?? get("positions")),
       programIds: csv(get("program") ?? get("programId") ?? get("programIds")),

@@ -1,14 +1,23 @@
 import { getPlayerCatalog } from "@/lib/catalog/runtime";
 import { enrichDiscoveredPlayer } from "@/lib/catalog/enrichment";
 import {
+  isPlayerIconImageKind,
   playerImageKindSchema,
   playerIdSchema,
+  type PlayerAssetRow,
+  type PlayerImageKind,
 } from "@/lib/domain/player";
-import { ImageProxyRejectedError, isAppError, NotFoundError } from "@/lib/http/errors";
+import {
+  ImageProxyRejectedError,
+  isAppError,
+  NotFoundError,
+  publicErrorMessage,
+} from "@/lib/http/errors";
 import { PLACEHOLDER_SVG } from "@/lib/providers/renderz/image-policy";
 import { fetchAllowlistedImage } from "@/lib/providers/renderz/image-proxy";
 import { getRenderzSource } from "@/lib/providers/renderz/renderz-source";
 import { ZodError } from "zod";
+import type { PlayerCatalog } from "@/lib/catalog/repository";
 
 export const runtime = "nodejs";
 
@@ -20,6 +29,21 @@ function placeholder(): Response {
       "Cache-Control": "no-store",
     },
   });
+}
+
+async function resolveAsset(
+  catalog: PlayerCatalog,
+  playerId: string,
+  kind: PlayerImageKind,
+): Promise<PlayerAssetRow | null> {
+  const own = await catalog.getAsset(playerId, kind);
+  if (own) {
+    return own;
+  }
+  if (!isPlayerIconImageKind(kind)) {
+    return null;
+  }
+  return catalog.findSharedIconAsset(kind);
 }
 
 export async function GET(
@@ -35,8 +59,7 @@ export async function GET(
       throw new NotFoundError();
     }
 
-    const loadAsset = async () => catalog.getAsset(id, kind);
-    let asset = await loadAsset();
+    let asset = await resolveAsset(catalog, id, kind);
     if (!asset) {
       return new Response(JSON.stringify({ error: "Image not found" }), {
         status: 404,
@@ -59,7 +82,7 @@ export async function GET(
         error.message.includes("expired")
       ) {
         await enrichDiscoveredPlayer(catalog, getRenderzSource(), id);
-        asset = await loadAsset();
+        asset = await resolveAsset(catalog, id, kind);
         if (asset) {
           const image = await fetchAllowlistedImage(asset.upstreamUrl);
           return new Response(Buffer.from(image.bytes), {
@@ -81,10 +104,13 @@ export async function GET(
       });
     }
     if (isAppError(error)) {
-      return new Response(JSON.stringify({ error: error.message, code: error.code }), {
-        status: error.status,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: publicErrorMessage(error), code: error.code }),
+        {
+          status: error.status,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
     }
     return placeholder();
   }

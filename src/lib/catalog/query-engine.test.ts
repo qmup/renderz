@@ -19,6 +19,9 @@ function summary(
   return {
     slug: overrides.slug ?? overrides.name.toLowerCase(),
     availableImageKinds: [],
+    altPositions: [],
+    avgStats: [],
+    playStyles: [],
     fetchedAt: 100,
     parseVersion: 1,
     ...overrides,
@@ -31,7 +34,7 @@ describe("normalizePlayerListQuery", () => {
     const query = normalizePlayerListQuery({});
     expect(query.page).toBe(1);
     expect(query.pageSize).toBe(24);
-    expect(query.sort).toBe("rating_desc");
+    expect(query.sort).toBe("added_desc");
     expect(query.q).toBe("");
   });
 
@@ -61,6 +64,31 @@ describe("matchesPlayerFilters", () => {
     expect(
       matchesPlayerFilters(messi, normalizePlayerListQuery({ q: "mbappe" })),
     ).toBe(false);
+  });
+
+  it("matches accented names without requiring diacritics", () => {
+    const mbappe = summary({
+      id: "2",
+      name: "Kylian Mbappé",
+      slug: "mbappé",
+      rating: 120,
+    });
+    expect(
+      matchesPlayerFilters(mbappe, normalizePlayerListQuery({ q: "mbappe" })),
+    ).toBe(true);
+  });
+
+  it("matches commonName on listing summaries", () => {
+    const fabregas = summary({
+      id: "3",
+      name: "Francesc Fàbregas i Soler",
+      commonName: "Cesc Fàbregas",
+      lastName: "Fàbregas i Soler",
+      rating: 121,
+    });
+    expect(
+      matchesPlayerFilters(fabregas, normalizePlayerListQuery({ q: "cesc" })),
+    ).toBe(true);
   });
 
   it("matches position and rating range", () => {
@@ -106,6 +134,69 @@ describe("comparePlayers", () => {
       comparePlayers(left, right, "rating_desc"),
     );
     expect(sorted.map((row) => row.name)).toEqual(["A", "B"]);
+  });
+
+  it("added_desc: same UTC day, higher rating first", () => {
+    const morning = Date.parse("2026-09-01T01:00:00.000Z");
+    const evening = Date.parse("2026-09-01T23:00:00.000Z");
+    const low = summary({
+      id: "1",
+      name: "Low",
+      rating: 90,
+      addedAt: evening,
+    });
+    const high = summary({
+      id: "2",
+      name: "High",
+      rating: 110,
+      addedAt: morning,
+    });
+    const sorted = [low, high].sort((left, right) =>
+      comparePlayers(left, right, "added_desc"),
+    );
+    expect(sorted.map((row) => row.name)).toEqual(["High", "Low"]);
+  });
+
+  it("added_desc: same UTC day and rating, name A–Z", () => {
+    const morning = Date.parse("2026-09-01T01:00:00.000Z");
+    const evening = Date.parse("2026-09-01T23:00:00.000Z");
+    const beta = summary({
+      id: "1",
+      name: "Beta",
+      rating: 110,
+      addedAt: evening,
+    });
+    const alpha = summary({
+      id: "2",
+      name: "Alpha",
+      rating: 110,
+      addedAt: morning,
+    });
+    const sorted = [beta, alpha].sort((left, right) =>
+      comparePlayers(left, right, "added_desc"),
+    );
+    expect(sorted.map((row) => row.name)).toEqual(["Alpha", "Beta"]);
+  });
+
+  it("added_desc: newer UTC day first even if rating is lower", () => {
+    const olderDay = Date.parse("2026-09-01T23:00:00.000Z");
+    const newerDay = Date.parse("2026-09-02T00:30:00.000Z");
+    const olderHigh = summary({
+      id: "1",
+      name: "OlderHigh",
+      rating: 120,
+      addedAt: olderDay,
+    });
+    const newerLow = summary({
+      id: "2",
+      name: "NewerLow",
+      rating: 80,
+      addedAt: newerDay,
+    });
+    const sorted = [olderHigh, newerLow].sort((left, right) =>
+      comparePlayers(left, right, "added_desc"),
+    );
+    expect(sorted.map((row) => row.name)).toEqual(["NewerLow", "OlderHigh"]);
   });
 });
 

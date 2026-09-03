@@ -7,6 +7,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 import type {
+  PlayerCardImageKind,
   PlayerImageKind,
   PlayerStat,
   PlayStyle,
@@ -36,6 +37,7 @@ export const players = sqliteTable(
     firstName: text("first_name"),
     lastName: text("last_name"),
     commonName: text("common_name"),
+    cardName: text("card_name"),
     position: text("position"),
     altPositions: text("alt_positions", { mode: "json" })
       .$type<string[]>()
@@ -74,8 +76,10 @@ export const players = sqliteTable(
       .$type<string[]>()
       .notNull()
       .default([]),
+    starSigningsBuy: integer("star_signings_buy"),
+    starSigningsSell: integer("star_signings_sell"),
     availableImageKinds: text("available_image_kinds", { mode: "json" })
-      .$type<PlayerImageKind[]>()
+      .$type<PlayerCardImageKind[]>()
       .notNull()
       .default([]),
     addedAt: integer("added_at"),

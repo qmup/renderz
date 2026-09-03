@@ -83,6 +83,90 @@ describe("DrizzlePlayerCatalog", () => {
     expect(pastEnd.page).toBe(2);
   });
 
+  it("matches accented names using ascii search", async () => {
+    const { catalog } = createTestCatalog();
+    await catalog.upsertPlayer(
+      fakePlayer({
+        id: "24049024",
+        name: "Kylian Mbappé",
+        slug: "mbappé",
+        rating: 120,
+      }),
+      [],
+    );
+    const result = await catalog.list(normalizePlayerListQuery({ q: "mbappe" }));
+    expect(result.total).toBe(1);
+    expect(result.items[0]?.name).toBe("Kylian Mbappé");
+  });
+
+  it("exposes alternate positions and PAC–PHY stats on list items", async () => {
+    const { catalog } = createTestCatalog();
+    await catalog.upsertPlayer(
+      fakePlayer({
+        id: "24049025",
+        name: "Iniesta",
+        rating: 118,
+        position: "CAM",
+        altPositions: ["CM", "LW"],
+        stats: [
+          { key: "avg1", value: 140 },
+          { key: "avg2", value: 128 },
+          { key: "avg3", value: 151 },
+          { key: "avg4", value: 149 },
+          { key: "avg5", value: 88 },
+          { key: "avg6", value: 121 },
+          { key: "acc", value: 142 },
+        ],
+      }),
+      [],
+    );
+    const result = await catalog.list(normalizePlayerListQuery({}));
+    expect(result.items[0]?.altPositions).toEqual(["CM", "LW"]);
+    expect(result.items[0]?.avgStats.map((stat) => [stat.label, stat.value])).toEqual(
+      [
+        ["PAC", 140],
+        ["SHO", 128],
+        ["PAS", 151],
+        ["DRI", 149],
+        ["DEF", 88],
+        ["PHY", 121],
+      ],
+    );
+  });
+
+  it("exposes card, common, and last names on list items", async () => {
+    const { catalog } = createTestCatalog();
+    await catalog.upsertPlayer(
+      fakePlayer({
+        id: "30920628",
+        slug: "cesc-fabregas",
+        name: "Francesc Fàbregas i Soler",
+        cardName: "Cesc Fàbregas",
+        firstName: "Francesc",
+        lastName: "Fàbregas i Soler",
+        commonName: "Cesc Fàbregas",
+        rating: 121,
+        playStyles: [
+          { id: "12683081", name: "Aerial Defense", level: 1 },
+          { id: "987634376", level: 2 },
+        ],
+      }),
+      [],
+    );
+    const result = await catalog.list(normalizePlayerListQuery({}));
+    expect(result.items[0]?.cardName).toBe("Cesc Fàbregas");
+    expect(result.items[0]?.commonName).toBe("Cesc Fàbregas");
+    expect(result.items[0]?.lastName).toBe("Fàbregas i Soler");
+    expect(result.items[0]?.name).toBe("Francesc Fàbregas i Soler");
+    expect(result.items[0]?.playStyles).toEqual([
+      { id: "12683081", level: 1 },
+      { id: "987634376", level: 2 },
+    ]);
+
+    const byCommon = await catalog.list(normalizePlayerListQuery({ q: "cesc" }));
+    expect(byCommon.total).toBe(1);
+  });
+
   it("stores assets without exposing them on the player domain object", async () => {
     const { catalog } = createTestCatalog();
     const player = fakePlayer({
@@ -105,6 +189,70 @@ describe("DrizzlePlayerCatalog", () => {
     expect(loaded?.availableImageKinds).toEqual(["card"]);
     const asset = await catalog.getAsset("24029971", "card");
     expect(asset?.upstreamUrl).toContain("images-v2.renderz.app");
+    await catalog.upsertPlayer(
+      {
+        ...player,
+        starSigningsBuy: 62240,
+        starSigningsSell: 10000,
+        availableImageKinds: ["card"],
+      },
+      [
+        {
+          playerId: parsePlayerId("24029971"),
+          kind: "card",
+          upstreamUrl: "https://images-v2.renderz.app/card",
+          fetchedAt: 1,
+        },
+        {
+          playerId: parsePlayerId("24029971"),
+          kind: "playstyle-12683081",
+          upstreamUrl: "https://images-v2.renderz.app/playstyle",
+          fetchedAt: 1,
+        },
+      ],
+    );
+    const priced = await catalog.getById("24029971");
+    expect(priced?.starSigningsBuy).toBe(62240);
+    expect(JSON.stringify(priced)).not.toContain("images-v2.renderz.app");
+    const icon = await catalog.getAsset("24029971", "playstyle-12683081");
+    expect(icon?.upstreamUrl).toContain("playstyle");
+  });
+
+  it("shares playstyle icons across players that have the same kind", async () => {
+    const { catalog } = createTestCatalog();
+    await catalog.upsertPlayer(
+      fakePlayer({
+        id: "30920624",
+        name: "Varane",
+        rating: 122,
+        slug: "varane",
+        playStyles: [{ id: "987634376", level: 1 }],
+      }),
+      [
+        {
+          playerId: parsePlayerId("30920624"),
+          kind: "playstyle-987634376",
+          upstreamUrl: "https://images-v2.renderz.app/playstyle-anticipate",
+          fetchedAt: 20,
+        },
+      ],
+    );
+    await catalog.upsertPlayer(
+      fakePlayer({
+        id: "30920625",
+        name: "Koeman",
+        rating: 121,
+        slug: "koeman",
+        playStyles: [{ id: "987634376", level: 1 }],
+      }),
+      [],
+    );
+
+    expect(await catalog.getAsset("30920625", "playstyle-987634376")).toBeNull();
+    const shared = await catalog.findSharedIconAsset("playstyle-987634376");
+    expect(shared?.playerId).toBe("30920624");
+    expect(shared?.upstreamUrl).toContain("playstyle-anticipate");
+    expect(await catalog.findSharedIconAsset("card")).toBeNull();
   });
 
   it("claims ingest jobs and recovers expired leases", async () => {
@@ -129,6 +277,18 @@ describe("DrizzlePlayerCatalog", () => {
     expect(afterSuccess).toHaveLength(0);
   });
 
+  it("claims ingest jobs by kind", async () => {
+    const { catalog } = createTestCatalog();
+    await catalog.enqueueRefresh("1", "keep", 1_000);
+    await catalog.enqueueDiscovery("2", "new", 1_000);
+    const discoveries = await catalog.claimNext(10, 1_000, 60_000, "discovery");
+    expect(discoveries.map((job) => job.playerId)).toEqual(["2"]);
+    expect(await catalog.countOpenIngestJobs("discovery")).toBe(1);
+    expect(await catalog.countOpenIngestJobs("refresh")).toBe(1);
+    const refreshes = await catalog.claimNext(10, 1_000, 60_000, "refresh");
+    expect(refreshes.map((job) => job.playerId)).toEqual(["1"]);
+  });
+
   it("lists stale players by fetchedAt or parseVersion", async () => {
     const { catalog } = createTestCatalog();
     await catalog.upsertDiscovered(fakeSeed("1", "Old", 80));
@@ -150,6 +310,120 @@ describe("DrizzlePlayerCatalog", () => {
     expect(stale.map(String)).not.toContain("2");
     const seed = await catalog.getById("1");
     expect(seed?.parseVersion).toBe(SEED_PARSE_VERSION);
+  });
+
+  it("deletes players and records skipped ids", async () => {
+    const { catalog } = createTestCatalog();
+    await catalog.upsertPlayer(
+      fakePlayer({ id: "9", name: "Gone", rating: 80, slug: "gone" }),
+      [],
+    );
+    await catalog.deletePlayer("9");
+    expect(await catalog.getById("9")).toBeNull();
+    await catalog.recordSkipped("9", "gone", "too old", 1_000);
+    expect(await catalog.isSkipped("9")).toBe(true);
+  });
+
+  it("counts pending and in-progress ingest jobs", async () => {
+    const { catalog } = createTestCatalog();
+    await catalog.enqueueDiscovery("1", "one", 1_000);
+    await catalog.enqueueDiscovery("2", "two", 1_000);
+    expect(await catalog.countOpenIngestJobs()).toBe(2);
+    await catalog.claimNext(1, 1_000);
+    expect(await catalog.countOpenIngestJobs()).toBe(2);
+    const [claimed] = await catalog.claimNext(1, 1_000);
+    await catalog.markSucceeded(claimed.id, 1_000);
+    expect(await catalog.countOpenIngestJobs()).toBe(1);
+  });
+
+  it("skips open discovery jobs at or before a createdAt cutoff", async () => {
+    const { catalog } = createTestCatalog();
+    await catalog.enqueueDiscovery("1", "keep", 1_000);
+    await catalog.enqueueDiscovery("2", "old-a", 1_000);
+    await catalog.enqueueDiscovery("3", "later", 2_000);
+    const drained = await catalog.skipOpenDiscoveryJobs("too old", 1_000, 3_000);
+    expect(drained).toBe(2);
+    expect(await catalog.isSkipped("1")).toBe(true);
+    expect(await catalog.isSkipped("2")).toBe(true);
+    expect(await catalog.isSkipped("3")).toBe(false);
+    const remaining = await catalog.claimNext(10, 3_000);
+    expect(remaining.map((job) => job.playerId)).toEqual(["3"]);
+  });
+
+  it("skips discovery jobs for an explicit player id list", async () => {
+    const { catalog } = createTestCatalog();
+    await catalog.enqueueDiscovery("1", "keep", 1_000);
+    await catalog.enqueueDiscovery("2", "cut", 1_000);
+    const updated = await catalog.skipDiscoveryJobsByPlayerIds(
+      [{ id: "2", slug: "cut" }],
+      "too old",
+      2_000,
+    );
+    expect(updated).toBe(1);
+    expect(await catalog.isSkipped("2")).toBe(true);
+    expect(await catalog.isSkipped("1")).toBe(false);
+    const remaining = await catalog.claimNext(10, 2_000);
+    expect(remaining.map((job) => job.playerId)).toEqual(["1"]);
+  });
+
+  it("defaults to newest added first", async () => {
+    const { catalog } = createTestCatalog();
+    const day1Morning = Date.parse("2026-09-01T08:00:00.000Z");
+    const day1Evening = Date.parse("2026-09-01T20:00:00.000Z");
+    const day2 = Date.parse("2026-09-02T01:00:00.000Z");
+    await catalog.upsertPlayer(
+      fakePlayer({
+        id: "1",
+        name: "OlderHigh",
+        rating: 120,
+        addedAt: day1Morning,
+      }),
+      [],
+    );
+    await catalog.upsertPlayer(
+      fakePlayer({
+        id: "2",
+        name: "SameDayLow",
+        rating: 90,
+        addedAt: day1Evening,
+      }),
+      [],
+    );
+    await catalog.upsertPlayer(
+      fakePlayer({
+        id: "3",
+        name: "SameDayB",
+        rating: 110,
+        addedAt: day1Morning,
+      }),
+      [],
+    );
+    await catalog.upsertPlayer(
+      fakePlayer({
+        id: "4",
+        name: "SameDayA",
+        rating: 110,
+        addedAt: day1Evening,
+      }),
+      [],
+    );
+    await catalog.upsertPlayer(
+      fakePlayer({
+        id: "5",
+        name: "NewerLow",
+        rating: 80,
+        addedAt: day2,
+      }),
+      [],
+    );
+    const listed = await catalog.list(normalizePlayerListQuery({}));
+    expect(listed.items.map((row) => row.name)).toEqual([
+      "NewerLow",
+      "OlderHigh",
+      "SameDayA",
+      "SameDayB",
+      "SameDayLow",
+    ]);
   });
 
   it("creates expected indexes", () => {

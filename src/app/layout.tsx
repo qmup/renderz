@@ -14,8 +14,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FC Mobile Players",
-  description: "Personal read-only browser for FC Mobile player data.",
+  title: {
+    default: "FC Mobile catalog",
+    template: "%s · FC Mobile catalog",
+  },
+  description:
+    "Personal read-only FC Mobile player catalog. The browser talks only to this origin.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

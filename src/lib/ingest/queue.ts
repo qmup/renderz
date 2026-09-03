@@ -6,6 +6,7 @@ export const INGEST_LEASE_MS = 5 * 60 * 1000;
 export async function enqueueSitemapDiscoveries(
   catalog: PlayerCatalog,
   entries: Array<{ id: string; slug: string }>,
+  now?: number,
 ): Promise<number> {
   let created = 0;
   for (const entry of entries) {
@@ -13,7 +14,10 @@ export async function enqueueSitemapDiscoveries(
     if (exists) {
       continue;
     }
-    await catalog.enqueueDiscovery(entry.id, entry.slug);
+    if (await catalog.isSkipped(entry.id)) {
+      continue;
+    }
+    await catalog.enqueueDiscovery(entry.id, entry.slug, now);
     created += 1;
   }
   return created;
@@ -30,7 +34,7 @@ export async function enqueueStaleRefreshes(
   });
   for (const id of staleIds) {
     const player = await catalog.getById(id);
-    await catalog.enqueueRefresh(id, player?.slug);
+    await catalog.enqueueRefresh(id, player?.slug, now);
   }
   return staleIds.length;
 }

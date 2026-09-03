@@ -2,14 +2,17 @@ import { and, asc, count, desc, eq, gte, inArray, lt, lte, or, sql, type SQL } f
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { ingestJobs, playerAssets, players } from "@/db/schema";
 import { SEED_PARSE_VERSION } from "@/lib/catalog/parse-version";
-import { escapeLike, normalizePlayerListQuery } from "@/lib/catalog/query-engine";
+import { escapeLike, foldSearchText, normalizePlayerListQuery } from "@/lib/catalog/query-engine";
 import type {
   IngestJob,
+  IngestJobKind,
   PlayerCatalog,
+  PlayerIndexRow,
   StalePlayerCriteria,
 } from "@/lib/catalog/repository";
 import {
   createSeedPlayer,
+  isPlayerIconImageKind,
   parsePlayerId,
   playerAssetRowSchema,
   playerIdSchema,
@@ -30,6 +33,44 @@ type Db = BetterSQLite3Database<typeof schema>;
 
 const DEFAULT_LEASE_MS = 5 * 60 * 1000;
 
+const SEARCH_FOLDS: Array<[string, string]> = [
+  ["à", "a"],
+  ["á", "a"],
+  ["â", "a"],
+  ["ã", "a"],
+  ["ä", "a"],
+  ["å", "a"],
+  ["è", "e"],
+  ["é", "e"],
+  ["ê", "e"],
+  ["ë", "e"],
+  ["ì", "i"],
+  ["í", "i"],
+  ["î", "i"],
+  ["ï", "i"],
+  ["ò", "o"],
+  ["ó", "o"],
+  ["ô", "o"],
+  ["õ", "o"],
+  ["ö", "o"],
+  ["ù", "u"],
+  ["ú", "u"],
+  ["û", "u"],
+  ["ü", "u"],
+  ["ý", "y"],
+  ["ÿ", "y"],
+  ["ñ", "n"],
+  ["ç", "c"],
+];
+
+function sqlFolded(column: SQL): SQL {
+  let expr: SQL = sql`lower(${column})`;
+  for (const [from, to] of SEARCH_FOLDS) {
+    expr = sql`replace(${expr}, ${from}, ${to})`;
+  }
+  return expr;
+}
+
 function asPlayerId(id: string): PlayerId {
   return parsePlayerId(id);
 }
@@ -43,6 +84,7 @@ function rowToPlayer(row: typeof players.$inferSelect): Player {
     firstName: row.firstName ?? undefined,
     lastName: row.lastName ?? undefined,
     commonName: row.commonName ?? undefined,
+    cardName: row.cardName ?? undefined,
     position: row.position ?? undefined,
     altPositions: row.altPositions ?? [],
     programId: row.programId ?? undefined,
@@ -66,6 +108,8 @@ function rowToPlayer(row: typeof players.$inferSelect): Player {
     playStyles: row.playStyles ?? [],
     skills: row.skills ?? [],
     relatedCardIds: (row.relatedCardIds ?? []).map((id) => asPlayerId(id)),
+    starSigningsBuy: row.starSigningsBuy ?? undefined,
+    starSigningsSell: row.starSigningsSell ?? undefined,
     availableImageKinds: row.availableImageKinds ?? [],
     addedAt: row.addedAt ?? undefined,
     fetchedAt: row.fetchedAt,
@@ -82,6 +126,7 @@ function playerToRow(player: Player, discoveredAt: number): typeof players.$infe
     firstName: player.firstName ?? null,
     lastName: player.lastName ?? null,
     commonName: player.commonName ?? null,
+    cardName: player.cardName ?? null,
     position: player.position ?? null,
     altPositions: player.altPositions,
     programId: player.programId ?? null,
@@ -105,6 +150,8 @@ function playerToRow(player: Player, discoveredAt: number): typeof players.$infe
     playStyles: player.playStyles,
     skills: player.skills,
     relatedCardIds: player.relatedCardIds,
+    starSigningsBuy: player.starSigningsBuy ?? null,
+    starSigningsSell: player.starSigningsSell ?? null,
     availableImageKinds: player.availableImageKinds,
     addedAt: player.addedAt ?? null,
     fetchedAt: player.fetchedAt,
@@ -165,6 +212,72 @@ export class DrizzlePlayerCatalog implements PlayerCatalog {
     return Boolean(row);
   }
 
+  async isSkipped(id: string): Promise<boolean> {
+    const skipped = this.db
+      .select({ id: ingestJobs.id })
+      .from(ingestJobs)
+      .where(and(eq(ingestJobs.playerId, id), eq(ingestJobs.status, "skipped")))
+      .get();
+    return Boolean(skipped);
+  }
+
+  async listPlayerIndex(): Promise<PlayerIndexRow[]> {
+    return this.db
+      .select({
+        id: players.id,
+        slug: players.slug,
+        addedAt: players.addedAt,
+      })
+      .from(players)
+      .all()
+      .map((row) => ({
+        id: asPlayerId(row.id),
+        slug: row.slug,
+        addedAt: row.addedAt ?? undefined,
+      }));
+  }
+
+  async deletePlayer(id: string): Promise<void> {
+    this.db.delete(playerAssets).where(eq(playerAssets.playerId, id)).run();
+    this.db
+      .delete(ingestJobs)
+      .where(
+        and(
+          eq(ingestJobs.playerId, id),
+          inArray(ingestJobs.status, ["pending", "failed"]),
+        ),
+      )
+      .run();
+    this.db.delete(players).where(eq(players.id, id)).run();
+  }
+
+  async recordSkipped(
+    playerId: string,
+    slug?: string,
+    reason = "skipped",
+    now = Date.now(),
+  ): Promise<void> {
+    const id = playerIdSchema.parse(playerId);
+    if (await this.isSkipped(id)) {
+      return;
+    }
+    this.db
+      .insert(ingestJobs)
+      .values({
+        playerId: id,
+        slug: slug ?? null,
+        kind: "discovery",
+        status: "skipped",
+        attempts: 0,
+        lastError: reason,
+        claimedAt: null,
+        completedAt: now,
+        nextAttemptAt: now,
+        createdAt: now,
+      })
+      .run();
+  }
+
   async getById(id: string): Promise<Player | null> {
     const row = this.db.select().from(players).where(eq(players.id, id)).get();
     return row ? rowToPlayer(row) : null;
@@ -206,15 +319,16 @@ export class DrizzlePlayerCatalog implements PlayerCatalog {
 
   private buildWhere(query: PlayerListQuery): SQL | undefined {
     const parts: SQL[] = [];
-    const q = query.q.trim().replaceAll(/[%_\\]/g, " ");
+    const q = foldSearchText(query.q.trim().replaceAll(/[%_\\]/g, " "));
     if (q) {
-      const pattern = `%${escapeLike(q.toLowerCase())}%`;
+      const pattern = `%${escapeLike(q)}%`;
       const nameMatch = sql`(
-        lower(${players.name}) like ${pattern}
-        or lower(${players.slug}) like ${pattern}
-        or lower(coalesce(${players.firstName}, '')) like ${pattern}
-        or lower(coalesce(${players.lastName}, '')) like ${pattern}
-        or lower(coalesce(${players.commonName}, '')) like ${pattern}
+        ${sqlFolded(sql`${players.name}`)} like ${pattern}
+        or ${sqlFolded(sql`${players.slug}`)} like ${pattern}
+        or ${sqlFolded(sql`coalesce(${players.firstName}, '')`)} like ${pattern}
+        or ${sqlFolded(sql`coalesce(${players.lastName}, '')`)} like ${pattern}
+        or ${sqlFolded(sql`coalesce(${players.commonName}, '')`)} like ${pattern}
+        or ${sqlFolded(sql`coalesce(${players.cardName}, '')`)} like ${pattern}
       )`;
       parts.push(nameMatch);
     }
@@ -331,6 +445,27 @@ export class DrizzlePlayerCatalog implements PlayerCatalog {
     });
   }
 
+  async findSharedIconAsset(kind: PlayerImageKind): Promise<PlayerAssetRow | null> {
+    if (!isPlayerIconImageKind(kind)) {
+      return null;
+    }
+    const row = this.db
+      .select()
+      .from(playerAssets)
+      .where(eq(playerAssets.kind, kind))
+      .orderBy(desc(playerAssets.fetchedAt))
+      .get();
+    if (!row) {
+      return null;
+    }
+    return playerAssetRowSchema.parse({
+      playerId: asPlayerId(row.playerId),
+      kind: row.kind,
+      upstreamUrl: row.upstreamUrl,
+      fetchedAt: row.fetchedAt,
+    });
+  }
+
   async enqueueDiscovery(playerId: string, slug?: string, now?: number): Promise<IngestJob> {
     return this.enqueue(playerId, "discovery", slug, now);
   }
@@ -343,6 +478,7 @@ export class DrizzlePlayerCatalog implements PlayerCatalog {
     limit: number,
     now = Date.now(),
     leaseMs = DEFAULT_LEASE_MS,
+    kind?: IngestJobKind,
   ): Promise<IngestJob[]> {
     this.db
       .update(ingestJobs)
@@ -362,7 +498,11 @@ export class DrizzlePlayerCatalog implements PlayerCatalog {
       .select()
       .from(ingestJobs)
       .where(
-        and(eq(ingestJobs.status, "pending"), lte(ingestJobs.nextAttemptAt, now)),
+        and(
+          eq(ingestJobs.status, "pending"),
+          lte(ingestJobs.nextAttemptAt, now),
+          kind ? eq(ingestJobs.kind, kind) : undefined,
+        ),
       )
       .orderBy(asc(ingestJobs.nextAttemptAt), asc(ingestJobs.createdAt))
       .limit(limit)
@@ -389,6 +529,68 @@ export class DrizzlePlayerCatalog implements PlayerCatalog {
       );
     }
     return claimed;
+  }
+
+  async skipOpenDiscoveryJobs(
+    reason: string,
+    createdAtOnOrBefore: number,
+    now = Date.now(),
+  ): Promise<number> {
+    const result = this.db
+      .update(ingestJobs)
+      .set({
+        status: "skipped",
+        lastError: reason,
+        completedAt: now,
+        claimedAt: null,
+      })
+      .where(
+        and(
+          eq(ingestJobs.kind, "discovery"),
+          inArray(ingestJobs.status, ["pending", "failed"]),
+          lte(ingestJobs.createdAt, createdAtOnOrBefore),
+        ),
+      )
+      .run();
+    return result.changes;
+  }
+
+  async skipDiscoveryJobsByPlayerIds(
+    entries: Array<{ id: string; slug?: string }>,
+    reason: string,
+    now = Date.now(),
+  ): Promise<number> {
+    const ids = [...new Set(entries.map((entry) => playerIdSchema.parse(entry.id)))];
+    if (ids.length === 0) {
+      return 0;
+    }
+    const chunkSize = 400;
+    let updated = 0;
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const chunk = ids.slice(i, i + chunkSize);
+      const result = this.db
+        .update(ingestJobs)
+        .set({
+          status: "skipped",
+          lastError: reason,
+          completedAt: now,
+          claimedAt: null,
+        })
+        .where(
+          and(
+            eq(ingestJobs.kind, "discovery"),
+            inArray(ingestJobs.status, ["pending", "failed", "in_progress"]),
+            inArray(ingestJobs.playerId, chunk),
+          ),
+        )
+        .run();
+      updated += result.changes;
+    }
+    const slugById = new Map(entries.map((entry) => [entry.id, entry.slug]));
+    for (const id of ids) {
+      await this.recordSkipped(id, slugById.get(id), reason, now);
+    }
+    return updated;
   }
 
   async markSucceeded(jobId: number, now = Date.now()): Promise<void> {
@@ -422,6 +624,25 @@ export class DrizzlePlayerCatalog implements PlayerCatalog {
       .run();
   }
 
+  async markRetry(
+    jobId: number,
+    error: string,
+    nextAttemptAt: number,
+    now = Date.now(),
+  ): Promise<void> {
+    this.db
+      .update(ingestJobs)
+      .set({
+        status: "pending",
+        lastError: error,
+        nextAttemptAt,
+        claimedAt: null,
+        completedAt: now,
+      })
+      .where(eq(ingestJobs.id, jobId))
+      .run();
+  }
+
   async listStalePlayerIds(criteria: StalePlayerCriteria): Promise<PlayerId[]> {
     const conditions = [];
     if (criteria.olderThanFetchedAt !== undefined) {
@@ -442,6 +663,20 @@ export class DrizzlePlayerCatalog implements PlayerCatalog {
     return rows.map((row) => asPlayerId(row.id));
   }
 
+  async countOpenIngestJobs(kind?: IngestJobKind): Promise<number> {
+    const row = this.db
+      .select({ n: count() })
+      .from(ingestJobs)
+      .where(
+        and(
+          inArray(ingestJobs.status, ["pending", "in_progress"]),
+          kind ? eq(ingestJobs.kind, kind) : undefined,
+        ),
+      )
+      .get();
+    return row?.n ?? 0;
+  }
+
   private enqueue(
     playerId: string,
     kind: IngestJob["kind"],
@@ -449,6 +684,16 @@ export class DrizzlePlayerCatalog implements PlayerCatalog {
     now = Date.now(),
   ): IngestJob {
     const id = playerIdSchema.parse(playerId);
+    if (kind === "discovery") {
+      const skipped = this.db
+        .select()
+        .from(ingestJobs)
+        .where(and(eq(ingestJobs.playerId, id), eq(ingestJobs.status, "skipped")))
+        .get();
+      if (skipped) {
+        return jobToDomain(skipped);
+      }
+    }
     const existing = this.db
       .select()
       .from(ingestJobs)
@@ -493,11 +738,24 @@ function sqlOrderBy(sort: PlayerListQuery["sort"]) {
     case "name_desc":
       return [desc(players.name), asc(players.id)];
     case "added_desc":
-      return [desc(players.addedAt), desc(players.rating)];
+      return [
+        sql`${players.addedAt} is null`,
+        desc(sql`date(${players.addedAt} / 1000, 'unixepoch')`),
+        desc(players.rating),
+        asc(players.name),
+        asc(players.id),
+      ];
     case "fetched_desc":
-      return [desc(players.fetchedAt), desc(players.rating)];
+      return [desc(players.fetchedAt), desc(players.rating), asc(players.id)];
     case "rating_desc":
-    default:
       return [desc(players.rating), asc(players.name), asc(players.id)];
+    default:
+      return [
+        sql`${players.addedAt} is null`,
+        desc(sql`date(${players.addedAt} / 1000, 'unixepoch')`),
+        desc(players.rating),
+        asc(players.name),
+        asc(players.id),
+      ];
   }
 }

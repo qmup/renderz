@@ -35,16 +35,37 @@ export type StalePlayerCriteria = {
   parseVersionBelow?: number;
 };
 
+export type PlayerIndexRow = {
+  id: PlayerId;
+  slug: string;
+  addedAt?: number;
+};
+
 export interface PlayerCatalog {
   list(query: PlayerListQuery): Promise<PlayerListResult>;
+  listPlayerIndex(): Promise<PlayerIndexRow[]>;
   getById(id: string): Promise<Player | null>;
   exists(id: string): Promise<boolean>;
+  isSkipped(id: string): Promise<boolean>;
   upsertDiscovered(seed: PlayerSeed): Promise<void>;
   upsertPlayer(player: Player, assets: PlayerAssetRow[]): Promise<void>;
+  deletePlayer(id: string): Promise<void>;
+  recordSkipped(
+    playerId: string,
+    slug?: string,
+    reason?: string,
+    now?: number,
+  ): Promise<void>;
   getAsset(playerId: string, kind: PlayerImageKind): Promise<PlayerAssetRow | null>;
+  findSharedIconAsset(kind: PlayerImageKind): Promise<PlayerAssetRow | null>;
   enqueueDiscovery(playerId: string, slug?: string, now?: number): Promise<IngestJob>;
   enqueueRefresh(playerId: string, slug?: string, now?: number): Promise<IngestJob>;
-  claimNext(limit: number, now?: number, leaseMs?: number): Promise<IngestJob[]>;
+  claimNext(
+    limit: number,
+    now?: number,
+    leaseMs?: number,
+    kind?: IngestJobKind,
+  ): Promise<IngestJob[]>;
   markSucceeded(jobId: number, now?: number): Promise<void>;
   markFailed(
     jobId: number,
@@ -52,5 +73,22 @@ export interface PlayerCatalog {
     nextAttemptAt: number,
     now?: number,
   ): Promise<void>;
+  markRetry(
+    jobId: number,
+    error: string,
+    nextAttemptAt: number,
+    now?: number,
+  ): Promise<void>;
+  skipOpenDiscoveryJobs(
+    reason: string,
+    createdAtOnOrBefore: number,
+    now?: number,
+  ): Promise<number>;
+  skipDiscoveryJobsByPlayerIds(
+    entries: Array<{ id: string; slug?: string }>,
+    reason: string,
+    now?: number,
+  ): Promise<number>;
   listStalePlayerIds(criteria: StalePlayerCriteria): Promise<PlayerId[]>;
+  countOpenIngestJobs(kind?: IngestJobKind): Promise<number>;
 }

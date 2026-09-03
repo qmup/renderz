@@ -12,7 +12,10 @@
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "probe:renderz": "npx tsx scripts/probe-renderz.ts"
+    "probe:renderz": "npx tsx scripts/probe-renderz.ts",
+    "seed": "npx tsx scripts/seed-listing.ts",
+    "ingest": "npx tsx scripts/ingest.ts",
+    "catalog:verify": "npx tsx scripts/verify-catalog.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.102.8",

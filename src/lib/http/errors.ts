@@ -85,3 +85,10 @@ export class ImageProxyRejectedError extends AppError {
 export function isAppError(error: unknown): error is AppError {
   return error instanceof AppError;
 }
+
+export function publicErrorMessage(error: AppError): string {
+  if (/https?:\/\//i.test(error.message) || /renderz\.app/i.test(error.message)) {
+    return error.code.toLowerCase().replaceAll("_", " ");
+  }
+  return error.message;
+}

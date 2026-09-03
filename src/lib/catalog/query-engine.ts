@@ -46,13 +46,29 @@ export function escapeLike(value: string): string {
   return value.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
 }
 
+export function foldSearchText(value: string): string {
+  return value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+}
+
 export function matchesPlayerFilters(
   player: PlayerSummary,
   query: PlayerListQuery,
 ): boolean {
-  const q = query.q.trim().toLowerCase();
+  const q = foldSearchText(query.q.trim());
   if (q) {
-    const haystack = [player.name, player.slug].join(" ").toLowerCase();
+    const haystack = foldSearchText(
+      [
+        player.name,
+        player.slug,
+        player.cardName,
+        player.commonName,
+        player.lastName,
+        player.clubName,
+        player.nationName,
+      ]
+        .filter(Boolean)
+        .join(" "),
+    );
     if (!haystack.includes(q)) {
       return false;
     }
@@ -108,6 +124,13 @@ export function matchesPlayerFilters(
   return true;
 }
 
+const MS_PER_UTC_DAY = 86_400_000;
+
+/** UTC calendar day of epoch-ms `addedAt` (not millisecond equality). Missing → 0. */
+function utcAddedDay(ms: number | undefined): number {
+  return Math.floor((ms ?? 0) / MS_PER_UTC_DAY);
+}
+
 export function comparePlayers(
   a: PlayerSummary,
   b: PlayerSummary,
@@ -120,13 +143,18 @@ export function comparePlayers(
       return a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
     case "name_desc":
       return b.name.localeCompare(a.name) || a.id.localeCompare(b.id);
-    case "added_desc":
-      return (b.addedAt ?? 0) - (a.addedAt ?? 0) || b.rating - a.rating;
     case "fetched_desc":
-      return b.fetchedAt - a.fetchedAt || b.rating - a.rating;
+      return b.fetchedAt - a.fetchedAt || b.rating - a.rating || a.id.localeCompare(b.id);
     case "rating_desc":
-    default:
       return b.rating - a.rating || a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
+    case "added_desc":
+    default:
+      return (
+        utcAddedDay(b.addedAt) - utcAddedDay(a.addedAt) ||
+        b.rating - a.rating ||
+        a.name.localeCompare(b.name) ||
+        a.id.localeCompare(b.id)
+      );
   }
 }
 

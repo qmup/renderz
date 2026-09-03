@@ -5,6 +5,7 @@ import {
   isAllowedImageContentType,
   parseAllowedImageUrl,
   resolvePublicAddresses,
+  sniffImageContentType,
   type LookupAllFn,
 } from "@/lib/providers/renderz/image-policy";
 
@@ -109,7 +110,7 @@ export async function fetchAllowlistedImage(
     }
     return {
       bytes,
-      contentType: contentType?.split(";")[0]?.trim() || "application/octet-stream",
+      contentType: sniffImageContentType(contentType, bytes),
     };
   };
 

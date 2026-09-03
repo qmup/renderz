@@ -1,6 +1,11 @@
 import { getPlayerCatalog } from "@/lib/catalog/runtime";
 import { playerIdSchema } from "@/lib/domain/player";
-import { isAppError, NotFoundError, UndiscoveredPlayerError } from "@/lib/http/errors";
+import {
+  isAppError,
+  NotFoundError,
+  publicErrorMessage,
+  UndiscoveredPlayerError,
+} from "@/lib/http/errors";
 import { ZodError } from "zod";
 
 export const runtime = "nodejs";
@@ -27,7 +32,10 @@ export async function GET(
       return Response.json({ error: "Invalid player id" }, { status: 400 });
     }
     if (isAppError(error)) {
-      return Response.json({ error: error.message, code: error.code }, { status: error.status });
+      return Response.json(
+        { error: publicErrorMessage(error), code: error.code },
+        { status: error.status },
+      );
     }
     return Response.json({ error: "Internal error" }, { status: 500 });
   }

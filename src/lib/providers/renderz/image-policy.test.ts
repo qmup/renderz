@@ -58,6 +58,21 @@ describe("fetchAllowlistedImage", () => {
     expect(image.bytes.byteLength).toBe(png.byteLength);
   });
 
+  it("sniffs PNG when the upstream content-type is octet-stream", async () => {
+    const image = await fetchAllowlistedImage(
+      "https://images-v2.renderz.app/card?verify=1-a",
+      {
+        lookupFn: publicLookup,
+        fetchImpl: async () =>
+          new Response(png, {
+            status: 200,
+            headers: { "Content-Type": "application/octet-stream" },
+          }),
+      },
+    );
+    expect(image.contentType).toBe("image/png");
+  });
+
   it("follows one allowlisted redirect", async () => {
     let calls = 0;
     const image = await fetchAllowlistedImage(
