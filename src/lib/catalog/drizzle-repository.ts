@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, inArray, lt, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, like, lt, lte, or, sql, type SQL } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { ingestJobs, playerAssets, players } from "@/db/schema";
 import { SEED_PARSE_VERSION } from "@/lib/catalog/parse-version";
@@ -443,6 +443,23 @@ export class DrizzlePlayerCatalog implements PlayerCatalog {
       upstreamUrl: row.upstreamUrl,
       fetchedAt: row.fetchedAt,
     });
+  }
+
+  async listLoopAssets(): Promise<PlayerAssetRow[]> {
+    return this.db
+      .select()
+      .from(playerAssets)
+      .where(like(playerAssets.kind, "loop-%"))
+      .all()
+      .flatMap((row) => {
+        const parsed = playerAssetRowSchema.safeParse({
+          playerId: row.playerId,
+          kind: row.kind,
+          upstreamUrl: row.upstreamUrl,
+          fetchedAt: row.fetchedAt,
+        });
+        return parsed.success ? [parsed.data] : [];
+      });
   }
 
   async findSharedIconAsset(kind: PlayerImageKind): Promise<PlayerAssetRow | null> {

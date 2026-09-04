@@ -218,6 +218,35 @@ describe("DrizzlePlayerCatalog", () => {
     expect(icon?.upstreamUrl).toContain("playstyle");
   });
 
+  it("lists LOOP assets for the shared image packer", async () => {
+    const { catalog } = createTestCatalog();
+    const player = fakePlayer({
+      id: "24048619",
+      name: "Van Dijk",
+      rating: 122,
+      availableImageKinds: ["card", "loop-f45"],
+    });
+    await catalog.upsertPlayer(player, [
+      {
+        playerId: parsePlayerId("24048619"),
+        kind: "card",
+        upstreamUrl: "https://images-v2.renderz.app/card",
+        fetchedAt: 1,
+      },
+      {
+        playerId: parsePlayerId("24048619"),
+        kind: "loop-f45",
+        upstreamUrl:
+          "https://images-v2.renderz.app/sprite_23_champions26_LIVE_LFC_LOOP?verify=1",
+        fetchedAt: 1,
+      },
+    ]);
+    const loops = await catalog.listLoopAssets();
+    expect(loops).toHaveLength(1);
+    expect(loops[0]?.kind).toBe("loop-f45");
+    expect(loops[0]?.upstreamUrl).toContain("LFC_LOOP");
+  });
+
   it("shares playstyle icons across players that have the same kind", async () => {
     const { catalog } = createTestCatalog();
     await catalog.upsertPlayer(

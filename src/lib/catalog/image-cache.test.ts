@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   isUsableImageCacheFile,
   readCachedImage,
+  sharedLoopCacheId,
   writeCachedImage,
 } from "@/lib/catalog/image-cache";
 import { ImageProxyRejectedError } from "@/lib/http/errors";
@@ -36,6 +37,12 @@ describe("image cache", () => {
       expect(
         readCachedImage("other-player", "star-shard", cwd)?.bytes.byteLength,
       ).toBe(png.byteLength);
+      writeCachedImage("loop:sprite_23_champions26_LIVE_LFC_LOOP", "loop-f45", png, cwd);
+      expect(
+        readCachedImage("loop:sprite_23_champions26_LIVE_LFC_LOOP", "loop-f45", cwd)
+          ?.bytes.byteLength,
+      ).toBe(png.byteLength);
+      expect(readCachedImage("24048619", "loop-f45", cwd)).toBeNull();
     } finally {
       rmSync(cwd, { recursive: true, force: true });
     }
@@ -72,5 +79,16 @@ describe("isExpiredImageError", () => {
       false,
     );
     expect(isExpiredImageError(new Error("Image signature expired"))).toBe(false);
+  });
+});
+
+describe("sharedLoopCacheId", () => {
+  it("keys LOOP sheets by pathname without the signed query", () => {
+    expect(
+      sharedLoopCacheId(
+        "https://images-v2.renderz.app/sprite_23_champions26_LIVE_LFC_LOOP?verify=1",
+      ),
+    ).toBe("loop:sprite_23_champions26_LIVE_LFC_LOOP");
+    expect(sharedLoopCacheId("not-a-url")).toBeUndefined();
   });
 });

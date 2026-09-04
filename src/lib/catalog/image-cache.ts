@@ -22,6 +22,17 @@ const CREATE_SQL = `CREATE TABLE IF NOT EXISTS images (
 const SQLITE_MAGIC = Buffer.from("SQLite format 3\0");
 const LFS_POINTER_PREFIX = Buffer.from("version https://git-lfs.github.com/spec/v1");
 
+/** Cache key for a LOOP sprite shared across players with the same sheet. */
+export function sharedLoopCacheId(upstreamUrl: string): string | undefined {
+  try {
+    const parsed = new URL(upstreamUrl);
+    const name = parsed.pathname.replace(/^\//, "");
+    return name ? `loop:${name}` : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function imageCacheSqlitePath(cwd = process.cwd()): string {
   return path.join(cwd, "data", "images.sqlite");
 }
@@ -147,5 +158,17 @@ export function writeCachedImage(
       .run(playerId, kind, Buffer.from(bytes));
   } catch {
     // Read-only deploy filesystem.
+  }
+}
+
+export function closeImageCache(): void {
+  for (const [filePath, sqlite] of cacheDbs) {
+    try {
+      sqlite.pragma("wal_checkpoint(TRUNCATE)");
+      sqlite.close();
+    } catch {
+      // Ignore close errors during shutdown.
+    }
+    cacheDbs.delete(filePath);
   }
 }

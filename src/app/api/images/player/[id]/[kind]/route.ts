@@ -1,10 +1,11 @@
 import { getPlayerCatalog } from '@/lib/catalog/runtime';
-import { readCachedImage, writeCachedImage } from '@/lib/catalog/image-cache';
+import { readCachedImage, sharedLoopCacheId, writeCachedImage } from '@/lib/catalog/image-cache';
 import { enrichDiscoveredPlayer } from '@/lib/catalog/enrichment';
 import { isDev } from '@/lib/dev';
 import {
   isPlayerCommonImageKind,
   isPlayerIconImageKind,
+  isPlayerLoopImageKind,
   playStyleBaseImageKind,
   playStyleLevelFromImageKind,
   playStyleLevelFromUpstreamUrl,
@@ -127,6 +128,12 @@ async function fetchAndCache(
 ): Promise<{ bytes: Uint8Array; contentType: string }> {
   const image = await fetchAllowlistedImage(url);
   writeCachedImage(playerId, kind, image.bytes);
+  if (isPlayerLoopImageKind(kind)) {
+    const sharedId = sharedLoopCacheId(url);
+    if (sharedId) {
+      writeCachedImage(sharedId, kind, image.bytes);
+    }
+  }
   return image;
 }
 
@@ -151,6 +158,14 @@ export async function GET(
     let asset = await resolveAsset(catalog, id, kind);
     if (!asset) {
       return placeholder();
+    }
+
+    if (isPlayerLoopImageKind(kind)) {
+      const sharedId = sharedLoopCacheId(asset.upstreamUrl);
+      const shared = sharedId ? readCachedImage(sharedId, kind) : null;
+      if (shared) {
+        return imageResponse(shared.bytes, shared.contentType, true);
+      }
     }
 
     try {
