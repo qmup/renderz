@@ -5,6 +5,7 @@ import {
   openSync,
   readSync,
   closeSync,
+  statSync,
 } from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
@@ -50,15 +51,25 @@ export function isUsableImageCacheFile(filePath: string): boolean {
   }
 }
 
+function fileSize(filePath: string): number {
+  try {
+    return existsSync(filePath) ? statSync(filePath).size : 0;
+  } catch {
+    return 0;
+  }
+}
+
 function writableCachePath(cwd = process.cwd()): string {
   const bundled = imageCacheSqlitePath(cwd);
   if (!process.env.VERCEL) {
     return bundled;
   }
   const dest = "/tmp/images.sqlite";
+  // Prefer the bundled LFS DB when it is usable and larger than a stale
+  // /tmp copy (e.g. empty schema created before Git LFS was enabled).
   if (
     isUsableImageCacheFile(bundled) &&
-    (!existsSync(dest) || !isUsableImageCacheFile(dest))
+    (!isUsableImageCacheFile(dest) || fileSize(bundled) > fileSize(dest))
   ) {
     copyFileSync(bundled, dest);
   }

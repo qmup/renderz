@@ -1,10 +1,14 @@
+import { existsSync } from "node:fs";
 import Database from "better-sqlite3";
 import { writeCachedImage } from "../src/lib/catalog/image-cache";
 import { fetchAllowlistedImage } from "../src/lib/providers/renderz/image-proxy";
 import type { PlayerImageKind } from "../src/lib/domain/player";
 
 async function main() {
-  const catalog = new Database("data/catalog.sqlite", { readonly: true });
+  const catalogPath = existsSync("data/catalog.sqlite")
+    ? "data/catalog.sqlite"
+    : "data/catalog.snapshot.sqlite";
+  const catalog = new Database(catalogPath, { readonly: true });
   const rows = catalog
     .prepare(
       `SELECT player_id AS playerId, kind, upstream_url AS url
