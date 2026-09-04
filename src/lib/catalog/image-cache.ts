@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   openSync,
+  readFileSync,
   readSync,
   closeSync,
   statSync,
@@ -30,6 +31,50 @@ export function sharedLoopCacheId(upstreamUrl: string): string | undefined {
     return name ? `loop:${name}` : undefined;
   } catch {
     return undefined;
+  }
+}
+
+export function loopSheetFileName(upstreamUrl: string): string | undefined {
+  const sharedId = sharedLoopCacheId(upstreamUrl);
+  if (!sharedId?.startsWith("loop:")) {
+    return undefined;
+  }
+  return `${sharedId.slice("loop:".length)}.png`;
+}
+
+/** Same-origin static path served by the CDN (not the serverless image cache). */
+export function loopPublicSrc(upstreamUrl: string): string | undefined {
+  const name = loopSheetFileName(upstreamUrl);
+  return name ? `/loops/${name}` : undefined;
+}
+
+export function loopPublicFilePath(
+  upstreamUrl: string,
+  cwd = process.cwd(),
+): string | undefined {
+  const name = loopSheetFileName(upstreamUrl);
+  return name ? path.join(cwd, "public", "loops", name) : undefined;
+}
+
+export function readLoopPublicFile(
+  upstreamUrl: string,
+  cwd = process.cwd(),
+): { bytes: Uint8Array; contentType: string } | null {
+  try {
+    const filePath = loopPublicFilePath(upstreamUrl, cwd);
+    if (!filePath || !existsSync(filePath)) {
+      return null;
+    }
+    const bytes = new Uint8Array(readFileSync(filePath));
+    if (!looksLikeImage(bytes)) {
+      return null;
+    }
+    return {
+      bytes,
+      contentType: sniffImageContentType(null, bytes),
+    };
+  } catch {
+    return null;
   }
 }
 

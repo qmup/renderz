@@ -1,13 +1,16 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   closeImageCache,
+  loopPublicFilePath,
   readCachedImage,
   sharedLoopCacheId,
   writeCachedImage,
 } from "../src/lib/catalog/image-cache";
 import { getPlayerCatalog } from "../src/lib/catalog/runtime";
 import { fetchAllowlistedImage } from "../src/lib/providers/renderz/image-proxy";
+import { looksLikeImage } from "../src/lib/providers/renderz/image-policy";
 import type { PlayerCatalog } from "../src/lib/catalog/repository";
 import type { PlayerImageKind } from "../src/lib/domain/player";
 
@@ -84,29 +87,62 @@ export async function cacheListingImages(): Promise<CacheTotals> {
   }
   const listing = await runJobs(catalog, listingJobs);
 
+  mkdirSync(resolve("public/loops"), { recursive: true });
   const loopSeen = new Set<string>();
-  const loopJobs: Array<{ id: string; kind: PlayerImageKind; url: string }> = [];
+  let loopDone = 0;
+  let loopFailed = 0;
+  let loopSkipped = 0;
+  const loopJobs: Array<{ url: string; dest: string }> = [];
   for (const asset of await catalog.listLoopAssets()) {
+    const dest = loopPublicFilePath(asset.upstreamUrl);
     const sharedId = sharedLoopCacheId(asset.upstreamUrl);
-    if (!sharedId || loopSeen.has(sharedId)) {
+    if (!dest || !sharedId || loopSeen.has(sharedId)) {
       continue;
     }
     loopSeen.add(sharedId);
-    loopJobs.push({
-      id: sharedId,
-      kind: asset.kind,
-      url: asset.upstreamUrl,
-    });
+    loopJobs.push({ url: asset.upstreamUrl, dest });
   }
-  const loops = await runJobs(catalog, loopJobs);
+  let loopCursor = 0;
+  async function loopWorker() {
+    while (loopCursor < loopJobs.length) {
+      const index = loopCursor;
+      loopCursor += 1;
+      const job = loopJobs[index];
+      if (!job) {
+        continue;
+      }
+      if (
+        existsSync(job.dest) &&
+        looksLikeImage(new Uint8Array(readFileSync(job.dest)))
+      ) {
+        loopSkipped += 1;
+        loopDone += 1;
+        continue;
+      }
+      try {
+        const image = await fetchAllowlistedImage(job.url);
+        mkdirSync(resolve("public/loops"), { recursive: true });
+        writeFileSync(job.dest, Buffer.from(image.bytes));
+      } catch {
+        loopFailed += 1;
+      }
+      loopDone += 1;
+      if (loopDone % 20 === 0 || loopDone === loopJobs.length) {
+        console.log(
+          `loops ${loopDone}/${loopJobs.length} failed=${loopFailed} skipped=${loopSkipped}`,
+        );
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: CONCURRENCY }, () => loopWorker()));
   closeImageCache();
   console.log(
-    `done listing cached=${listing.done} failed=${listing.failed} skipped=${listing.skipped}; loops cached=${loops.done} failed=${loops.failed} skipped=${loops.skipped}`,
+    `done listing cached=${listing.done} failed=${listing.failed} skipped=${listing.skipped}; loops cached=${loopDone} failed=${loopFailed} skipped=${loopSkipped}`,
   );
   return {
-    done: listing.done + loops.done,
-    failed: listing.failed + loops.failed,
-    skipped: listing.skipped + loops.skipped,
+    done: listing.done + loopDone,
+    failed: listing.failed + loopFailed,
+    skipped: listing.skipped + loopSkipped,
   };
 }
 

@@ -25,6 +25,7 @@ export function PlayerCardArt({
   fill = false,
   priority = false,
   animate = false,
+  loopSrc,
 }: {
   id: string;
   kinds: string[];
@@ -39,6 +40,8 @@ export function PlayerCardArt({
   priority?: boolean;
   /** Detail-only: play LOOP sprite when a loop kind is present. */
   animate?: boolean;
+  /** Same-origin static LOOP sheet URL from the catalog sprite name. */
+  loopSrc?: string;
 }) {
   const has = (kind: PlayerImageKind) => kinds.includes(kind);
   const loopKind = animate ? findCardLoopKind(kinds) : undefined;
@@ -105,7 +108,12 @@ export function PlayerCardArt({
         />
       ) : null}
       {showLoop && loopKind && loopFrames ? (
-        <CardLoopCanvas playerId={id} kind={loopKind} maxFrames={loopFrames} />
+        <CardLoopCanvas
+          playerId={id}
+          kind={loopKind}
+          maxFrames={loopFrames}
+          src={loopSrc}
+        />
       ) : null}
       {has('card') ? (
         <PlayerImage

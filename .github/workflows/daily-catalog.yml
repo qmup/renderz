@@ -46,7 +46,7 @@ jobs:
           git lfs install
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/catalog.snapshot.sqlite data/images.sqlite .gitattributes
+          git add data/catalog.snapshot.sqlite data/images.sqlite public/loops .gitattributes
           if git diff --staged --quiet; then
             echo "No catalog/image changes to commit"
             exit 0

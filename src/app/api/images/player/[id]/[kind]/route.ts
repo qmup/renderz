@@ -1,5 +1,5 @@
 import { getPlayerCatalog } from '@/lib/catalog/runtime';
-import { readCachedImage, sharedLoopCacheId, writeCachedImage } from '@/lib/catalog/image-cache';
+import { readCachedImage, readLoopPublicFile, sharedLoopCacheId, writeCachedImage } from '@/lib/catalog/image-cache';
 import { enrichDiscoveredPlayer } from '@/lib/catalog/enrichment';
 import { isDev } from '@/lib/dev';
 import {
@@ -165,6 +165,10 @@ export async function GET(
       const shared = sharedId ? readCachedImage(sharedId, kind) : null;
       if (shared) {
         return imageResponse(shared.bytes, shared.contentType, true);
+      }
+      const fromPublic = readLoopPublicFile(asset.upstreamUrl);
+      if (fromPublic) {
+        return imageResponse(fromPublic.bytes, fromPublic.contentType, true);
       }
     }
 

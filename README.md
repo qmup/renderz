@@ -30,7 +30,7 @@ Open [http://localhost:3000/players](http://localhost:3000/players). Listing def
 
 ## Daily production catalog
 
-GitHub Actions workflow `.github/workflows/daily-catalog.yml` runs at **00:00 Asia/Ho_Chi_Minh** (discovery-only, same pipeline as local silent discovery), packs `data/images.sqlite` (listing art plus unique card LOOP sprites), and commits `data/catalog.snapshot.sqlite` + images so the next Vercel deploy serves the new snapshot. Manual run: Actions → “Daily catalog update” → Run workflow. Locally: `npm run catalog:daily-update` (add `--skip-images` to skip the image pack). `data/images.sqlite` is stored with Git LFS — enable **Settings → Git → Git LFS** on the Vercel project (and redeploy) or listing cards stay as placeholders.
+GitHub Actions workflow `.github/workflows/daily-catalog.yml` runs at **00:00 Asia/Ho_Chi_Minh** (discovery-only, same pipeline as local silent discovery), packs listing images into `data/images.sqlite` and unique card LOOP sprites into `public/loops/*.png`, and commits those plus `data/catalog.snapshot.sqlite` so the next Vercel deploy serves the new snapshot. Manual run: Actions → “Daily catalog update” → Run workflow. Locally: `npm run catalog:daily-update` (add `--skip-images` to skip the image pack). `data/images.sqlite` and LOOP PNGs are stored with Git LFS — enable **Settings → Git → Git LFS** on the Vercel project (and redeploy) or listing cards stay as placeholders.
 
 ## Catalog window
 
