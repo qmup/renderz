@@ -1,10 +1,7 @@
-import { getPlayerCatalog } from "@/lib/catalog/runtime";
-import {
-  readCachedImage,
-  writeCachedImage,
-} from "@/lib/catalog/image-cache";
-import { enrichDiscoveredPlayer } from "@/lib/catalog/enrichment";
-import { isDev } from "@/lib/dev";
+import { getPlayerCatalog } from '@/lib/catalog/runtime';
+import { readCachedImage, writeCachedImage } from '@/lib/catalog/image-cache';
+import { enrichDiscoveredPlayer } from '@/lib/catalog/enrichment';
+import { isDev } from '@/lib/dev';
 import {
   isPlayerCommonImageKind,
   isPlayerIconImageKind,
@@ -16,27 +13,27 @@ import {
   type PlayerAssetRow,
   type PlayerCommonImageKind,
   type PlayerImageKind,
-} from "@/lib/domain/player";
+} from '@/lib/domain/player';
 import {
   ImageProxyRejectedError,
   isAppError,
   NotFoundError,
-} from "@/lib/http/errors";
-import { PLACEHOLDER_SVG } from "@/lib/providers/renderz/image-policy";
-import { isExpiredImageError } from "@/lib/providers/renderz/image-errors";
-import { fetchAllowlistedImage } from "@/lib/providers/renderz/image-proxy";
-import { getRenderzSource } from "@/lib/providers/renderz/renderz-source";
-import { ZodError } from "zod";
-import type { PlayerCatalog } from "@/lib/catalog/repository";
+} from '@/lib/http/errors';
+import { PLACEHOLDER_SVG } from '@/lib/providers/renderz/image-policy';
+import { isExpiredImageError } from '@/lib/providers/renderz/image-errors';
+import { fetchAllowlistedImage } from '@/lib/providers/renderz/image-proxy';
+import { getRenderzSource } from '@/lib/providers/renderz/renderz-source';
+import { ZodError } from 'zod';
+import type { PlayerCatalog } from '@/lib/catalog/repository';
 
-export const runtime = "nodejs";
+export const runtime = 'nodejs';
 
 /** Server-only well-known common assets (never ship these URLs to the browser). */
 const COMMON_IMAGE_UPSTREAM_URLS: Record<PlayerCommonImageKind, string> = {
   untradeable:
-    "https://images-v2-unsigned.renderz.app/common_23_untradeable_icon",
+    'https://images-v2-unsigned.renderz.app/common_23_untradeable_icon',
   /** Star Signings BUY/SELL currency (RenderZ `common_STAR_SHARD_S`). */
-  "star-shard": "https://images-v2-unsigned.renderz.app/common_STAR_SHARD_S",
+  'star-shard': 'https://images-v2-unsigned.renderz.app/common_STAR_SHARD_S',
 };
 
 function commonImageUpstreamUrl(kind: PlayerImageKind): string | undefined {
@@ -50,20 +47,24 @@ function placeholder(): Response {
   return new Response(PLACEHOLDER_SVG, {
     status: 200,
     headers: {
-      "Content-Type": "image/svg+xml; charset=utf-8",
-      "Cache-Control": "no-store",
+      'Content-Type': 'image/svg+xml; charset=utf-8',
+      'Cache-Control': 'no-store',
     },
   });
 }
 
-function imageResponse(bytes: Uint8Array, contentType: string, immutable: boolean): Response {
+function imageResponse(
+  bytes: Uint8Array,
+  contentType: string,
+  immutable: boolean,
+): Response {
   return new Response(Buffer.from(bytes), {
     status: 200,
     headers: {
-      "Content-Type": contentType,
-      "Cache-Control": immutable
-        ? "public, max-age=86400, stale-while-revalidate=604800"
-        : "private, max-age=3600",
+      'Content-Type': contentType,
+      'Cache-Control': immutable
+        ? 'public, max-age=86400, stale-while-revalidate=604800'
+        : 'private, max-age=3600',
     },
   });
 }
@@ -92,10 +93,7 @@ async function resolveAsset(
   const baseKind = playStyleBaseImageKind(kind);
   if (level !== undefined && baseKind) {
     const legacy = await catalog.getAsset(playerId, baseKind);
-    if (
-      legacy &&
-      playStyleLevelFromUpstreamUrl(legacy.upstreamUrl) === level
-    ) {
+    if (legacy && playStyleLevelFromUpstreamUrl(legacy.upstreamUrl) === level) {
       return legacy;
     }
   }
@@ -175,9 +173,9 @@ export async function GET(
     }
   } catch (error) {
     if (error instanceof ZodError) {
-      return new Response(JSON.stringify({ error: "Invalid image request" }), {
+      return new Response(JSON.stringify({ error: 'Invalid image request' }), {
         status: 400,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
     if (isAppError(error) && error instanceof NotFoundError) {

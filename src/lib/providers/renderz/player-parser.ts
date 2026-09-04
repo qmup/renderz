@@ -1,5 +1,5 @@
-import { load } from "cheerio";
-import { CURRENT_PARSE_VERSION } from "@/lib/catalog/parse-version";
+import { load } from 'cheerio';
+import { CURRENT_PARSE_VERSION } from '@/lib/catalog/parse-version';
 import {
   cardLoopImageKind,
   isPlayerCardImageKind,
@@ -19,37 +19,39 @@ import {
   type PlayStyle,
   type PlayerTrait,
   type SkillNode,
-} from "@/lib/domain/player";
-import { ParseError } from "@/lib/http/errors";
-import { extractJsAssignment } from "@/lib/providers/renderz/js-literal";
+} from '@/lib/domain/player';
+import { ParseError } from '@/lib/http/errors';
+import { extractJsAssignment } from '@/lib/providers/renderz/js-literal';
 import {
   findInflatedField,
   inflateSvelteKitData,
-} from "@/lib/providers/renderz/sveltekit-data";
-import { parsePlayerHref } from "@/lib/providers/renderz/urls";
+} from '@/lib/providers/renderz/sveltekit-data';
+import { parsePlayerHref } from '@/lib/providers/renderz/urls';
 
 const IMAGE_KIND_BY_FIELD: Record<string, PlayerImageKind> = {
-  playerCardImage: "card",
-  playerCardBackground: "background",
-  flagImage: "flag",
-  clubImage: "club",
-  leagueImage: "league",
+  playerCardImage: 'card',
+  playerCardBackground: 'background',
+  flagImage: 'flag',
+  clubImage: 'club',
+  leagueImage: 'league',
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function asString(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
 
 function asNumber(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  return typeof value === 'number' && Number.isFinite(value)
+    ? value
+    : undefined;
 }
 
 function asBoolean(value: unknown): boolean | undefined {
-  return typeof value === "boolean" ? value : undefined;
+  return typeof value === 'boolean' ? value : undefined;
 }
 
 export function parseHeightCm(height: unknown): number | undefined {
@@ -86,10 +88,10 @@ function statsFromUnknown(stats: unknown, avgStats: unknown): PlayerStat[] {
       return;
     }
     for (const [key, item] of Object.entries(value)) {
-      if (key === "total") {
+      if (key === 'total') {
         continue;
       }
-      if (typeof item === "number" && Number.isFinite(item)) {
+      if (typeof item === 'number' && Number.isFinite(item)) {
         out.push({ key, value: item });
       }
     }
@@ -174,7 +176,7 @@ function relatedIdsFromUnknown(value: unknown): string[] {
   }
   const ids: string[] = [];
   for (const item of value) {
-    if (typeof item === "number" || typeof item === "string") {
+    if (typeof item === 'number' || typeof item === 'string') {
       const id = String(item);
       if (/^\d+$/.test(id)) {
         ids.push(id);
@@ -202,7 +204,7 @@ function assetsFromImages(
   const assets: PlayerAssetRow[] = [];
   for (const [field, kind] of Object.entries(IMAGE_KIND_BY_FIELD)) {
     const url = asString(images[field]);
-    if (!url || !url.startsWith("https://")) {
+    if (!url || !url.startsWith('https://')) {
       continue;
     }
     assets.push({
@@ -234,14 +236,11 @@ function assetFromCardLoopAnimation(
       }
       const url = asHttpsUrl(clip.image);
       const maxFrames = asNumber(clip.maxFrames);
-      const imageName = asString(clip.imageName) ?? "";
+      const imageName = asString(clip.imageName) ?? '';
       if (!url || maxFrames === undefined || maxFrames < 1) {
         continue;
       }
-      if (
-        !/_LOOP(?:\?|$)/i.test(url) &&
-        !/LOOP/i.test(imageName)
-      ) {
+      if (!/_LOOP(?:\?|$)/i.test(url) && !/LOOP/i.test(imageName)) {
         continue;
       }
       const kind = cardLoopImageKind(maxFrames);
@@ -261,7 +260,7 @@ function assetFromCardLoopAnimation(
 
 function asHttpsUrl(value: unknown): string | undefined {
   const url = asString(value);
-  return url?.startsWith("https://") ? url : undefined;
+  return url?.startsWith('https://') ? url : undefined;
 }
 
 function iconAssetsFromCollections(
@@ -292,8 +291,7 @@ function iconAssetsFromCollections(
       if (id === undefined || id === null) {
         continue;
       }
-      const url =
-        asHttpsUrl(item.levelImage) ?? asHttpsUrl(item.image);
+      const url = asHttpsUrl(item.levelImage) ?? asHttpsUrl(item.image);
       const level =
         asNumber(item.level) ??
         (url ? playStyleLevelFromUpstreamUrl(url) : undefined);
@@ -315,14 +313,14 @@ function iconAssetsFromCollections(
 }
 
 export function parseCoinAmount(value: unknown): number | undefined {
-  if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
     return Math.round(value);
   }
   const text = asString(value);
   if (!text) {
     return undefined;
   }
-  const digits = text.replaceAll(",", "").match(/^\d+$/);
+  const digits = text.replaceAll(',', '').match(/^\d+$/);
   if (!digits) {
     return undefined;
   }
@@ -334,7 +332,7 @@ export function extractStarSigningsPrices(html: string): {
   sell?: number;
 } {
   const $ = load(html);
-  const text = $.root().text().replace(/\s+/g, " ");
+  const text = $.root().text().replace(/\s+/g, ' ');
   const section = text.match(
     /Star Signings Price\s*Buy\s+([\d,]+)(?:\s*Sell\s+([\d,]+))?/i,
   );
@@ -346,7 +344,9 @@ export function extractStarSigningsPrices(html: string): {
   }
 
   const badge = $('img[alt="Star Signings price"]').first();
-  const badgeBuy = parseCoinAmount(badge.next("span").text() || badge.parent().text());
+  const badgeBuy = parseCoinAmount(
+    badge.next('span').text() || badge.parent().text(),
+  );
   return {
     buy: badgeBuy,
   };
@@ -384,7 +384,8 @@ function collectionHasIconUrls(value: unknown): boolean {
   return value.some(
     (item) =>
       isRecord(item) &&
-      (asHttpsUrl(item.levelImage) !== undefined || asHttpsUrl(item.image) !== undefined),
+      (asHttpsUrl(item.levelImage) !== undefined ||
+        asHttpsUrl(item.image) !== undefined),
   );
 }
 
@@ -398,14 +399,12 @@ function mergePlayerRaw(
   if (!fromHtml) {
     return fromData;
   }
-  if (String(fromData.id ?? "") !== String(fromHtml.id ?? "")) {
+  if (String(fromData.id ?? '') !== String(fromHtml.id ?? '')) {
     return fromData;
   }
   return {
     ...fromData,
-    auction: isRecord(fromHtml.auction)
-      ? fromHtml.auction
-      : fromData.auction,
+    auction: isRecord(fromHtml.auction) ? fromHtml.auction : fromData.auction,
     playStyles: collectionHasIconUrls(fromHtml.playStyles)
       ? fromHtml.playStyles
       : fromData.playStyles,
@@ -436,19 +435,27 @@ function displayName(raw: Record<string, unknown>): string | undefined {
   const last = asString(raw.lastName);
   const card = asString(raw.cardName);
   const common = asString(raw.commonName);
-  const combined = [first, last].filter(Boolean).join(" ");
+  const combined = [first, last].filter(Boolean).join(' ');
   return combined || card || common;
 }
 
-function labeledValue($: ReturnType<typeof load>, label: string): string | undefined {
-  const match = $("*")
+function labeledValue(
+  $: ReturnType<typeof load>,
+  label: string,
+): string | undefined {
+  const match = $('*')
     .toArray()
-    .find((el) => $(el).children().length === 0 && $(el).text().trim().toUpperCase() === label);
+    .find(
+      (el) =>
+        $(el).children().length === 0 &&
+        $(el).text().trim().toUpperCase() === label,
+    );
   if (!match) {
     return undefined;
   }
   const next = $(match).next();
-  const text = next.text().trim() || $(match).parent().text().replace(label, "").trim();
+  const text =
+    next.text().trim() || $(match).parent().text().replace(label, '').trim();
   return sanitizeLabel(text);
 }
 
@@ -459,7 +466,7 @@ function ownText($: ReturnType<typeof load>, el: object): string {
     .remove()
     .end()
     .text()
-    .replace(/\s+/g, " ")
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -467,11 +474,15 @@ export function sanitizeLabel(value: string | undefined): string | undefined {
   if (!value) {
     return undefined;
   }
-  const compact = value.replace(/\s+/g, " ").trim();
+  const compact = value.replace(/\s+/g, ' ').trim();
   if (compact.length < 1 || compact.length > 80) {
     return undefined;
   }
-  if (/like|dislike|download card|watchlist|see all related|latest comments/i.test(compact)) {
+  if (
+    /like|dislike|download card|watchlist|see all related|latest comments/i.test(
+      compact,
+    )
+  ) {
     return undefined;
   }
   return compact;
@@ -481,7 +492,7 @@ function sanitizeDescription(value: string | undefined): string | undefined {
   if (!value) {
     return undefined;
   }
-  const compact = value.replace(/\s+/g, " ").trim();
+  const compact = value.replace(/\s+/g, ' ').trim();
   if (compact.length < 8 || compact.length > 200) {
     return undefined;
   }
@@ -498,12 +509,12 @@ function decodeHttpsUrl(value: string | undefined): string | undefined {
   if (!value) {
     return undefined;
   }
-  return asHttpsUrl(value.replaceAll("&amp;", "&"));
+  return asHttpsUrl(value.replaceAll('&amp;', '&'));
 }
 
 function extractProgramName($: ReturnType<typeof load>): string | undefined {
   const candidates: string[] = [];
-  $("h1, h2, p, span, div").each((_, el) => {
+  $('h1, h2, p, span, div').each((_, el) => {
     const text = ownText($, el);
     if (text.length >= 8 && text.length <= 80 && /player$/i.test(text)) {
       candidates.push(text);
@@ -547,7 +558,7 @@ export function extractHtmlLabels(html: string): HtmlPlayerLabels {
   const $ = load(html);
   const traitNames: string[] = [];
   const playStyleNames: string[] = [];
-  $("p, div, span, li, h2, h3").each((_, el) => {
+  $('p, div, span, li, h2, h3').each((_, el) => {
     const text = ownText($, el);
     if (!text) {
       return;
@@ -568,7 +579,7 @@ export function extractHtmlLabels(html: string): HtmlPlayerLabels {
   const playStyles: HtmlPlayStyleHit[] = [];
   const seenPlayStyleIds = new Set<string>();
   $('a[href*="/playstyles/"]').each((_, el) => {
-    const href = $(el).attr("href") ?? "";
+    const href = $(el).attr('href') ?? '';
     const id = href.match(/\/playstyles\/(-?\d+)/)?.[1];
     if (!id || seenPlayStyleIds.has(id)) {
       return;
@@ -576,21 +587,24 @@ export function extractHtmlLabels(html: string): HtmlPlayerLabels {
     seenPlayStyleIds.add(id);
     const img = $(el).find('img[src*="playstyle"]').first();
     const name =
-      sanitizeLabel(img.attr("alt")) ??
+      sanitizeLabel(img.attr('alt')) ??
       sanitizeLabel(
         $(el)
-          .find("span")
+          .find('span')
           .filter((_, node) => !/^Level\s+\d+$/i.test(ownText($, node)))
           .first()
           .text(),
       );
-    const levelMatch = $(el).text().replace(/\s+/g, " ").match(/Level\s+(\d+)/i);
+    const levelMatch = $(el)
+      .text()
+      .replace(/\s+/g, ' ')
+      .match(/Level\s+(\d+)/i);
     playStyles.push({
       id,
       name,
-      description: sanitizeDescription($(el).find("p").first().text()),
+      description: sanitizeDescription($(el).find('p').first().text()),
       level: levelMatch ? Number(levelMatch[1]) : undefined,
-      imageUrl: decodeHttpsUrl(img.attr("src")),
+      imageUrl: decodeHttpsUrl(img.attr('src')),
     });
     if (name && !playStyleNames.includes(name)) {
       playStyleNames.push(name);
@@ -600,16 +614,16 @@ export function extractHtmlLabels(html: string): HtmlPlayerLabels {
   const playStyleImages: HtmlPlayStyleHit[] = [];
   const seenImageKeys = new Set<string>();
   $('img[src*="playstyle"]').each((_, el) => {
-    const imageUrl = decodeHttpsUrl($(el).attr("src"));
+    const imageUrl = decodeHttpsUrl($(el).attr('src'));
     if (!imageUrl) {
       return;
     }
-    const key = imageUrl.split("?")[0] ?? imageUrl;
+    const key = imageUrl.split('?')[0] ?? imageUrl;
     if (seenImageKeys.has(key)) {
       return;
     }
     seenImageKeys.add(key);
-    const name = sanitizeLabel($(el).attr("alt"));
+    const name = sanitizeLabel($(el).attr('alt'));
     playStyleImages.push({ name, imageUrl });
     if (name && !playStyleNames.includes(name)) {
       playStyleNames.push(name);
@@ -619,7 +633,7 @@ export function extractHtmlLabels(html: string): HtmlPlayerLabels {
   const traits: HtmlTraitHit[] = [];
   const seenTraitIds = new Set<string>();
   $('img[src*="traitlogo"]').each((_, el) => {
-    const src = $(el).attr("src") ?? "";
+    const src = $(el).attr('src') ?? '';
     const id = src.match(/traitlogo_\d+_(-?\d+)/)?.[1];
     if (!id || seenTraitIds.has(id)) {
       return;
@@ -637,9 +651,9 @@ export function extractHtmlLabels(html: string): HtmlPlayerLabels {
   });
 
   return {
-    clubName: labeledValue($, "TEAM"),
-    leagueName: labeledValue($, "LEAGUE"),
-    nationName: labeledValue($, "NATION/REGION") ?? labeledValue($, "NATION"),
+    clubName: labeledValue($, 'TEAM'),
+    leagueName: labeledValue($, 'LEAGUE'),
+    nationName: labeledValue($, 'NATION/REGION') ?? labeledValue($, 'NATION'),
     programName: extractProgramName($),
     traitNames,
     playStyleNames,
@@ -654,7 +668,7 @@ function nearestTraitLabel(
   el: object,
 ): string | undefined {
   const start = $(el as never);
-  const fromNext = sanitizeTraitName(start.next("span").text());
+  const fromNext = sanitizeTraitName(start.next('span').text());
   if (fromNext) {
     return fromNext;
   }
@@ -664,7 +678,7 @@ function nearestTraitLabel(
     if (!parent.length) {
       break;
     }
-    const fromSibling = sanitizeTraitName(parent.next("span").text());
+    const fromSibling = sanitizeTraitName(parent.next('span').text());
     if (fromSibling) {
       return fromSibling;
     }
@@ -700,12 +714,16 @@ function resolveHtmlName(
   return current ?? htmlName;
 }
 
-function applyExtractedLabels(player: Player, labels: HtmlPlayerLabels): Player {
+function applyExtractedLabels(
+  player: Player,
+  labels: HtmlPlayerLabels,
+): Player {
   const playStyles = sortPlayStylesByLevelDesc(
     player.playStyles.map((style, index) => {
       const byId = labels.playStyles.find((hit) => hit.id === style.id);
       const overlay = labels.playStyleImages[index];
-      const htmlName = byId?.name ?? overlay?.name ?? labels.playStyleNames[index];
+      const htmlName =
+        byId?.name ?? overlay?.name ?? labels.playStyleNames[index];
       return {
         ...style,
         name: resolveHtmlName(style.name, htmlName),
@@ -739,7 +757,7 @@ function applyExtractedLabels(player: Player, labels: HtmlPlayerLabels): Player 
     programName:
       labels.programName && looksLikeI18nKey(player.programName)
         ? labels.programName
-        : sanitizeLabel(player.programName) ?? labels.programName,
+        : (sanitizeLabel(player.programName) ?? labels.programName),
     traits,
   };
 }
@@ -784,26 +802,37 @@ function playerFromRaw(
   html?: string,
 ): { player: Player; assets: PlayerAssetRow[] } {
   const idValue = raw.id;
-  const id = String(idValue ?? "");
+  const id = String(idValue ?? '');
   const href = asString(raw.href);
   const fromHref = href ? parsePlayerHref(href) : null;
   const playerId = fromHref?.id ?? id;
   const name = displayName(raw);
   const rating = asNumber(raw.rating);
   if (!/^\d+$/.test(playerId) || !name || rating === undefined) {
-    throw new ParseError("Player payload missing id, name, or rating");
+    throw new ParseError('Player payload missing id, name, or rating');
   }
 
   const assets = [
     ...assetsFromImages(playerId, raw.images, fetchedAt),
-    ...iconAssetsFromCollections(playerId, raw.playStyles, raw.traits, fetchedAt),
+    ...iconAssetsFromCollections(
+      playerId,
+      raw.playStyles,
+      raw.traits,
+      fetchedAt,
+    ),
   ];
-  const loopAsset = assetFromCardLoopAnimation(playerId, raw.animation, fetchedAt);
+  const loopAsset = assetFromCardLoopAnimation(
+    playerId,
+    raw.animation,
+    fetchedAt,
+  );
   if (loopAsset) {
     assets.push(loopAsset);
   }
   const stats = statsFromUnknown(raw.stats, raw.avgStats);
-  const related = relatedIdsFromUnknown(raw.relatedCards).filter((relatedId) => relatedId !== playerId);
+  const related = relatedIdsFromUnknown(raw.relatedCards).filter(
+    (relatedId) => relatedId !== playerId,
+  );
   const prices = pricesFromRaw(raw, html);
 
   const availableImageKinds = assets
@@ -815,7 +844,10 @@ function playerFromRaw(
 
   const player = playerSchema.parse({
     id: parsePlayerId(playerId),
-    slug: fromHref?.slug ?? asString(raw.cardName)?.toLowerCase().replaceAll(/\s+/g, "-") ?? "",
+    slug:
+      fromHref?.slug ??
+      asString(raw.cardName)?.toLowerCase().replaceAll(/\s+/g, '-') ??
+      '',
     name,
     rating,
     cardName: asString(raw.cardName),
@@ -825,7 +857,8 @@ function playerFromRaw(
     position: asString(raw.position),
     altPositions: Array.isArray(raw.potentialPositions)
       ? raw.potentialPositions.filter(
-          (item): item is string => typeof item === "string" && item.trim().length > 0,
+          (item): item is string =>
+            typeof item === 'string' && item.trim().length > 0,
         )
       : [],
     programId: asString(raw.source),
@@ -839,16 +872,24 @@ function playerFromRaw(
     skillMovesLevel: asString(raw.skillMovesLevel),
     heightCm: parseHeightCm(raw.height),
     weightKg: parseWeightKg(raw.weight),
-    workRateAtt: asString(raw.workRateAtt) ?? asString(raw.workRates)?.split("/")[0],
-    workRateDef: asString(raw.workRateDef) ?? asString(raw.workRates)?.split("/")[1],
+    workRateAtt:
+      asString(raw.workRateAtt) ?? asString(raw.workRates)?.split('/')[0],
+    workRateDef:
+      asString(raw.workRateDef) ?? asString(raw.workRates)?.split('/')[1],
     birthday: asString(raw.birthday),
     stats,
-    totalStats: asNumber(raw.totalStats) ?? asNumber(isRecord(raw.stats) ? raw.stats.total : undefined),
-    metaRating: asNumber(isRecord(raw.metaData) ? raw.metaData.metaRating : undefined),
+    totalStats:
+      asNumber(raw.totalStats) ??
+      asNumber(isRecord(raw.stats) ? raw.stats.total : undefined),
+    metaRating: asNumber(
+      isRecord(raw.metaData) ? raw.metaData.metaRating : undefined,
+    ),
     traits: traitsFromUnknown(raw.traits),
     playStyles: playStylesFromUnknown(raw.playStyles),
     skills: skillsFromUnknown(raw.skillsData),
-    relatedCardIds: related.filter((value) => /^\d+$/.test(value)).map((value) => parsePlayerId(value)),
+    relatedCardIds: related
+      .filter((value) => /^\d+$/.test(value))
+      .map((value) => parsePlayerId(value)),
     starSigningsBuy: prices.buy,
     starSigningsSell: prices.sell,
     availableImageKinds,
@@ -860,14 +901,16 @@ function playerFromRaw(
   return { player, assets };
 }
 
-function rawFromDataJson(dataJson: string): Record<string, unknown> | undefined {
+function rawFromDataJson(
+  dataJson: string,
+): Record<string, unknown> | undefined {
   try {
     const parsed: unknown = JSON.parse(dataJson);
-    if (isRecord(parsed) && parsed.type === "redirect") {
+    if (isRecord(parsed) && parsed.type === 'redirect') {
       return undefined;
     }
     const nodes = inflateSvelteKitData(parsed);
-    const player = findInflatedField<unknown>(nodes, "player");
+    const player = findInflatedField<unknown>(nodes, 'player');
     return isRecord(player) ? player : undefined;
   } catch {
     return undefined;
@@ -877,7 +920,7 @@ function rawFromDataJson(dataJson: string): Record<string, unknown> | undefined 
 function rawFromHtml(html: string): Record<string, unknown> | undefined {
   // Search `player:` rather than `data:{player:` so the next `{` is the player
   // object, not the nested `images` object.
-  const player = extractJsAssignment<Record<string, unknown>>(html, "player:");
+  const player = extractJsAssignment<Record<string, unknown>>(html, 'player:');
   if (isRecord(player) && player.id !== undefined) {
     return player;
   }
@@ -894,7 +937,7 @@ export function parsePlayerPage(input: {
   const fromHtml = input.html ? rawFromHtml(input.html) : undefined;
   const raw = mergePlayerRaw(fromData, fromHtml);
   if (!raw) {
-    throw new ParseError("Could not parse player page");
+    throw new ParseError('Could not parse player page');
   }
   const parsed = playerFromRaw(raw, fetchedAt, input.html);
   const labels = input.html ? extractHtmlLabels(input.html) : undefined;

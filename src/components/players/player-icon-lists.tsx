@@ -1,8 +1,5 @@
 import { PlayerImage } from '@/components/players/player-image';
-import {
-  displayPlayStyleLabel,
-  displayTraitLabel,
-} from '@/lib/display';
+import { displayPlayStyleLabel, displayTraitLabel } from '@/lib/display';
 import {
   playStyleImageKind,
   sortPlayStylesByLevelDesc,
@@ -48,7 +45,11 @@ export function PlayerPlayStyles({
       ) : (
         <h2 className="font-heading text-lg font-medium">Play styles</h2>
       )}
-      <ul className={compact ? 'flex flex-col gap-2' : 'grid gap-2 sm:grid-cols-2'}>
+      <ul
+        className={
+          compact ? 'flex flex-col gap-2' : 'grid gap-2 sm:grid-cols-2'
+        }
+      >
         {items.map((style) => (
           <li
             key={style.id}
@@ -69,7 +70,9 @@ export function PlayerPlayStyles({
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm leading-tight font-semibold">{style.label}</p>
+                <p className="text-sm leading-tight font-semibold">
+                  {style.label}
+                </p>
                 {style.level !== undefined ? (
                   <span className="bg-primary/10 text-primary rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
                     Level {style.level}
@@ -132,7 +135,9 @@ export function PlayerHiddenStats({
                 />
               ) : null}
             </div>
-            <span className="text-xs leading-tight font-medium">{trait.label}</span>
+            <span className="text-xs leading-tight font-medium">
+              {trait.label}
+            </span>
           </li>
         ))}
       </ul>

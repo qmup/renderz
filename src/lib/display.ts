@@ -1,4 +1,4 @@
-import { CURRENT_PARSE_VERSION } from "@/lib/catalog/parse-version";
+import { CURRENT_PARSE_VERSION } from '@/lib/catalog/parse-version';
 
 export const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 
@@ -11,7 +11,7 @@ export function displayLabel(value?: string): string | undefined {
   if (!value) {
     return undefined;
   }
-  const compact = value.replace(/\s+/g, " ").trim();
+  const compact = value.replace(/\s+/g, ' ').trim();
   if (compact.length < 1 || compact.length > 80) {
     return undefined;
   }
@@ -78,17 +78,17 @@ export function catalogRowNeedsEnrich(player: {
 }
 
 export function formatFetchedAt(ms: number): string {
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
+  return new Intl.DateTimeFormat('en', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
   }).format(ms);
 }
 
 /** Compact date-only label for listing rows (UTC calendar date, matching added_desc). */
 export function formatAddedDate(ms: number): string {
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeZone: "UTC",
+  return new Intl.DateTimeFormat('en', {
+    dateStyle: 'medium',
+    timeZone: 'UTC',
   }).format(ms);
 }
 
@@ -96,7 +96,7 @@ export function formatFetchedRelative(ms: number, now = Date.now()): string {
   const delta = Math.max(0, now - ms);
   const minutes = Math.floor(delta / 60_000);
   if (minutes < 1) {
-    return "just now";
+    return 'just now';
   }
   if (minutes < 60) {
     return `${minutes}m ago`;
@@ -112,23 +112,27 @@ export function displayPlayStyleLabel(style: {
   name?: string;
   key?: string;
 }): string | undefined {
-  return displayLabel(style.name) ?? humanizePrefixedKey(style.key, "PLAYSTYLE_");
+  return (
+    displayLabel(style.name) ?? humanizePrefixedKey(style.key, 'PLAYSTYLE_')
+  );
 }
 
 export function displayTraitLabel(trait: {
   name?: string;
   key?: string;
 }): string | undefined {
-  return displayLabel(trait.name) ?? humanizePrefixedKey(trait.key, "traits_title_");
+  return (
+    displayLabel(trait.name) ?? humanizePrefixedKey(trait.key, 'traits_title_')
+  );
 }
 
 export function formatCoinAmount(value: number): string {
-  return new Intl.NumberFormat("en-US").format(value);
+  return new Intl.NumberFormat('en-US').format(value);
 }
 
 export function formatRetryAfter(retryAfterMs?: number): string {
   if (!retryAfterMs || retryAfterMs <= 0) {
-    return "a moment";
+    return 'a moment';
   }
   const seconds = Math.ceil(retryAfterMs / 1000);
   if (seconds < 60) {
@@ -144,7 +148,7 @@ function humanizePrefixedKey(
   if (!value) {
     return undefined;
   }
-  const match = value.match(new RegExp(`^${prefix}(.+)$`, "i"));
+  const match = value.match(new RegExp(`^${prefix}(.+)$`, 'i'));
   if (!match?.[1] || /^\d+$/.test(match[1])) {
     return undefined;
   }
@@ -153,7 +157,7 @@ function humanizePrefixedKey(
 
 function humanizeToken(token: string): string {
   return token
-    .replaceAll("_", " ")
+    .replaceAll('_', ' ')
     .trim()
     .toLowerCase()
     .replace(/\b\w/g, (char) => char.toUpperCase());

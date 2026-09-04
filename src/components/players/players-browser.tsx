@@ -130,7 +130,10 @@ export function PlayersBrowser({
               ) : null}
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-[min(100%,20rem)] overflow-y-auto">
+          <SheetContent
+            side="left"
+            className="w-[min(100%,20rem)] overflow-y-auto"
+          >
             <SheetHeader>
               <SheetTitle>Filters</SheetTitle>
             </SheetHeader>
@@ -159,11 +162,36 @@ export function PlayersBrowser({
           <ListingSkeleton view={query.view} />
         ) : (
           <>
-            <div className="mb-2.5 flex items-center justify-between gap-3 sm:mb-3">
-              <p className="text-muted-foreground text-sm tabular-nums">
-                {data.total.toLocaleString()} player
-                {data.total === 1 ? '' : 's'}
-              </p>
+            <div className="mb-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 sm:mb-3">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
+                <p className="text-muted-foreground text-sm tabular-nums">
+                  {data.total.toLocaleString()} player
+                  {data.total === 1 ? '' : 's'}
+                </p>
+                <label
+                  htmlFor="only-auctionable"
+                  className="text-foreground flex cursor-pointer items-center gap-2 text-sm"
+                >
+                  <input
+                    id="only-auctionable"
+                    type="checkbox"
+                    className="border-input accent-foreground size-4 rounded border"
+                    checked={query.filters.auctionable === true}
+                    onChange={(event) => {
+                      replaceQuery({
+                        ...query,
+                        q: searchDraft,
+                        page: 1,
+                        filters: {
+                          ...query.filters,
+                          auctionable: event.target.checked ? true : undefined,
+                        },
+                      });
+                    }}
+                  />
+                  Only auctionable
+                </label>
+              </div>
               <div className="flex items-center gap-2">
                 {listQuery.isFetching && data ? (
                   <p className="text-muted-foreground hidden text-xs sm:block">
@@ -244,7 +272,7 @@ function PlayerListLink({
           fill
         />
       </div>
-      <div className="flex min-h-0 min-w-0 flex-1 items-center gap-2 overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 items-center gap-2 overflow-hidden md:gap-4">
         <div className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium capitalize leading-tight md:text-base">
             {cardDisplayName(player)}

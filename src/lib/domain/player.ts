@@ -101,9 +101,7 @@ export function cardLoopImageKind(
   return `loop-f${Math.trunc(maxFrames)}`;
 }
 
-export function cardLoopMaxFramesFromKind(
-  kind: string,
-): number | undefined {
+export function cardLoopMaxFramesFromKind(kind: string): number | undefined {
   const match = kind.match(PLAYER_LOOP_KIND_PATTERN);
   if (!match?.[1]) {
     return undefined;
@@ -146,9 +144,7 @@ export function playStyleImageKind(
   return `playstyle-${safe}`;
 }
 
-export function playStyleLevelFromImageKind(
-  kind: string,
-): number | undefined {
+export function playStyleLevelFromImageKind(kind: string): number | undefined {
   const match = kind.match(/^playstyle-.+-l(\d+)$/);
   if (!match?.[1]) {
     return undefined;
@@ -168,9 +164,7 @@ export function playStyleBaseImageKind(
     : undefined;
 }
 
-export function playStyleLevelFromUpstreamUrl(
-  url: string,
-): number | undefined {
+export function playStyleLevelFromUpstreamUrl(url: string): number | undefined {
   const match = url.match(/_(\d+)(?:\?|$)/);
   if (!match?.[1]) {
     return undefined;
@@ -213,15 +207,15 @@ export const playStyleSchema = cardPlayStyleSchema.extend({
 export type PlayStyle = z.infer<typeof playStyleSchema>;
 
 /** Higher playstyle levels first (gold above silver). Missing level sorts last. */
-export function sortPlayStylesByLevelDesc<T extends { level?: number; id?: string }>(
-  styles: T[],
-): T[] {
+export function sortPlayStylesByLevelDesc<
+  T extends { level?: number; id?: string },
+>(styles: T[]): T[] {
   return [...styles].sort((a, b) => {
     const levelDiff = (b.level ?? -1) - (a.level ?? -1);
     if (levelDiff !== 0) {
       return levelDiff;
     }
-    return String(a.id ?? "").localeCompare(String(b.id ?? ""));
+    return String(a.id ?? '').localeCompare(String(b.id ?? ''));
   });
 }
 

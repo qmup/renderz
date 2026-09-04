@@ -4,11 +4,7 @@ import { ChevronLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 
-export function PlayerDetailBack({
-  href = '/players',
-}: {
-  href?: string;
-}) {
+export function PlayerDetailBack({ href = '/players' }: { href?: string }) {
   const router = useRouter();
 
   function goBack() {

@@ -29,9 +29,7 @@ export function marketRefreshAtDate(
 }
 
 /** Countdown like RenderZ: `in 42m, 24s` or `in 1h, 46m`. */
-export function formatMarketRefreshCountdown(
-  remainingSec: number,
-): string {
+export function formatMarketRefreshCountdown(remainingSec: number): string {
   const sec = Math.max(0, Math.floor(remainingSec));
   if (sec >= 3600) {
     const hours = Math.floor(sec / 3600);
@@ -43,10 +41,7 @@ export function formatMarketRefreshCountdown(
   return `in ${minutes}m, ${seconds}s`;
 }
 
-export function formatMarketRefreshClock(
-  at: Date,
-  locale?: string,
-): string {
+export function formatMarketRefreshClock(at: Date, locale?: string): string {
   return new Intl.DateTimeFormat(locale, {
     hour: '2-digit',
     minute: '2-digit',
