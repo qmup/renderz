@@ -46,6 +46,7 @@ export function PlayerCardArt({
   const showLoop =
     loopKind !== undefined && loopFrames !== undefined && loopFrames > 0;
   const showStack = has('background') || has('card') || showLoop;
+  const showBackground = has('background');
   const badge = Math.round(size * 0.135);
   const boxStyle = fill ? undefined : { width: size, height: size };
   const cardName = displayName?.trim();
@@ -91,9 +92,7 @@ export function PlayerCardArt({
       )}
       style={boxStyle}
     >
-      {showLoop && loopKind && loopFrames ? (
-        <CardLoopCanvas playerId={id} kind={loopKind} maxFrames={loopFrames} />
-      ) : has('background') ? (
+      {showBackground ? (
         <PlayerImage
           id={id}
           kind="background"
@@ -104,6 +103,9 @@ export function PlayerCardArt({
           priority={priority}
           className="absolute inset-0 h-full w-full"
         />
+      ) : null}
+      {showLoop && loopKind && loopFrames ? (
+        <CardLoopCanvas playerId={id} kind={loopKind} maxFrames={loopFrames} />
       ) : null}
       {has('card') ? (
         <PlayerImage

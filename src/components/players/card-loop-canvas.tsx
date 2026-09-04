@@ -6,6 +6,8 @@ import { playerImageSrc } from '@/lib/images';
 import { cn } from '@/lib/utils';
 
 const DEFAULT_FPS = 18;
+/** Placeholder SVG is 128px; a real LOOP sheet is ~1792px (frame ≳ 256). */
+const MIN_LOOP_FRAME_PX = 64;
 
 /**
  * Draws a same-origin LOOP sprite sheet on a canvas (grid, left-to-right,
@@ -109,6 +111,12 @@ export function CardLoopCanvas({
 
     sheet.onload = () => {
       if (cancelled) {
+        return;
+      }
+      const cols = Math.max(1, Math.ceil(Math.sqrt(maxFrames)));
+      const frameW = sheet.naturalWidth / cols;
+      if (!Number.isFinite(frameW) || frameW < MIN_LOOP_FRAME_PX) {
+        setFailed(true);
         return;
       }
       drawFrame(0);
