@@ -1,4 +1,11 @@
-import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readSync,
+  closeSync,
+} from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { isSharedImageKind, type PlayerImageKind } from "@/lib/domain/player";
@@ -11,8 +18,36 @@ const CREATE_SQL = `CREATE TABLE IF NOT EXISTS images (
   PRIMARY KEY (player_id, kind)
 )`;
 
+const SQLITE_MAGIC = Buffer.from("SQLite format 3\0");
+const LFS_POINTER_PREFIX = Buffer.from("version https://git-lfs.github.com/spec/v1");
+
 export function imageCacheSqlitePath(cwd = process.cwd()): string {
   return path.join(cwd, "data", "images.sqlite");
+}
+
+/** True when the file is a real SQLite DB (not a Git LFS pointer or missing). */
+export function isUsableImageCacheFile(filePath: string): boolean {
+  try {
+    if (!existsSync(filePath)) {
+      return false;
+    }
+    const fd = openSync(filePath, "r");
+    try {
+      const header = Buffer.alloc(64);
+      const n = readSync(fd, header, 0, header.length, 0);
+      if (n < SQLITE_MAGIC.length) {
+        return false;
+      }
+      if (header.subarray(0, LFS_POINTER_PREFIX.length).equals(LFS_POINTER_PREFIX)) {
+        return false;
+      }
+      return header.subarray(0, SQLITE_MAGIC.length).equals(SQLITE_MAGIC);
+    } finally {
+      closeSync(fd);
+    }
+  } catch {
+    return false;
+  }
 }
 
 function writableCachePath(cwd = process.cwd()): string {
@@ -21,10 +56,13 @@ function writableCachePath(cwd = process.cwd()): string {
     return bundled;
   }
   const dest = "/tmp/images.sqlite";
-  if (existsSync(bundled) && !existsSync(dest)) {
+  if (
+    isUsableImageCacheFile(bundled) &&
+    (!existsSync(dest) || !isUsableImageCacheFile(dest))
+  ) {
     copyFileSync(bundled, dest);
   }
-  return existsSync(dest) ? dest : bundled;
+  return isUsableImageCacheFile(dest) ? dest : bundled;
 }
 
 const cacheDbs = new Map<string, Database.Database>();

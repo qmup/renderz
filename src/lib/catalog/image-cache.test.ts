@@ -1,8 +1,9 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  isUsableImageCacheFile,
   readCachedImage,
   writeCachedImage,
 } from "@/lib/catalog/image-cache";
@@ -42,6 +43,23 @@ describe("image cache", () => {
 
   it("returns null when the cache file is missing", () => {
     expect(readCachedImage("missing", "card", os.tmpdir())).toBeNull();
+  });
+
+  it("rejects Git LFS pointer files as unusable caches", () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "image-cache-lfs-"));
+    try {
+      const dataDir = path.join(cwd, "data");
+      mkdirSync(dataDir, { recursive: true });
+      const pointer = path.join(dataDir, "images.sqlite");
+      writeFileSync(
+        pointer,
+        "version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 1\n",
+      );
+      expect(isUsableImageCacheFile(pointer)).toBe(false);
+      expect(readCachedImage("30920616", "card", cwd)).toBeNull();
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
   });
 });
 
