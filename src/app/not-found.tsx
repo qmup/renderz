@@ -4,7 +4,7 @@ import { SiteHeader } from "@/components/site-header";
 
 export default function NotFound() {
   return (
-    <div className="flex min-h-full flex-1 flex-col">
+    <div className="flex min-h-dvh flex-1 flex-col">
       <SiteHeader />
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-3 px-4 py-16">
         <h1 className="text-2xl font-semibold tracking-tight">Page not found</h1>

@@ -16,11 +16,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { formatAddedDate, isStaleCatalogRow } from '@/lib/display';
+import { formatAddedDate } from '@/lib/display';
 import { cardDisplayName } from '@/lib/domain/player';
 import type { PlayerListQuery, PlayerListResult } from '@/lib/domain/query';
 import {
@@ -99,45 +100,64 @@ export function PlayersBrowser({
   };
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row">
-      <div className="flex items-end gap-2 lg:hidden">
-        <div className="min-w-0 flex-1">
-          <label className="sr-only" htmlFor="mobile-player-search">
-            Search
-          </label>
-          <Input
-            id="mobile-player-search"
-            value={searchDraft}
-            onChange={(event) => setSearchDraft(event.target.value)}
-            placeholder="Name or slug"
-            autoComplete="off"
-          />
+    <div className="flex flex-col gap-4 sm:gap-6 lg:flex-row">
+      <div className="bg-background/95 sticky top-[calc(3rem+env(safe-area-inset-top,0px))] z-30 -mx-4 border-b border-border px-4 py-2.5 backdrop-blur-sm sm:top-[calc(3.5rem+env(safe-area-inset-top,0px))] lg:hidden">
+        <div className="flex items-stretch gap-2">
+          <div className="min-w-0 flex-1">
+            <label className="sr-only" htmlFor="mobile-player-search">
+              Search
+            </label>
+            <Input
+              id="mobile-player-search"
+              value={searchDraft}
+              onChange={(event) => setSearchDraft(event.target.value)}
+              placeholder="Name or slug"
+              autoComplete="off"
+              className="h-10"
+              enterKeyHint="search"
+            />
+          </div>
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 shrink-0 px-3"
+                aria-label={
+                  filterCount > 0 ? `Filters, ${filterCount} active` : 'Filters'
+                }
+              >
+                <SlidersHorizontal />
+                <span className="hidden min-[380px]:inline">Filters</span>
+                {filterCount > 0 ? (
+                  <Badge variant="secondary">{filterCount}</Badge>
+                ) : null}
+              </Button>
+            </SheetTrigger>
+            <SheetContent
+              side="bottom"
+              className="max-h-[min(92dvh,40rem)] gap-0 overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom,0px))]"
+            >
+              <SheetHeader>
+                <div
+                  className="bg-muted mx-auto h-1 w-10 rounded-full"
+                  aria-hidden
+                />
+                <SheetTitle>Filters</SheetTitle>
+                <SheetDescription>
+                  Narrow the catalog by sort, position, program, and rating.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="px-4 pb-6">
+                <PlayerFilters
+                  idPrefix="sheet"
+                  includeSearch={false}
+                  {...filterProps}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button type="button" variant="outline" className="shrink-0">
-              <SlidersHorizontal />
-              Filters
-              {filterCount > 0 ? (
-                <Badge variant="secondary" className="ml-1">
-                  {filterCount}
-                </Badge>
-              ) : null}
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle>Filters</SheetTitle>
-            </SheetHeader>
-            <div className="px-4 pb-6">
-              <PlayerFilters
-                idPrefix="sheet"
-                includeSearch={false}
-                {...filterProps}
-              />
-            </div>
-          </SheetContent>
-        </Sheet>
       </div>
 
       <aside className="hidden w-56 shrink-0 lg:block">
@@ -155,7 +175,7 @@ export function PlayersBrowser({
         ) : (
           <>
             <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-muted-foreground text-sm">
+              <p className="text-muted-foreground min-w-0 truncate text-sm">
                 {data.total} player{data.total === 1 ? '' : 's'}
               </p>
               <div className="flex items-center gap-2">
@@ -175,7 +195,7 @@ export function PlayersBrowser({
             ) : (
               <>
                 {query.view === 'grid' ? (
-                  <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                  <ul className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                     {data.items.map((player) => (
                       <li key={player.id}>
                         <PlayerGridLink player={player} />
@@ -217,55 +237,56 @@ function PlayerListLink({
 }: {
   player: PlayerListResult['items'][number];
 }) {
-  const stale = isStaleCatalogRow(player);
   const identity = [player.rating, player.position].filter(Boolean).join(' · ');
+  const addedLabel =
+    player.addedAt != null ? (
+      <time
+        dateTime={new Date(player.addedAt).toISOString()}
+        className="text-muted-foreground text-xs whitespace-nowrap tabular-nums"
+      >
+        {formatAddedDate(player.addedAt)}
+      </time>
+    ) : (
+      <span className="text-muted-foreground text-xs">—</span>
+    );
+
   return (
     <Link
       href={`/players/${player.id}`}
-      className="hover:bg-muted/60 flex items-center gap-3 px-3 py-2.5"
+      className="hover:bg-muted/60 flex flex-col gap-2 px-3 py-2.5 touch-manipulation sm:flex-row sm:items-center sm:gap-3"
     >
-      <PlayerCardArt
-        id={player.id}
-        kinds={player.availableImageKinds}
-        rating={player.rating}
-        position={player.position}
-        auctionable={player.auctionable}
-        displayName={cardDisplayName(player)}
-        playStyles={player.playStyles}
-      />
-      <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <div className="min-w-0">
+      <div className="flex min-w-0 items-center gap-3 sm:contents">
+        <PlayerCardArt
+          id={player.id}
+          kinds={player.availableImageKinds}
+          rating={player.rating}
+          position={player.position}
+          auctionable={player.auctionable}
+          displayName={cardDisplayName(player)}
+          playStyles={player.playStyles}
+        />
+        <div className="min-w-0 flex-1">
           <span className="block truncate font-medium capitalize">
             {cardDisplayName(player)}
           </span>
-          <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
             {identity ? (
               <span className="text-sm tabular-nums">{identity}</span>
             ) : null}
+            <span className="sm:hidden">{addedLabel}</span>
           </div>
           {player.altPositions.map((position) => (
             <div
               key={position}
-              className="h-5 pr-2 text-[11px] font-medium italic inline-block"
+              className="inline-block h-5 pr-2 text-[11px] font-medium italic"
             >
               {position}
             </div>
           ))}
         </div>
-        <PlayerGroupedStats stats={player.avgStats} className="shrink-0" />
       </div>
-      {player.addedAt != null ? (
-        <time
-          dateTime={new Date(player.addedAt).toISOString()}
-          className="text-muted-foreground shrink-0 text-right text-xs whitespace-nowrap tabular-nums"
-        >
-          {formatAddedDate(player.addedAt)}
-        </time>
-      ) : (
-        <span className="text-muted-foreground shrink-0 text-right text-xs">
-          —
-        </span>
-      )}
+      <PlayerGroupedStats stats={player.avgStats} className="sm:shrink-0" />
+      <span className="hidden shrink-0 sm:block">{addedLabel}</span>
     </Link>
   );
 }
@@ -279,7 +300,7 @@ function PlayerGridLink({
     <Link
       href={`/players/${player.id}`}
       aria-label={player.name}
-      className="hover:bg-muted/60 block rounded-lg p-1"
+      className="hover:bg-muted/60 block rounded-lg p-0.5 touch-manipulation sm:p-1"
     >
       <PlayerCardArt
         id={player.id}
@@ -311,7 +332,8 @@ function ViewSwitch({
     >
       <Button
         type="button"
-        size="icon-xs"
+        size="icon"
+        className="size-9 sm:size-6"
         variant={view === 'list' ? 'secondary' : 'ghost'}
         aria-pressed={view === 'list'}
         aria-label="List view"
@@ -321,7 +343,8 @@ function ViewSwitch({
       </Button>
       <Button
         type="button"
-        size="icon-xs"
+        size="icon"
+        className="size-9 sm:size-6"
         variant={view === 'grid' ? 'secondary' : 'ghost'}
         aria-pressed={view === 'grid'}
         aria-label="Grid view"
@@ -337,7 +360,7 @@ function ListingSkeleton({ view }: { view: PlayerListQuery['view'] }) {
   if (view === 'grid') {
     return (
       <div
-        className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+        className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
         aria-busy="true"
         aria-label="Loading players"
       >
@@ -356,17 +379,17 @@ function ListingSkeleton({ view }: { view: PlayerListQuery['view'] }) {
       aria-busy="true"
       aria-label="Loading players"
     >
-      <Skeleton className="h-16 w-full" />
-      <Skeleton className="h-16 w-full" />
-      <Skeleton className="h-16 w-full" />
-      <Skeleton className="h-16 w-full" />
+      <Skeleton className="h-24 w-full sm:h-16" />
+      <Skeleton className="h-24 w-full sm:h-16" />
+      <Skeleton className="h-24 w-full sm:h-16" />
+      <Skeleton className="h-24 w-full sm:h-16" />
     </div>
   );
 }
 
 function EmptyCatalog({ filtered }: { filtered: boolean }) {
   return (
-    <div className="rounded-xl border border-dashed px-6 py-12 text-center">
+    <div className="rounded-xl border border-dashed px-4 py-10 text-center sm:px-6 sm:py-12">
       <p className="font-medium">
         {filtered ? 'No players match these filters' : 'Catalog is empty'}
       </p>

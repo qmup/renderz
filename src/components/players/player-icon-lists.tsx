@@ -39,7 +39,7 @@ export function PlayerPlayStyles({
   }
 
   return (
-    <section className="flex flex-col gap-2">
+    <section className="flex flex-col gap-2 text-left">
       {compact ? (
         <h2 className="text-muted-foreground text-[10px] tracking-[0.14em] uppercase">
           Play styles
@@ -51,7 +51,7 @@ export function PlayerPlayStyles({
         {items.map((style) => (
           <li
             key={style.id}
-            className="bg-card flex items-start gap-3 rounded-xl border p-3"
+            className="bg-card flex items-start gap-3 rounded-xl border p-2.5 sm:p-3"
           >
             <div className="bg-muted flex size-11 shrink-0 items-center justify-center rounded-lg">
               {style.kind ? (
@@ -112,7 +112,7 @@ export function PlayerHiddenStats({
   return (
     <section className="flex flex-col gap-3">
       <h2 className="font-heading text-lg font-medium">Hidden stats</h2>
-      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <ul className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2">
         {items.map((trait) => (
           <li
             key={trait.id}

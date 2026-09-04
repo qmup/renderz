@@ -100,9 +100,9 @@ export default async function PlayerDetailPage({
   const program = displayProgramName(player.programName, player.programId);
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-8">
+    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-5 sm:gap-8 sm:py-8">
       <p className="text-muted-foreground text-sm">
-        <Link href="/players" className="hover:text-foreground underline-offset-4 hover:underline">
+        <Link href="/players" className="hover:text-foreground -mx-1 inline-flex min-h-10 items-center px-1 underline-offset-4 hover:underline">
           Players
         </Link>
       </p>
@@ -126,8 +126,8 @@ export default async function PlayerDetailPage({
         </CatalogNotice>
       ) : null}
 
-      <header className="flex flex-col gap-6 sm:flex-row sm:items-start">
-        <div className="flex shrink-0 flex-col items-center">
+      <header className="flex flex-col items-center gap-5 text-center sm:flex-row sm:items-start sm:gap-6 sm:text-left">
+        <div className="flex w-full shrink-0 flex-col items-center sm:w-auto">
           <PlayerCardArt
             id={player.id}
             kinds={player.availableImageKinds}
@@ -144,17 +144,17 @@ export default async function PlayerDetailPage({
             sell={player.starSigningsSell}
           />
         </div>
-        <div className="flex min-w-0 flex-col gap-3">
+        <div className="flex min-w-0 w-full flex-col gap-3">
           <div>
             <p className="text-muted-foreground text-xs tracking-[0.18em] uppercase">
               {program ?? "FC Mobile"}
             </p>
-            <h1 className="font-heading text-3xl font-semibold tracking-tight">
+            <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
               {player.name}
             </h1>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-heading text-4xl tabular-nums">{player.rating}</span>
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+            <span className="font-heading text-3xl tabular-nums sm:text-4xl">{player.rating}</span>
             {player.position ? <Badge>{player.position}</Badge> : null}
             {player.altPositions.map((position) => (
               <Badge key={position} variant="secondary">

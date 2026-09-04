@@ -16,7 +16,7 @@ export function StarSigningsPrice({
   }
 
   return (
-    <div className="mt-3 flex w-full max-w-[208px] flex-col gap-1.5">
+    <div className="mt-3 flex w-full max-w-[208px] flex-col gap-1.5 px-1 sm:px-0">
       <p className="text-muted-foreground text-center text-[10px] tracking-[0.16em] uppercase">
         Star Signings
       </p>

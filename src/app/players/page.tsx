@@ -19,13 +19,13 @@ export default async function PlayersPage({ searchParams }: PageProps<"/players"
   const initialSearch = playerListQueryToSearchParams(query).toString();
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8">
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-5 sm:gap-6 sm:py-8">
       {isDev ? (
         <p className="text-muted-foreground text-xs tracking-[0.18em] uppercase">
           Local catalog
         </p>
       ) : null}
-      <h1 className="font-heading mt-1 text-3xl font-semibold tracking-tight">
+      <h1 className="font-heading mt-0.5 text-2xl font-semibold tracking-tight sm:mt-1 sm:text-3xl">
         Players
       </h1>
       <MadeByCredit />

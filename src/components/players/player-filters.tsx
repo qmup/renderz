@@ -17,7 +17,7 @@ const SORT_OPTIONS: Array<{ value: PlayerListQuery["sort"]; label: string }> = [
 ];
 
 const selectClassName =
-  "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+  "h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:h-8 md:text-sm";
 
 export function PlayerFilters({
   query,
@@ -209,6 +209,7 @@ export function PlayerFilters({
       <Button
         type="button"
         variant="outline"
+        className="h-10 md:h-8"
         onClick={() => {
           onSearchDraft("");
           onReplaceQuery({

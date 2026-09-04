@@ -13,16 +13,16 @@ export function PlayerGroupedStats({
     return null;
   }
   return (
-    <ul className={cn('flex items-stretch gap-3', className)}>
+    <ul className={cn('grid w-full grid-cols-6 gap-1 sm:flex sm:w-auto sm:items-stretch sm:gap-2', className)}>
       {items.map((stat) => (
         <li
           key={stat.key}
-          className="bg-muted flex min-w-15 flex-col items-center justify-center rounded-md px-3 py-3"
+          className="bg-muted flex min-w-0 flex-col items-center justify-center rounded-md px-0.5 py-1.5 sm:min-w-12 sm:px-2.5 sm:py-2"
         >
-          <span className="font-heading text-sm leading-none tabular-nums">
+          <span className="font-heading text-xs leading-none tabular-nums sm:text-sm">
             {stat.value}
           </span>
-          <span className="text-muted-foreground mt-0.5 text-[10px] tracking-wide">
+          <span className="text-muted-foreground mt-0.5 text-[9px] tracking-wide sm:text-[10px]">
             {stat.label}
           </span>
         </li>

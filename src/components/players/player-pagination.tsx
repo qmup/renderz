@@ -24,7 +24,7 @@ import {
 import { PLAYER_LIST_MAX_PAGE_SIZE } from "@/lib/domain/query";
 
 const selectClassName =
-  "h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+  "h-10 rounded-lg border border-input bg-transparent px-2.5 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 sm:h-8 sm:text-sm";
 
 export function PlayerPagination({
   page,
@@ -109,14 +109,15 @@ export function PlayerPagination({
         </div>
       </div>
 
-      <div className="flex flex-col items-center gap-3 lg:flex-row lg:justify-between">
-        <Pagination className="mx-0 w-auto justify-center lg:justify-start">
-          <PaginationContent>
+      <div className="flex flex-col items-stretch gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <Pagination className="mx-0 w-full justify-center lg:w-auto lg:justify-start">
+          <PaginationContent className="w-full justify-between sm:w-auto sm:justify-center">
             <PaginationItem>
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
+                className="size-10 sm:size-8"
                 disabled={atStart}
                 aria-label="Go to first page"
                 onClick={() => goTo(1)}
@@ -129,7 +130,7 @@ export function PlayerPagination({
                 type="button"
                 variant="ghost"
                 size="default"
-                className="pl-1.5"
+                className="h-10 pl-1.5 sm:h-8"
                 disabled={atStart}
                 aria-label="Go to previous page"
                 onClick={() => goTo(page - 1)}
@@ -151,6 +152,7 @@ export function PlayerPagination({
                   <Button
                     type="button"
                     size="icon"
+                    className="size-10 sm:size-8"
                     variant={item.page === page ? "outline" : "ghost"}
                     aria-label={`Go to page ${item.page}`}
                     aria-current={item.page === page ? "page" : undefined}
@@ -166,7 +168,7 @@ export function PlayerPagination({
                 type="button"
                 variant="ghost"
                 size="default"
-                className="pr-1.5"
+                className="h-10 pr-1.5 sm:h-8"
                 disabled={atEnd}
                 aria-label="Go to next page"
                 onClick={() => goTo(page + 1)}
@@ -180,6 +182,7 @@ export function PlayerPagination({
                 type="button"
                 variant="ghost"
                 size="icon"
+                className="size-10 sm:size-8"
                 disabled={atEnd}
                 aria-label="Go to last page"
                 onClick={() => goTo(totalPages)}
@@ -190,7 +193,7 @@ export function PlayerPagination({
           </PaginationContent>
         </Pagination>
 
-        <form className="flex items-center gap-2" onSubmit={submitJump}>
+        <form className="flex items-center justify-center gap-2" onSubmit={submitJump}>
           <Label htmlFor={jumpId} className="text-muted-foreground text-xs font-normal">
             Go to
           </Label>
@@ -202,12 +205,12 @@ export function PlayerPagination({
             min={1}
             max={totalPages}
             inputMode="numeric"
-            className="h-8 w-16 text-center"
+            className="h-10 w-16 text-center sm:h-8"
             defaultValue={page}
             aria-label="Page number"
           />
           <span className="text-muted-foreground text-xs">/ {totalPages}</span>
-          <Button type="submit" size="sm" variant="outline">
+          <Button type="submit" size="sm" variant="outline" className="h-10 sm:h-8">
             Go
           </Button>
         </form>

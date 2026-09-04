@@ -80,7 +80,7 @@ export function CatalogUpdateControl() {
       {label ? (
         <p
           aria-live="polite"
-          className="text-muted-foreground max-w-[16rem] truncate text-xs"
+          className="text-muted-foreground hidden max-w-[16rem] truncate text-xs sm:block"
           title={status.error ?? label}
         >
           {label}
@@ -90,10 +90,18 @@ export function CatalogUpdateControl() {
         type="button"
         size="sm"
         variant="outline"
+        className="shrink-0"
         disabled={status.running}
         onClick={() => void start()}
       >
-        {status.running ? "Adding…" : "Update catalog"}
+        {status.running ? (
+          "Adding…"
+        ) : (
+          <>
+            <span className="sm:hidden">Update</span>
+            <span className="hidden sm:inline">Update catalog</span>
+          </>
+        )}
       </Button>
     </div>
   );

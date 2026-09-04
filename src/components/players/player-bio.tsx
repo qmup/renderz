@@ -50,7 +50,7 @@ export function PlayerBio({ player }: { player: Player }) {
   return (
     <section className="flex flex-col gap-3">
       <h2 className="font-heading text-lg font-medium">Bio</h2>
-      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <dl className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2">
         {items.map((item) => (
           <div
             key={item.label}

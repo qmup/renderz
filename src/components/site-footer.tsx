@@ -3,7 +3,7 @@ import { isDev } from "@/lib/dev";
 export function SiteFooter() {
   return (
     <footer className="border-t border-border">
-      <div className="text-muted-foreground mx-auto flex w-full max-w-6xl flex-col items-start gap-3 px-4 py-6 text-xs">
+      <div className="text-muted-foreground mx-auto flex w-full max-w-6xl flex-col items-start gap-3 px-4 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] text-xs">
         {isDev ? (
           <>
             <p>Personal read-only catalog. This browser never requests RenderZ.</p>
