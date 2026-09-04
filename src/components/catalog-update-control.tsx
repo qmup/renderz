@@ -76,11 +76,11 @@ export function CatalogUpdateControl() {
   const label = progressLabel(status);
 
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <div className="flex min-w-0 items-center justify-end gap-2">
       {label ? (
         <p
           aria-live="polite"
-          className="text-muted-foreground max-w-[16rem] truncate text-xs"
+          className="text-muted-foreground hidden max-w-[12rem] truncate text-xs sm:block"
           title={status.error ?? label}
         >
           {label}
@@ -90,10 +90,14 @@ export function CatalogUpdateControl() {
         type="button"
         size="sm"
         variant="outline"
+        className="shrink-0"
         disabled={status.running}
         onClick={() => void start()}
       >
-        {status.running ? "Adding…" : "Update catalog"}
+        <span className="sm:hidden">{status.running ? "Adding…" : "Update"}</span>
+        <span className="hidden sm:inline">
+          {status.running ? "Adding…" : "Update catalog"}
+        </span>
       </Button>
     </div>
   );

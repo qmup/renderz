@@ -20,7 +20,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { formatAddedDate, isStaleCatalogRow } from '@/lib/display';
+import { formatAddedDate } from '@/lib/display';
 import { cardDisplayName } from '@/lib/domain/player';
 import type { PlayerListQuery, PlayerListResult } from '@/lib/domain/query';
 import {
@@ -99,8 +99,8 @@ export function PlayersBrowser({
   };
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row">
-      <div className="flex items-end gap-2 lg:hidden">
+    <div className="flex flex-col gap-4 sm:gap-6 lg:flex-row">
+      <div className="bg-background/95 sticky top-0 z-20 -mx-4 flex items-center gap-2 border-b border-border/70 px-4 py-2.5 backdrop-blur-sm lg:hidden">
         <div className="min-w-0 flex-1">
           <label className="sr-only" htmlFor="mobile-player-search">
             Search
@@ -111,21 +111,26 @@ export function PlayersBrowser({
             onChange={(event) => setSearchDraft(event.target.value)}
             placeholder="Name or slug"
             autoComplete="off"
+            className="h-10"
           />
         </div>
         <Sheet>
           <SheetTrigger asChild>
-            <Button type="button" variant="outline" className="shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 shrink-0 gap-1.5 px-3"
+            >
               <SlidersHorizontal />
-              Filters
+              <span>Filter</span>
               {filterCount > 0 ? (
-                <Badge variant="secondary" className="ml-1">
+                <Badge variant="secondary" className="ml-0.5 tabular-nums">
                   {filterCount}
                 </Badge>
               ) : null}
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="overflow-y-auto">
+          <SheetContent side="left" className="w-[min(100%,20rem)] overflow-y-auto">
             <SheetHeader>
               <SheetTitle>Filters</SheetTitle>
             </SheetHeader>
@@ -154,13 +159,16 @@ export function PlayersBrowser({
           <ListingSkeleton view={query.view} />
         ) : (
           <>
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-muted-foreground text-sm">
-                {data.total} player{data.total === 1 ? '' : 's'}
+            <div className="mb-2.5 flex items-center justify-between gap-3 sm:mb-3">
+              <p className="text-muted-foreground text-sm tabular-nums">
+                {data.total.toLocaleString()} player
+                {data.total === 1 ? '' : 's'}
               </p>
               <div className="flex items-center gap-2">
-                {listQuery.isFetching ? (
-                  <p className="text-muted-foreground text-xs">Updating…</p>
+                {listQuery.isFetching && data ? (
+                  <p className="text-muted-foreground hidden text-xs sm:block">
+                    Updating…
+                  </p>
                 ) : null}
                 <ViewSwitch
                   view={query.view}
@@ -175,7 +183,7 @@ export function PlayersBrowser({
             ) : (
               <>
                 {query.view === 'grid' ? (
-                  <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                  <ul className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                     {data.items.map((player) => (
                       <li key={player.id}>
                         <PlayerGridLink player={player} />
@@ -183,7 +191,7 @@ export function PlayersBrowser({
                     ))}
                   </ul>
                 ) : (
-                  <ul className="divide-border divide-y rounded-xl border">
+                  <ul className="divide-border divide-y overflow-hidden rounded-xl border">
                     {data.items.map((player) => (
                       <li key={player.id}>
                         <PlayerListLink player={player} />
@@ -217,52 +225,58 @@ function PlayerListLink({
 }: {
   player: PlayerListResult['items'][number];
 }) {
-  const stale = isStaleCatalogRow(player);
   const identity = [player.rating, player.position].filter(Boolean).join(' · ');
   return (
     <Link
       href={`/players/${player.id}`}
-      className="hover:bg-muted/60 flex items-center gap-3 px-3 py-2.5"
+      className="hover:bg-muted/60 flex h-20 items-center gap-2 px-2 sm:gap-2.5 sm:px-2.5 md:h-24 md:gap-3 md:px-3"
     >
-      <PlayerCardArt
-        id={player.id}
-        kinds={player.availableImageKinds}
-        rating={player.rating}
-        position={player.position}
-        auctionable={player.auctionable}
-        displayName={cardDisplayName(player)}
-        playStyles={player.playStyles}
-      />
-      <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <div className="min-w-0">
-          <span className="block truncate font-medium capitalize">
+      <div className="size-20 shrink-0 md:size-24">
+        <PlayerCardArt
+          id={player.id}
+          kinds={player.availableImageKinds}
+          rating={player.rating}
+          position={player.position}
+          auctionable={player.auctionable}
+          displayName={cardDisplayName(player)}
+          playStyles={player.playStyles}
+          size={80}
+          fill
+        />
+      </div>
+      <div className="flex min-h-0 min-w-0 flex-1 items-center gap-2 overflow-hidden">
+        <div className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium capitalize leading-tight md:text-base">
             {cardDisplayName(player)}
           </span>
-          <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+          <div className="mt-0.5 flex min-w-0 flex-col gap-0.5 overflow-hidden">
             {identity ? (
-              <span className="text-sm tabular-nums">{identity}</span>
+              <span className="text-muted-foreground text-[11px] tabular-nums sm:text-xs md:text-sm md:text-foreground">
+                {identity}
+              </span>
+            ) : null}
+            {player.altPositions.length > 0 ? (
+              <span className="text-muted-foreground truncate text-[10px] font-medium italic sm:text-[11px]">
+                {player.altPositions.join(' · ')}
+              </span>
             ) : null}
           </div>
-          {player.altPositions.map((position) => (
-            <div
-              key={position}
-              className="h-5 pr-2 text-[11px] font-medium italic inline-block"
-            >
-              {position}
-            </div>
-          ))}
         </div>
-        <PlayerGroupedStats stats={player.avgStats} className="shrink-0" />
+        <PlayerGroupedStats
+          stats={player.avgStats}
+          compact
+          className="ml-auto"
+        />
       </div>
       {player.addedAt != null ? (
         <time
           dateTime={new Date(player.addedAt).toISOString()}
-          className="text-muted-foreground shrink-0 text-right text-xs whitespace-nowrap tabular-nums"
+          className="text-muted-foreground hidden w-14 shrink-0 text-right text-xs whitespace-nowrap tabular-nums lg:block"
         >
           {formatAddedDate(player.addedAt)}
         </time>
       ) : (
-        <span className="text-muted-foreground shrink-0 text-right text-xs">
+        <span className="text-muted-foreground hidden w-14 shrink-0 text-right text-xs lg:block">
           —
         </span>
       )}
@@ -311,7 +325,8 @@ function ViewSwitch({
     >
       <Button
         type="button"
-        size="icon-xs"
+        size="icon-sm"
+        className="size-9 sm:size-7"
         variant={view === 'list' ? 'secondary' : 'ghost'}
         aria-pressed={view === 'list'}
         aria-label="List view"
@@ -321,7 +336,8 @@ function ViewSwitch({
       </Button>
       <Button
         type="button"
-        size="icon-xs"
+        size="icon-sm"
+        className="size-9 sm:size-7"
         variant={view === 'grid' ? 'secondary' : 'ghost'}
         aria-pressed={view === 'grid'}
         aria-label="Grid view"
@@ -337,7 +353,7 @@ function ListingSkeleton({ view }: { view: PlayerListQuery['view'] }) {
   if (view === 'grid') {
     return (
       <div
-        className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+        className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
         aria-busy="true"
         aria-label="Loading players"
       >

@@ -56,7 +56,7 @@ export function isStaleCatalogRow(
 
 export function catalogRowNeedsEnrich(player: {
   parseVersion: number;
-  playStyles: Array<{ name?: string }>;
+  playStyles: Array<{ name?: string; description?: string }>;
   traits?: Array<{ name?: string }>;
 }): boolean {
   if (player.parseVersion < CURRENT_PARSE_VERSION) {
@@ -64,7 +64,10 @@ export function catalogRowNeedsEnrich(player: {
   }
   if (
     player.playStyles.some(
-      (style) => !style.name || /^PLAYSTYLE_/i.test(style.name),
+      (style) =>
+        !style.name ||
+        /^PLAYSTYLE_/i.test(style.name) ||
+        !style.description?.trim(),
     )
   ) {
     return true;

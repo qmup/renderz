@@ -16,7 +16,8 @@
     "seed": "npx tsx scripts/seed-listing.ts",
     "ingest": "npx tsx scripts/ingest.ts",
     "catalog:verify": "npx tsx scripts/verify-catalog.ts",
-    "catalog:cache-images": "npx tsx scripts/cache-images.ts"
+    "catalog:cache-images": "npx tsx scripts/cache-images.ts",
+    "catalog:daily-update": "npx tsx scripts/catalog-daily-update.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.102.8",

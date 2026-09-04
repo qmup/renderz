@@ -1,0 +1,54 @@
+# Daily discovery-only catalog update + listing image pack for production.
+# Schedule: 00:00 Asia/Ho_Chi_Minh (= 17:00 UTC previous calendar day).
+name: Daily catalog update
+
+on:
+  schedule:
+    - cron: "0 17 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-catalog-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Discovery update + pack images
+        run: npm run catalog:daily-update
+        env:
+          RENDERZ_MAX_CONCURRENCY: "1"
+          RENDERZ_REQUESTS_PER_SECOND: "1"
+
+      - name: Commit snapshot artifacts
+        run: |
+          git lfs install
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/catalog.snapshot.sqlite data/images.sqlite .gitattributes
+          if git diff --staged --quiet; then
+            echo "No catalog/image changes to commit"
+            exit 0
+          fi
+          git commit -m "chore: daily catalog discovery + image pack"
+          git push

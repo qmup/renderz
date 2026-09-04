@@ -1,36 +1,40 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { CatalogNotice } from "@/components/catalog-notice";
-import { PlayerBio } from "@/components/players/player-bio";
-import { PlayerCardArt } from "@/components/players/player-card-art";
-import { PlayerDetailStats } from "@/components/players/player-detail-stats";
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { CatalogNotice } from '@/components/catalog-notice';
+import { PlayerBio } from '@/components/players/player-bio';
+import { PlayerCardArt } from '@/components/players/player-card-art';
+import { PlayerDetailBack } from '@/components/players/player-detail-back';
+import { PlayerDetailStats } from '@/components/players/player-detail-stats';
 import {
   PlayerHiddenStats,
   PlayerPlayStyles,
-} from "@/components/players/player-icon-lists";
-import { StarSigningsPrice } from "@/components/players/star-signings-price";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { enrichDiscoveredPlayer } from "@/lib/catalog/enrichment";
-import { getPlayerCatalog } from "@/lib/catalog/runtime";
-import { isDev } from "@/lib/dev";
+} from '@/components/players/player-icon-lists';
+import { StarSigningsPrice } from '@/components/players/star-signings-price';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { enrichDiscoveredPlayer } from '@/lib/catalog/enrichment';
+import { getPlayerCatalog } from '@/lib/catalog/runtime';
+import { isDev } from '@/lib/dev';
 import {
   catalogRowNeedsEnrich,
   displayProgramName,
   formatFetchedRelative,
   formatRetryAfter,
   isStaleCatalogRow,
-} from "@/lib/display";
-import { playerIdSchema, cardDisplayName, type Player } from "@/lib/domain/player";
-import { RateLimitedError } from "@/lib/http/errors";
-import { getRenderzSource } from "@/lib/providers/renderz/renderz-source";
-import { groupDetailStats } from "@/lib/stats";
+} from '@/lib/display';
+import {
+  playerIdSchema,
+  cardDisplayName,
+  type Player,
+} from '@/lib/domain/player';
+import { RateLimitedError } from '@/lib/http/errors';
+import { getRenderzSource } from '@/lib/providers/renderz/renderz-source';
+import { groupDetailStats } from '@/lib/stats';
 
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-type EnrichNotice = "rate_limited" | "enrich_failed";
+type EnrichNotice = 'rate_limited' | 'enrich_failed';
 
 type PlayerLoad = {
   player: Player;
@@ -61,29 +65,29 @@ async function loadPlayer(id: string): Promise<PlayerLoad | null> {
     if (error instanceof RateLimitedError) {
       return {
         player: existing,
-        notice: "rate_limited",
+        notice: 'rate_limited',
         retryAfterMs: error.retryAfterMs,
       };
     }
-    return { player: existing, notice: "enrich_failed" };
+    return { player: existing, notice: 'enrich_failed' };
   }
 }
 
 export async function generateMetadata({
   params,
-}: PageProps<"/players/[id]">): Promise<Metadata> {
+}: PageProps<'/players/[id]'>): Promise<Metadata> {
   const { id: rawId } = await params;
   const parsed = playerIdSchema.safeParse(rawId);
   if (!parsed.success) {
-    return { title: "Player" };
+    return { title: 'Player' };
   }
   const player = await getPlayerCatalog().getById(parsed.data);
-  return { title: player?.name ?? "Player" };
+  return { title: player?.name ?? 'Player' };
 }
 
 export default async function PlayerDetailPage({
   params,
-}: PageProps<"/players/[id]">) {
+}: PageProps<'/players/[id]'>) {
   const { id: rawId } = await params;
   const parsed = playerIdSchema.safeParse(rawId);
   if (!parsed.success) {
@@ -100,23 +104,24 @@ export default async function PlayerDetailPage({
   const program = displayProgramName(player.programName, player.programId);
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-8">
-      <p className="text-muted-foreground text-sm">
-        <Link href="/players" className="hover:text-foreground underline-offset-4 hover:underline">
-          Players
-        </Link>
-      </p>
+    <main className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-5 sm:gap-8 sm:py-8">
+      <PlayerDetailBack />
 
-      {notice === "rate_limited" ? (
-        <CatalogNotice title="Refresh paused by the upstream rate limit" tone="warning">
-          Showing the last catalog copy. Try again in {formatRetryAfter(retryAfterMs)}.
-          Ingest uses about one request per second.
+      {notice === 'rate_limited' ? (
+        <CatalogNotice
+          title="Refresh paused by the upstream rate limit"
+          tone="warning"
+        >
+          Showing the last catalog copy. Try again in{' '}
+          {formatRetryAfter(retryAfterMs)}. Ingest uses about one request per
+          second.
         </CatalogNotice>
       ) : null}
-      {notice === "enrich_failed" ? (
+      {notice === 'enrich_failed' ? (
         <CatalogNotice title="Could not refresh this player" tone="warning">
-          Showing the last catalog copy. Parser or upstream fetch failed; retry later
-          or run <code className="text-foreground">npm run ingest run</code>.
+          Showing the last catalog copy. Parser or upstream fetch failed; retry
+          later or run{' '}
+          <code className="text-foreground">npm run ingest run</code>.
         </CatalogNotice>
       ) : null}
       {notice === undefined && stale ? (
@@ -126,8 +131,8 @@ export default async function PlayerDetailPage({
         </CatalogNotice>
       ) : null}
 
-      <header className="flex flex-col gap-6 sm:flex-row sm:items-start">
-        <div className="flex shrink-0 flex-col items-center">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
+        <div className="mx-auto flex w-[11.5rem] shrink-0 flex-col items-center sm:mx-0 sm:w-52">
           <PlayerCardArt
             id={player.id}
             kinds={player.availableImageKinds}
@@ -137,24 +142,29 @@ export default async function PlayerDetailPage({
             displayName={cardDisplayName(player)}
             playStyles={player.playStyles}
             size={208}
+            fill
             priority
+            animate
           />
           <StarSigningsPrice
+            playerId={player.id}
             buy={player.starSigningsBuy}
             sell={player.starSigningsSell}
           />
         </div>
-        <div className="flex min-w-0 flex-col gap-3">
+        <div className="flex min-w-0 flex-col gap-3 text-center sm:text-left">
           <div>
-            <p className="text-muted-foreground text-xs tracking-[0.18em] uppercase">
-              {program ?? "FC Mobile"}
+            <p className="text-muted-foreground text-[10px] tracking-[0.18em] uppercase sm:text-xs">
+              {program ?? 'FC Mobile'}
             </p>
-            <h1 className="font-heading text-3xl font-semibold tracking-tight">
+            <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
               {player.name}
             </h1>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-heading text-4xl tabular-nums">{player.rating}</span>
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+            <span className="font-heading text-3xl tabular-nums sm:text-4xl">
+              {player.rating}
+            </span>
             {player.position ? <Badge>{player.position}</Badge> : null}
             {player.altPositions.map((position) => (
               <Badge key={position} variant="secondary">

@@ -1,7 +1,7 @@
 import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
-import { isPlayerIconImageKind, type PlayerImageKind } from "@/lib/domain/player";
+import { isSharedImageKind, type PlayerImageKind } from "@/lib/domain/player";
 import { looksLikeImage, sniffImageContentType } from "@/lib/providers/renderz/image-policy";
 
 const CREATE_SQL = `CREATE TABLE IF NOT EXISTS images (
@@ -62,7 +62,7 @@ export function readCachedImage(
         contentType: sniffImageContentType(null, bytes),
       };
     }
-    if (!isPlayerIconImageKind(kind)) {
+    if (!isSharedImageKind(kind)) {
       return null;
     }
     const shared = getCacheDb(cwd)

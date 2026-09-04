@@ -1,12 +1,17 @@
 import { load } from "cheerio";
 import { CURRENT_PARSE_VERSION } from "@/lib/catalog/parse-version";
 import {
+  cardLoopImageKind,
   isPlayerCardImageKind,
+  isPlayerLoopImageKind,
   parsePlayerId,
   playStyleImageKind,
+  playStyleLevelFromUpstreamUrl,
   playerImageKindSchema,
   playerSchema,
+  sortPlayStylesByLevelDesc,
   traitImageKind,
+  type AvailableImageKind,
   type Player,
   type PlayerAssetRow,
   type PlayerImageKind,
@@ -120,7 +125,7 @@ function playStylesFromUnknown(value: unknown): PlayStyle[] {
   if (!Array.isArray(value)) {
     return [];
   }
-  return value.flatMap((item) => {
+  const styles = value.flatMap((item) => {
     if (!isRecord(item)) {
       return [];
     }
@@ -137,6 +142,7 @@ function playStylesFromUnknown(value: unknown): PlayStyle[] {
       },
     ];
   });
+  return sortPlayStylesByLevelDesc(styles);
 }
 
 function skillsFromUnknown(value: unknown): SkillNode[] {
@@ -209,6 +215,50 @@ function assetsFromImages(
   return assets;
 }
 
+/** First ICON_LOOP (or any LOOP) sprite under player.animation.animations. */
+function assetFromCardLoopAnimation(
+  playerId: string,
+  animation: unknown,
+  fetchedAt: number,
+): PlayerAssetRow | undefined {
+  if (!isRecord(animation) || !Array.isArray(animation.animations)) {
+    return undefined;
+  }
+  for (const group of animation.animations) {
+    if (!isRecord(group) || !Array.isArray(group.animations)) {
+      continue;
+    }
+    for (const clip of group.animations) {
+      if (!isRecord(clip)) {
+        continue;
+      }
+      const url = asHttpsUrl(clip.image);
+      const maxFrames = asNumber(clip.maxFrames);
+      const imageName = asString(clip.imageName) ?? "";
+      if (!url || maxFrames === undefined || maxFrames < 1) {
+        continue;
+      }
+      if (
+        !/_LOOP(?:\?|$)/i.test(url) &&
+        !/LOOP/i.test(imageName)
+      ) {
+        continue;
+      }
+      const kind = cardLoopImageKind(maxFrames);
+      if (!kind) {
+        continue;
+      }
+      return {
+        playerId: parsePlayerId(playerId),
+        kind: playerImageKindSchema.parse(kind),
+        upstreamUrl: url,
+        fetchedAt,
+      };
+    }
+  }
+  return undefined;
+}
+
 function asHttpsUrl(value: unknown): string | undefined {
   const url = asString(value);
   return url?.startsWith("https://") ? url : undefined;
@@ -242,10 +292,12 @@ function iconAssetsFromCollections(
       if (id === undefined || id === null) {
         continue;
       }
-      push(
-        playStyleImageKind(String(id)),
-        asHttpsUrl(item.levelImage) ?? asHttpsUrl(item.image),
-      );
+      const url =
+        asHttpsUrl(item.levelImage) ?? asHttpsUrl(item.image);
+      const level =
+        asNumber(item.level) ??
+        (url ? playStyleLevelFromUpstreamUrl(url) : undefined);
+      push(playStyleImageKind(String(id), level), url);
     }
   }
   if (Array.isArray(traits)) {
@@ -649,17 +701,19 @@ function resolveHtmlName(
 }
 
 function applyExtractedLabels(player: Player, labels: HtmlPlayerLabels): Player {
-  const playStyles = player.playStyles.map((style, index) => {
-    const byId = labels.playStyles.find((hit) => hit.id === style.id);
-    const overlay = labels.playStyleImages[index];
-    const htmlName = byId?.name ?? overlay?.name ?? labels.playStyleNames[index];
-    return {
-      ...style,
-      name: resolveHtmlName(style.name, htmlName),
-      description: style.description ?? byId?.description,
-      level: style.level ?? byId?.level,
-    };
-  });
+  const playStyles = sortPlayStylesByLevelDesc(
+    player.playStyles.map((style, index) => {
+      const byId = labels.playStyles.find((hit) => hit.id === style.id);
+      const overlay = labels.playStyleImages[index];
+      const htmlName = byId?.name ?? overlay?.name ?? labels.playStyleNames[index];
+      return {
+        ...style,
+        name: resolveHtmlName(style.name, htmlName),
+        description: style.description ?? byId?.description,
+        level: style.level ?? byId?.level,
+      };
+    }),
+  );
   const traits = player.traits.map((trait, index) => {
     const byId = labels.traits.find((hit) => hit.id === trait.id);
     return {
@@ -710,10 +764,12 @@ function iconAssetsFromHtmlLabels(
   };
   for (const [index, style] of player.playStyles.entries()) {
     const byId = labels.playStyles.find((hit) => hit.id === style.id);
-    push(
-      playStyleImageKind(style.id),
-      byId?.imageUrl ?? labels.playStyleImages[index]?.imageUrl,
-    );
+    const imageUrl = byId?.imageUrl ?? labels.playStyleImages[index]?.imageUrl;
+    const level =
+      style.level ??
+      byId?.level ??
+      (imageUrl ? playStyleLevelFromUpstreamUrl(imageUrl) : undefined);
+    push(playStyleImageKind(style.id, level), imageUrl);
   }
   for (const trait of player.traits) {
     const byId = labels.traits.find((hit) => hit.id === trait.id);
@@ -742,9 +798,20 @@ function playerFromRaw(
     ...assetsFromImages(playerId, raw.images, fetchedAt),
     ...iconAssetsFromCollections(playerId, raw.playStyles, raw.traits, fetchedAt),
   ];
+  const loopAsset = assetFromCardLoopAnimation(playerId, raw.animation, fetchedAt);
+  if (loopAsset) {
+    assets.push(loopAsset);
+  }
   const stats = statsFromUnknown(raw.stats, raw.avgStats);
   const related = relatedIdsFromUnknown(raw.relatedCards).filter((relatedId) => relatedId !== playerId);
   const prices = pricesFromRaw(raw, html);
+
+  const availableImageKinds = assets
+    .map((asset) => asset.kind)
+    .filter(
+      (kind): kind is AvailableImageKind =>
+        isPlayerCardImageKind(kind) || isPlayerLoopImageKind(kind),
+    );
 
   const player = playerSchema.parse({
     id: parsePlayerId(playerId),
@@ -784,9 +851,7 @@ function playerFromRaw(
     relatedCardIds: related.filter((value) => /^\d+$/.test(value)).map((value) => parsePlayerId(value)),
     starSigningsBuy: prices.buy,
     starSigningsSell: prices.sell,
-    availableImageKinds: assets
-      .map((asset) => asset.kind)
-      .filter(isPlayerCardImageKind),
+    availableImageKinds,
     addedAt: parseAddedAt(raw.added),
     fetchedAt,
     parseVersion: CURRENT_PARSE_VERSION,

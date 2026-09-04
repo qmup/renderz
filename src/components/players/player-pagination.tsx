@@ -79,13 +79,13 @@ export function PlayerPagination({
 
   return (
     <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-muted-foreground text-sm" aria-live="polite">
-          Showing{" "}
-          <span className="text-foreground font-medium">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-muted-foreground text-xs sm:text-sm" aria-live="polite">
+          <span className="text-foreground font-medium tabular-nums">
             {start.toLocaleString()}–{end.toLocaleString()}
-          </span>{" "}
-          of {total.toLocaleString()}
+          </span>
+          <span className="hidden sm:inline"> of {total.toLocaleString()}</span>
+          <span className="sm:hidden"> / {total.toLocaleString()}</span>
         </p>
         <div className="flex items-center gap-2">
           <Label htmlFor={sizeId} className="text-muted-foreground text-xs font-normal">
@@ -109,10 +109,10 @@ export function PlayerPagination({
         </div>
       </div>
 
-      <div className="flex flex-col items-center gap-3 lg:flex-row lg:justify-between">
-        <Pagination className="mx-0 w-auto justify-center lg:justify-start">
-          <PaginationContent>
-            <PaginationItem>
+      <div className="flex flex-col items-stretch gap-3 sm:items-center lg:flex-row lg:justify-between">
+        <Pagination className="mx-0 w-full justify-between sm:w-auto sm:justify-center lg:justify-start">
+          <PaginationContent className="w-full justify-between gap-0.5 sm:w-auto sm:justify-center sm:gap-1">
+            <PaginationItem className="hidden sm:block">
               <Button
                 type="button"
                 variant="ghost"
@@ -128,29 +128,29 @@ export function PlayerPagination({
               <Button
                 type="button"
                 variant="ghost"
-                size="default"
-                className="pl-1.5"
+                size="icon"
+                className="size-10 sm:size-8"
                 disabled={atStart}
                 aria-label="Go to previous page"
                 onClick={() => goTo(page - 1)}
               >
-                <ChevronLeftIcon data-icon="inline-start" />
-                <span className="hidden sm:inline">Previous</span>
+                <ChevronLeftIcon />
               </Button>
             </PaginationItem>
             {items.map((item) =>
               item.type === "ellipsis" ? (
-                <PaginationItem key={item.key} className="hidden sm:flex">
+                <PaginationItem key={item.key} className="hidden md:flex">
                   <PaginationEllipsis />
                 </PaginationItem>
               ) : (
                 <PaginationItem
                   key={item.page}
-                  className={item.page === page ? undefined : "hidden sm:flex"}
+                  className={item.page === page ? undefined : "hidden md:flex"}
                 >
                   <Button
                     type="button"
                     size="icon"
+                    className={item.page === page ? "size-10 sm:size-8" : undefined}
                     variant={item.page === page ? "outline" : "ghost"}
                     aria-label={`Go to page ${item.page}`}
                     aria-current={item.page === page ? "page" : undefined}
@@ -165,17 +165,16 @@ export function PlayerPagination({
               <Button
                 type="button"
                 variant="ghost"
-                size="default"
-                className="pr-1.5"
+                size="icon"
+                className="size-10 sm:size-8"
                 disabled={atEnd}
                 aria-label="Go to next page"
                 onClick={() => goTo(page + 1)}
               >
-                <span className="hidden sm:inline">Next</span>
-                <ChevronRightIcon data-icon="inline-end" />
+                <ChevronRightIcon />
               </Button>
             </PaginationItem>
-            <PaginationItem>
+            <PaginationItem className="hidden sm:block">
               <Button
                 type="button"
                 variant="ghost"
@@ -190,7 +189,10 @@ export function PlayerPagination({
           </PaginationContent>
         </Pagination>
 
-        <form className="flex items-center gap-2" onSubmit={submitJump}>
+        <form
+          className="flex items-center justify-center gap-2 sm:justify-start"
+          onSubmit={submitJump}
+        >
           <Label htmlFor={jumpId} className="text-muted-foreground text-xs font-normal">
             Go to
           </Label>
@@ -202,12 +204,14 @@ export function PlayerPagination({
             min={1}
             max={totalPages}
             inputMode="numeric"
-            className="h-8 w-16 text-center"
+            className="h-10 w-16 text-center sm:h-8"
             defaultValue={page}
             aria-label="Page number"
           />
-          <span className="text-muted-foreground text-xs">/ {totalPages}</span>
-          <Button type="submit" size="sm" variant="outline">
+          <span className="text-muted-foreground text-xs tabular-nums">
+            / {totalPages.toLocaleString()}
+          </span>
+          <Button type="submit" size="sm" variant="outline" className="h-10 sm:h-7">
             Go
           </Button>
         </form>

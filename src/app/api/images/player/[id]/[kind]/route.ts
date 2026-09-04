@@ -6,10 +6,15 @@ import {
 import { enrichDiscoveredPlayer } from "@/lib/catalog/enrichment";
 import { isDev } from "@/lib/dev";
 import {
+  isPlayerCommonImageKind,
   isPlayerIconImageKind,
+  playStyleBaseImageKind,
+  playStyleLevelFromImageKind,
+  playStyleLevelFromUpstreamUrl,
   playerImageKindSchema,
   playerIdSchema,
   type PlayerAssetRow,
+  type PlayerCommonImageKind,
   type PlayerImageKind,
 } from "@/lib/domain/player";
 import {
@@ -25,6 +30,21 @@ import { ZodError } from "zod";
 import type { PlayerCatalog } from "@/lib/catalog/repository";
 
 export const runtime = "nodejs";
+
+/** Server-only well-known common assets (never ship these URLs to the browser). */
+const COMMON_IMAGE_UPSTREAM_URLS: Record<PlayerCommonImageKind, string> = {
+  untradeable:
+    "https://images-v2-unsigned.renderz.app/common_23_untradeable_icon",
+  /** Star Signings BUY/SELL currency (RenderZ `common_STAR_SHARD_S`). */
+  "star-shard": "https://images-v2-unsigned.renderz.app/common_STAR_SHARD_S",
+};
+
+function commonImageUpstreamUrl(kind: PlayerImageKind): string | undefined {
+  if (!isPlayerCommonImageKind(kind)) {
+    return undefined;
+  }
+  return COMMON_IMAGE_UPSTREAM_URLS[kind];
+}
 
 function placeholder(): Response {
   return new Response(PLACEHOLDER_SVG, {
@@ -53,14 +73,53 @@ async function resolveAsset(
   playerId: string,
   kind: PlayerImageKind,
 ): Promise<PlayerAssetRow | null> {
+  const commonUrl = commonImageUpstreamUrl(kind);
+  if (commonUrl) {
+    return {
+      playerId: playerIdSchema.parse(playerId),
+      kind,
+      upstreamUrl: commonUrl,
+      fetchedAt: 0,
+    };
+  }
+
   const own = await catalog.getAsset(playerId, kind);
   if (own) {
     return own;
   }
+
+  const level = playStyleLevelFromImageKind(kind);
+  const baseKind = playStyleBaseImageKind(kind);
+  if (level !== undefined && baseKind) {
+    const legacy = await catalog.getAsset(playerId, baseKind);
+    if (
+      legacy &&
+      playStyleLevelFromUpstreamUrl(legacy.upstreamUrl) === level
+    ) {
+      return legacy;
+    }
+  }
+
   if (!isPlayerIconImageKind(kind)) {
     return null;
   }
-  return catalog.findSharedIconAsset(kind);
+
+  const shared = await catalog.findSharedIconAsset(kind);
+  if (shared) {
+    return shared;
+  }
+
+  if (level !== undefined && baseKind) {
+    const sharedLegacy = await catalog.findSharedIconAsset(baseKind);
+    if (
+      sharedLegacy &&
+      playStyleLevelFromUpstreamUrl(sharedLegacy.upstreamUrl) === level
+    ) {
+      return sharedLegacy;
+    }
+  }
+
+  return null;
 }
 
 async function fetchAndCache(

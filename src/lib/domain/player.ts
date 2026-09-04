@@ -28,17 +28,42 @@ export const PLAYER_IMAGE_KINDS = PLAYER_CARD_IMAGE_KINDS;
 export const playerCardImageKindSchema = z.enum(PLAYER_CARD_IMAGE_KINDS);
 export type PlayerCardImageKind = z.infer<typeof playerCardImageKindSchema>;
 
-const PLAYER_ICON_KIND_PATTERN = /^(playstyle|trait)--?[A-Za-z0-9_]+$/;
+/** Well-known shared chrome icons (not stored per player). */
+export const PLAYER_COMMON_IMAGE_KINDS = ['untradeable', 'star-shard'] as const;
+
+export const playerCommonImageKindSchema = z.enum(PLAYER_COMMON_IMAGE_KINDS);
+export type PlayerCommonImageKind = z.infer<typeof playerCommonImageKindSchema>;
+
+const PLAYER_ICON_KIND_PATTERN =
+  /^(?:playstyle--?[A-Za-z0-9_]+(?:-l\d+)?|trait--?[A-Za-z0-9_]+)$/;
 
 export const playerIconImageKindSchema = z
   .string()
   .regex(PLAYER_ICON_KIND_PATTERN, 'Invalid player icon image kind');
 
+/** Card chrome LOOP sprite sheet; maxFrames encoded as `loop-f{n}`. */
+const PLAYER_LOOP_KIND_PATTERN = /^loop-f(\d+)$/;
+
+export const playerLoopImageKindSchema = z
+  .string()
+  .regex(PLAYER_LOOP_KIND_PATTERN, 'Invalid player loop image kind');
+
+export type PlayerLoopImageKind = z.infer<typeof playerLoopImageKindSchema>;
+
 export const playerImageKindSchema = z.union([
   playerCardImageKindSchema,
+  playerCommonImageKindSchema,
   playerIconImageKindSchema,
+  playerLoopImageKindSchema,
 ]);
 export type PlayerImageKind = z.infer<typeof playerImageKindSchema>;
+
+/** Card layers + optional LOOP kind stored on the player row (no URLs). */
+export const availableImageKindSchema = z.union([
+  playerCardImageKindSchema,
+  playerLoopImageKindSchema,
+]);
+export type AvailableImageKind = z.infer<typeof availableImageKindSchema>;
 
 export function isPlayerCardImageKind(
   kind: string,
@@ -46,8 +71,56 @@ export function isPlayerCardImageKind(
   return playerCardImageKindSchema.safeParse(kind).success;
 }
 
+export function isPlayerCommonImageKind(
+  kind: string,
+): kind is PlayerCommonImageKind {
+  return playerCommonImageKindSchema.safeParse(kind).success;
+}
+
 export function isPlayerIconImageKind(kind: string): kind is PlayerImageKind {
   return playerIconImageKindSchema.safeParse(kind).success;
+}
+
+/** Icon + common kinds share one cached blob across players. */
+export function isSharedImageKind(kind: string): boolean {
+  return isPlayerIconImageKind(kind) || isPlayerCommonImageKind(kind);
+}
+
+export function isPlayerLoopImageKind(
+  kind: string,
+): kind is PlayerLoopImageKind {
+  return playerLoopImageKindSchema.safeParse(kind).success;
+}
+
+export function cardLoopImageKind(
+  maxFrames: number,
+): PlayerLoopImageKind | undefined {
+  if (!Number.isFinite(maxFrames) || maxFrames < 1) {
+    return undefined;
+  }
+  return `loop-f${Math.trunc(maxFrames)}`;
+}
+
+export function cardLoopMaxFramesFromKind(
+  kind: string,
+): number | undefined {
+  const match = kind.match(PLAYER_LOOP_KIND_PATTERN);
+  if (!match?.[1]) {
+    return undefined;
+  }
+  const frames = Number(match[1]);
+  return Number.isFinite(frames) && frames > 0 ? frames : undefined;
+}
+
+export function findCardLoopKind(
+  kinds: readonly string[],
+): PlayerLoopImageKind | undefined {
+  for (const kind of kinds) {
+    if (isPlayerLoopImageKind(kind)) {
+      return kind;
+    }
+  }
+  return undefined;
 }
 
 function sanitizeIconId(id: string): string | undefined {
@@ -58,9 +131,52 @@ function sanitizeIconId(id: string): string | undefined {
   return compact;
 }
 
-export function playStyleImageKind(id: string): PlayerImageKind | undefined {
+/** Playstyle icons differ by level (1 silver, 2 gold, …); kind must include level. */
+export function playStyleImageKind(
+  id: string,
+  level?: number,
+): PlayerImageKind | undefined {
   const safe = sanitizeIconId(id);
-  return safe ? `playstyle-${safe}` : undefined;
+  if (!safe) {
+    return undefined;
+  }
+  if (level !== undefined && Number.isFinite(level) && level > 0) {
+    return `playstyle-${safe}-l${Math.trunc(level)}`;
+  }
+  return `playstyle-${safe}`;
+}
+
+export function playStyleLevelFromImageKind(
+  kind: string,
+): number | undefined {
+  const match = kind.match(/^playstyle-.+-l(\d+)$/);
+  if (!match?.[1]) {
+    return undefined;
+  }
+  return Number(match[1]);
+}
+
+export function playStyleBaseImageKind(
+  kind: string,
+): PlayerImageKind | undefined {
+  const match = kind.match(/^(playstyle--?[A-Za-z0-9_]+)-l\d+$/);
+  if (!match?.[1]) {
+    return undefined;
+  }
+  return playerIconImageKindSchema.safeParse(match[1]).success
+    ? (match[1] as PlayerImageKind)
+    : undefined;
+}
+
+export function playStyleLevelFromUpstreamUrl(
+  url: string,
+): number | undefined {
+  const match = url.match(/_(\d+)(?:\?|$)/);
+  if (!match?.[1]) {
+    return undefined;
+  }
+  const level = Number(match[1]);
+  return Number.isFinite(level) && level > 0 ? level : undefined;
 }
 
 export function traitImageKind(id: string): PlayerImageKind | undefined {
@@ -96,6 +212,19 @@ export const playStyleSchema = cardPlayStyleSchema.extend({
 });
 export type PlayStyle = z.infer<typeof playStyleSchema>;
 
+/** Higher playstyle levels first (gold above silver). Missing level sorts last. */
+export function sortPlayStylesByLevelDesc<T extends { level?: number; id?: string }>(
+  styles: T[],
+): T[] {
+  return [...styles].sort((a, b) => {
+    const levelDiff = (b.level ?? -1) - (a.level ?? -1);
+    if (levelDiff !== 0) {
+      return levelDiff;
+    }
+    return String(a.id ?? "").localeCompare(String(b.id ?? ""));
+  });
+}
+
 export const skillNodeSchema = z.object({
   id: z.string().min(1),
   key: z.string().min(1).optional(),
@@ -124,7 +253,7 @@ export const playerSummarySchema = playerIdentitySchema.extend({
   altPositions: z.array(z.string().min(1)).default([]),
   avgStats: z.array(playerStatSchema).default([]),
   playStyles: z.array(cardPlayStyleSchema).default([]),
-  availableImageKinds: z.array(playerCardImageKindSchema),
+  availableImageKinds: z.array(availableImageKindSchema),
   addedAt: z.number().int().optional(),
   fetchedAt: z.number().int(),
   parseVersion: z.number().int().nonnegative(),
@@ -213,10 +342,12 @@ export function toPlayerSummary(player: Player): PlayerSummary {
     auctionable: player.auctionable,
     altPositions: player.altPositions,
     avgStats: groupStatsFromPlayerStats(player.stats),
-    playStyles: player.playStyles.map((style) => ({
-      id: style.id,
-      level: style.level,
-    })),
+    playStyles: sortPlayStylesByLevelDesc(
+      player.playStyles.map((style) => ({
+        id: style.id,
+        level: style.level,
+      })),
+    ),
     availableImageKinds: player.availableImageKinds,
     addedAt: player.addedAt,
     fetchedAt: player.fetchedAt,

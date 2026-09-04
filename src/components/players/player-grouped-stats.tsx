@@ -4,25 +4,51 @@ import { cn } from '@/lib/utils';
 export function PlayerGroupedStats({
   stats,
   className,
+  compact = false,
 }: {
   stats: Array<{ key: string; value: number; label?: string }>;
   className?: string;
+  compact?: boolean;
 }) {
   const items = groupStatsFromPlayerStats(stats);
   if (items.length === 0) {
     return null;
   }
   return (
-    <ul className={cn('flex items-stretch gap-3', className)}>
+    <ul
+      className={cn(
+        compact
+          ? 'grid shrink-0 grid-cols-3 gap-x-1 gap-y-0.5'
+          : 'grid w-full min-w-0 grid-cols-3 gap-1 md:flex md:w-auto md:flex-wrap md:items-stretch md:gap-2',
+        className,
+      )}
+    >
       {items.map((stat) => (
         <li
           key={stat.key}
-          className="bg-muted flex min-w-15 flex-col items-center justify-center rounded-md px-3 py-3"
+          className={cn(
+            'bg-muted flex min-w-0 flex-col items-center justify-center rounded-md',
+            compact
+              ? 'min-w-8 px-0.5 py-px'
+              : 'px-1 py-1 md:min-w-14 md:px-2.5 md:py-2',
+          )}
         >
-          <span className="font-heading text-sm leading-none tabular-nums">
+          <span
+            className={cn(
+              'font-heading leading-none tabular-nums',
+              compact ? 'text-[9px]' : 'text-[11px] md:text-sm',
+            )}
+          >
             {stat.value}
           </span>
-          <span className="text-muted-foreground mt-0.5 text-[10px] tracking-wide">
+          <span
+            className={cn(
+              'text-muted-foreground tracking-wide',
+              compact
+                ? 'text-[7px] leading-none'
+                : 'mt-0.5 text-[9px] md:text-[10px]',
+            )}
+          >
             {stat.label}
           </span>
         </li>

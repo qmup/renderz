@@ -1,9 +1,12 @@
 'use client';
 
-import { Hammer } from 'lucide-react';
+import { CardLoopCanvas } from '@/components/players/card-loop-canvas';
 import { PlayerImage } from '@/components/players/player-image';
 import {
+  cardLoopMaxFramesFromKind,
+  findCardLoopKind,
   playStyleImageKind,
+  sortPlayStylesByLevelDesc,
   type CardPlayStyle,
   type PlayerImageKind,
 } from '@/lib/domain/player';
@@ -21,6 +24,7 @@ export function PlayerCardArt({
   size = 96,
   fill = false,
   priority = false,
+  animate = false,
 }: {
   id: string;
   kinds: string[];
@@ -33,16 +37,36 @@ export function PlayerCardArt({
   size?: number;
   fill?: boolean;
   priority?: boolean;
+  /** Detail-only: play LOOP sprite when a loop kind is present. */
+  animate?: boolean;
 }) {
   const has = (kind: PlayerImageKind) => kinds.includes(kind);
-  const showStack = has('background') || has('card');
+  const loopKind = animate ? findCardLoopKind(kinds) : undefined;
+  const loopFrames = loopKind ? cardLoopMaxFramesFromKind(loopKind) : undefined;
+  const showLoop =
+    loopKind !== undefined && loopFrames !== undefined && loopFrames > 0;
+  const showStack = has('background') || has('card') || showLoop;
   const badge = Math.round(size * 0.135);
   const boxStyle = fill ? undefined : { width: size, height: size };
   const cardName = displayName?.trim();
-  const overlayStyles = (playStyles ?? []).flatMap((style) => {
-    const kind = playStyleImageKind(style.id);
-    return kind ? [{ id: style.id, kind }] : [];
-  });
+  const overlayStyles = sortPlayStylesByLevelDesc(playStyles ?? []).flatMap(
+    (style) => {
+      const kind = playStyleImageKind(style.id, style.level);
+      return kind ? [{ id: style.id, kind }] : [];
+    },
+  );
+  const ratingSize = fill
+    ? undefined
+    : { fontSize: Math.max(11, Math.round(size * 0.105) + 2) };
+  const positionSize = fill
+    ? undefined
+    : { fontSize: Math.max(8, Math.round(size * 0.065) + 2) };
+  const nameSize = fill
+    ? {
+        fontSize: cardNameFillFont(cardName),
+        lineHeight: 1,
+      }
+    : { fontSize: cardNameFontSize(size, cardName), lineHeight: 1.05 };
 
   if (!showStack) {
     return (
@@ -62,12 +86,14 @@ export function PlayerCardArt({
     <div
       className={cn(
         'relative shrink-0 overflow-hidden',
-        fill && 'aspect-square w-full',
+        fill && '@container aspect-square w-full',
         className,
       )}
       style={boxStyle}
     >
-      {has('background') ? (
+      {showLoop && loopKind && loopFrames ? (
+        <CardLoopCanvas playerId={id} kind={loopKind} maxFrames={loopFrames} />
+      ) : has('background') ? (
         <PlayerImage
           id={id}
           kind="background"
@@ -93,21 +119,29 @@ export function PlayerCardArt({
       ) : null}
 
       <div
-        className="pointer-events-none absolute top-[11%] left-[21%] z-10 flex flex-col items-center leading-none text-white gap-0.5"
+        className="pointer-events-none absolute top-[10%] left-[20%] z-10 flex flex-col items-center gap-px leading-none text-white"
         style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}
       >
         {rating !== undefined ? (
           <span
-            className="font-heading font-bold tabular-nums"
-            style={{ fontSize: Math.max(11, Math.round(size * 0.12)) }}
+            className={cn(
+              'font-heading font-bold tabular-nums',
+              fill &&
+                'text-[clamp(6px,11cqw,15px)] @[7rem]:text-[clamp(8px,13cqw,17px)]',
+            )}
+            style={ratingSize}
           >
             {rating}
           </span>
         ) : null}
         {position ? (
           <span
-            className="font-semibold tracking-wide"
-            style={{ fontSize: Math.max(8, Math.round(size * 0.08)) }}
+            className={cn(
+              'font-semibold tracking-wide',
+              fill &&
+                'text-[clamp(4.5px,7cqw,10px)] @[7rem]:text-[clamp(6.5px,9cqw,12px)]',
+            )}
+            style={positionSize}
           >
             {position}
           </span>
@@ -115,21 +149,26 @@ export function PlayerCardArt({
       </div>
 
       {overlayStyles.length > 0 ? (
-        <PlayStyleRail playerId={id} styles={overlayStyles} size={size} />
+        <PlayStyleRail
+          playerId={id}
+          styles={overlayStyles}
+          size={size}
+          fill={fill}
+        />
       ) : null}
 
       {cardName ? (
         <div
-          className="pointer-events-none absolute inset-x-[10%] bottom-[23%] z-10 text-center leading-none text-white"
+          className="pointer-events-none absolute inset-x-[12%] bottom-[24%] z-10 flex h-[12%] items-center justify-center text-center leading-none text-white"
           style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}
           aria-hidden
         >
           <span
-            className="font-heading line-clamp-2 font-bold uppercase"
-            style={{
-              fontSize: cardNameFontSize(size),
-              lineHeight: 1.1,
-            }}
+            className={cn(
+              'font-heading w-full font-bold uppercase',
+              fill ? 'truncate leading-none tracking-tight' : 'line-clamp-2',
+            )}
+            style={nameSize}
           >
             {cardName}
           </span>
@@ -138,8 +177,9 @@ export function PlayerCardArt({
 
       {auctionable === false ? (
         <UntradeableMark
-          className="absolute right-[5%] z-10"
-          size={Math.max(12, Math.round(size * 0.16))}
+          playerId={id}
+          fill={fill}
+          size={Math.max(16, Math.round(size * 0.2))}
         />
       ) : null}
 
@@ -169,26 +209,40 @@ export function PlayerCardArt({
   );
 }
 
-function cardNameFontSize(size: number): number {
-  return Math.max(7, Math.round(size * 0.08));
+function cardNameFontSize(size: number, name?: string): number {
+  const len = name?.length ?? 0;
+  const ratio = len > 16 ? 0.052 : len > 12 ? 0.058 : 0.062;
+  return Math.max(6, Math.round(size * ratio));
+}
+
+function cardNameFillFont(name?: string): string {
+  const len = name?.length ?? 0;
+  if (len > 16) return 'clamp(5.5px, 6.8cqw, 10px)';
+  if (len > 12) return 'clamp(6px, 7.6cqw, 11px)';
+  return 'clamp(6.5px, 8.5cqw, 12px)';
 }
 
 function PlayStyleRail({
   playerId,
   styles,
   size,
+  fill,
 }: {
   playerId: string;
   styles: Array<{ id: string; kind: PlayerImageKind }>;
   size: number;
+  fill: boolean;
 }) {
-  const iconPx = Math.max(10, Math.round(size * 0.12));
+  const iconPx = Math.max(11, Math.round(size * 0.135));
   const pad = Math.max(2, Math.round(size * 0.018));
-  const gap = Math.max(1, Math.round(size * 0.012));
+  const gap = Math.max(1, Math.round(size * 0.014));
   return (
     <div
-      className="pointer-events-none absolute top-0 left-0 z-10 flex flex-col items-center rounded-sm bg-black/55"
-      style={{ padding: pad, gap }}
+      className={cn(
+        'pointer-events-none absolute top-0 left-0 z-10 flex flex-col items-center rounded-sm bg-black/55',
+        fill && 'gap-[1.5cqw] p-[2cqw] [&_img]:size-[12.5cqw]',
+      )}
+      style={fill ? undefined : { padding: pad, gap }}
     >
       {styles.map((style) => (
         <PlayerImage
@@ -206,26 +260,38 @@ function PlayStyleRail({
 }
 
 function UntradeableMark({
-  className,
+  playerId,
+  fill,
   size,
 }: {
-  className?: string;
+  playerId: string;
+  fill: boolean;
   size: number;
 }) {
+  const box = fill
+    ? { width: '16%' as const, height: '16%' as const }
+    : { width: size, height: size };
+
   return (
     <span
-      className={cn(
-        'flex items-center justify-center rounded-full bg-black/55 text-white',
-        className,
-      )}
-      style={{ width: size, height: size }}
+      className="pointer-events-none absolute top-0 right-[3%] z-20 block"
+      style={box}
       title="Untradeable"
     >
-      <span className="relative flex size-[70%] items-center justify-center">
-        <Hammer className="size-full" strokeWidth={2.25} />
-        <span className="absolute inset-x-[-10%] top-1/2 h-[2px] -rotate-45 rounded-full bg-red-500" />
-      </span>
-      <span className="sr-only">Untradeable</span>
+      {/* Dark disc so the white RenderZ glyph stays visible on transparent card corners. */}
+      <span
+        aria-hidden
+        className="absolute inset-[8%] rounded-full bg-black/80"
+      />
+      <PlayerImage
+        id={playerId}
+        kind="untradeable"
+        alt="Untradeable"
+        width={size}
+        height={size}
+        priority
+        className="absolute inset-0 h-full w-full object-contain drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
+      />
     </span>
   );
 }

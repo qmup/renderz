@@ -14,6 +14,7 @@
 /data/*.sqlite
 /data/*.sqlite-*
 !/data/catalog.snapshot.sqlite
+!/data/images.sqlite
 /data/image-cache/
 /data/*.db
 

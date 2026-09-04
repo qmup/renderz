@@ -1,10 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
   cardDisplayName,
+  cardLoopImageKind,
+  cardLoopMaxFramesFromKind,
+  findCardLoopKind,
+  isPlayerCommonImageKind,
   isPlayerIconImageKind,
+  isPlayerLoopImageKind,
+  isSharedImageKind,
+  playerImageKindSchema,
   playerSchema,
   parsePlayerId,
   playStyleImageKind,
+  sortPlayStylesByLevelDesc,
   traitImageKind,
   toPlayerSummary,
 } from "@/lib/domain/player";
@@ -93,10 +101,65 @@ describe("playerSchema", () => {
     });
     expect(player.starSigningsBuy).toBe(62240);
     expect(playStyleImageKind("12683081")).toBe("playstyle-12683081");
-    expect(playStyleImageKind("-1765936151")).toBe("playstyle--1765936151");
-    expect(isPlayerIconImageKind("playstyle--1765936151")).toBe(true);
+    expect(playStyleImageKind("12683081", 1)).toBe("playstyle-12683081-l1");
+    expect(playStyleImageKind("-1765936151", 2)).toBe(
+      "playstyle--1765936151-l2",
+    );
+    expect(isPlayerIconImageKind("playstyle--1765936151-l2")).toBe(true);
     expect(traitImageKind("7")).toBe("trait-7");
     expect(playStyleImageKind("../evil")).toBeUndefined();
+    expect(isPlayerCommonImageKind("untradeable")).toBe(true);
+    expect(isSharedImageKind("untradeable")).toBe(true);
+    expect(playerImageKindSchema.parse("untradeable")).toBe("untradeable");
+    expect(isPlayerCommonImageKind("star-shard")).toBe(true);
+    expect(isSharedImageKind("star-shard")).toBe(true);
+    expect(playerImageKindSchema.parse("star-shard")).toBe("star-shard");
+    expect(isPlayerCommonImageKind("card")).toBe(false);
+  });
+
+  it("encodes LOOP maxFrames in image kind without URLs", () => {
+    expect(cardLoopImageKind(45)).toBe("loop-f45");
+    expect(cardLoopImageKind(0)).toBeUndefined();
+    expect(cardLoopMaxFramesFromKind("loop-f45")).toBe(45);
+    expect(isPlayerLoopImageKind("loop-f45")).toBe(true);
+    expect(isPlayerLoopImageKind("loop")).toBe(false);
+    expect(isSharedImageKind("loop-f45")).toBe(false);
+    expect(findCardLoopKind(["card", "loop-f45", "background"])).toBe(
+      "loop-f45",
+    );
+    expect(
+      playerSchema.parse({
+        id: "30920616",
+        slug: "carlos-alberto",
+        name: "Carlos Alberto",
+        rating: 122,
+        altPositions: [],
+        stats: [],
+        traits: [],
+        playStyles: [],
+        skills: [],
+        relatedCardIds: [],
+        availableImageKinds: ["card", "background", "loop-f45"],
+        fetchedAt: 1,
+        parseVersion: CURRENT_PARSE_VERSION,
+      }).availableImageKinds,
+    ).toContain("loop-f45");
+  });
+
+  it("sorts playstyles with higher levels first", () => {
+    expect(
+      sortPlayStylesByLevelDesc([
+        { id: "a", level: 1 },
+        { id: "b", level: 2 },
+        { id: "c" },
+        { id: "d", level: 2 },
+      ]),
+    ).toEqual([
+      { id: "b", level: 2 },
+      { id: "d", level: 2 },
+      { id: "a", level: 1 },
+      { id: "c" },
+    ]);
   });
 
   it("summarizes alt positions and PAC–PHY group stats for listing", () => {
@@ -194,8 +257,8 @@ describe("playerSchema", () => {
     });
     const summary = toPlayerSummary(player);
     expect(summary.playStyles).toEqual([
-      { id: "12683081", level: 1 },
       { id: "987634376", level: 2 },
+      { id: "12683081", level: 1 },
     ]);
     expect(JSON.stringify(summary)).not.toContain("Aerial Defense");
     expect(JSON.stringify(summary)).not.toContain("https://");

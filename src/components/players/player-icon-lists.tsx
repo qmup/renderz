@@ -5,6 +5,7 @@ import {
 } from '@/lib/display';
 import {
   playStyleImageKind,
+  sortPlayStylesByLevelDesc,
   traitImageKind,
   type PlayStyle,
   type PlayerTrait,
@@ -19,7 +20,7 @@ export function PlayerPlayStyles({
   styles: PlayStyle[];
   compact?: boolean;
 }) {
-  const items = styles.flatMap((style) => {
+  const items = sortPlayStylesByLevelDesc(styles).flatMap((style) => {
     const label = displayPlayStyleLabel(style);
     if (!label) {
       return [];
@@ -30,7 +31,7 @@ export function PlayerPlayStyles({
         label,
         description: style.description,
         level: style.level,
-        kind: playStyleImageKind(style.id),
+        kind: playStyleImageKind(style.id, style.level),
       },
     ];
   });
@@ -51,9 +52,9 @@ export function PlayerPlayStyles({
         {items.map((style) => (
           <li
             key={style.id}
-            className="bg-card flex items-start gap-3 rounded-xl border p-3"
+            className="bg-card flex items-start gap-2.5 rounded-xl border p-2.5 sm:gap-3 sm:p-3"
           >
-            <div className="bg-muted flex size-11 shrink-0 items-center justify-center rounded-lg">
+            <div className="bg-muted flex size-9 shrink-0 items-center justify-center rounded-lg sm:size-11">
               {style.kind ? (
                 <PlayerImage
                   id={playerId}
@@ -62,7 +63,7 @@ export function PlayerPlayStyles({
                   width={32}
                   height={32}
                   hideOnError
-                  className="size-8"
+                  className="size-7 sm:size-8"
                 />
               ) : null}
             </div>
@@ -76,7 +77,7 @@ export function PlayerPlayStyles({
                 ) : null}
               </div>
               {style.description ? (
-                <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
+                <p className="text-muted-foreground mt-1 text-xs leading-relaxed break-words whitespace-normal">
                   {style.description}
                 </p>
               ) : null}

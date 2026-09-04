@@ -86,9 +86,9 @@ describe("parsePlayerPage", () => {
     expect(player.traits.map((trait) => trait.name)).toEqual(["Hard Stop", "Finesse Shot"]);
     expect(JSON.stringify(player)).not.toContain("https://images-v2.renderz.app");
     expect(assets.some((asset) => asset.kind === "card")).toBe(true);
-    expect(assets.some((asset) => asset.kind === "playstyle-12683081")).toBe(true);
+    expect(assets.some((asset) => asset.kind === "playstyle-12683081-l1")).toBe(true);
     expect(
-      assets.find((asset) => asset.kind === "playstyle-12683081")?.upstreamUrl,
+      assets.find((asset) => asset.kind === "playstyle-12683081-l1")?.upstreamUrl,
     ).toContain("playstyle_256_");
     expect(assets.some((asset) => asset.kind === "trait-13")).toBe(true);
     expect(player.availableImageKinds).toEqual([
@@ -161,7 +161,7 @@ describe("parsePlayerPage", () => {
     expect(player.playStyles[0]?.description).toContain("heading the ball");
     expect(player.playStyles[0]?.level).toBe(1);
     expect(player.traits[0]?.name).toBe("Hard Stop");
-    expect(assets.some((asset) => asset.kind === "playstyle-12683081")).toBe(true);
+    expect(assets.some((asset) => asset.kind === "playstyle-12683081-l1")).toBe(true);
     expect(assets.some((asset) => asset.kind === "trait-7")).toBe(true);
     expect(JSON.stringify(player)).not.toContain("https://images-v2.renderz.app");
   });
@@ -191,7 +191,7 @@ describe("parsePlayerPage", () => {
       ["15", "Long Passer"],
       ["29", "Acrobatic Clearance"],
     ]);
-    expect(assets.some((asset) => asset.kind === "playstyle--1765936151")).toBe(
+    expect(assets.some((asset) => asset.kind === "playstyle--1765936151-l2")).toBe(
       true,
     );
     expect(assets.some((asset) => asset.kind === "trait-29")).toBe(true);
@@ -203,6 +203,19 @@ describe("parsePlayerPage", () => {
     const { player } = parsePlayerPage({ html });
     expect(player.starSigningsBuy).toBe(62240);
     expect(player.starSigningsSell).toBe(10000);
+  });
+
+  it("parses card LOOP sprite into loop-f{n} asset without exposing URLs", () => {
+    const html = `<h1>Carlos Alberto</h1>
+<script>kit.start(app, element, {data:[null,{type:"data",data:{player:{id:30920616,cardName:"Carlos Alberto",firstName:"Carlos Alberto",lastName:"Torres",rating:122,position:"CB",images:{playerCardImage:"https://images-v2.renderz.app/player_25_x?verify=1-abc",playerCardBackground:"https://images-v2.renderz.app/cardbg_x?verify=1-abc"},animation:{cardData:["background","player"],animations:[{animations:[{id:"jry8g8",image:"https://images-v2.renderz.app/sprite_23_numero26_NUMERO4_ICON_LOOP?verify=1-abc",imageName:"numero26_NUMERO4_ICON_LOOP",imageHeight:0,imageWidth:0,maxFrames:45}],when:"(#cardSize == big)"}]}}}}]});</script>`;
+    const { player, assets } = parsePlayerPage({ html });
+    expect(assets.some((asset) => asset.kind === "loop-f45")).toBe(true);
+    expect(
+      assets.find((asset) => asset.kind === "loop-f45")?.upstreamUrl,
+    ).toContain("ICON_LOOP");
+    expect(player.availableImageKinds).toContain("loop-f45");
+    expect(JSON.stringify(player)).not.toContain("images-v2.renderz.app");
+    expect(JSON.stringify(player)).not.toContain("ICON_LOOP");
   });
 });
 

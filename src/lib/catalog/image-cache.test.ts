@@ -27,6 +27,14 @@ describe("image cache", () => {
       expect(
         readCachedImage("other-player", "playstyle-987634376", cwd)?.bytes.byteLength,
       ).toBe(png.byteLength);
+      writeCachedImage("30920616", "untradeable", png, cwd);
+      expect(
+        readCachedImage("other-player", "untradeable", cwd)?.bytes.byteLength,
+      ).toBe(png.byteLength);
+      writeCachedImage("30920616", "star-shard", png, cwd);
+      expect(
+        readCachedImage("other-player", "star-shard", cwd)?.bytes.byteLength,
+      ).toBe(png.byteLength);
     } finally {
       rmSync(cwd, { recursive: true, force: true });
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import type { PlayerImageKind } from "@/lib/domain/player";
 import { playerImageSrc } from "@/lib/images";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ export function PlayerImage({
   kind,
   alt,
   className,
+  style,
   width,
   height,
   hideOnError = false,
@@ -19,6 +20,7 @@ export function PlayerImage({
   kind: PlayerImageKind;
   alt: string;
   className?: string;
+  style?: CSSProperties;
   width: number;
   height: number;
   hideOnError?: boolean;
@@ -35,7 +37,7 @@ export function PlayerImage({
           "bg-muted text-muted-foreground flex items-center justify-center rounded-sm border border-dashed text-[10px]",
           className,
         )}
-        style={{ width, height }}
+        style={{ width, height, ...style }}
       >
         No image
       </div>
@@ -50,6 +52,7 @@ export function PlayerImage({
       width={width}
       height={height}
       className={cn("object-contain", className)}
+      style={style}
       loading={priority ? "eager" : "lazy"}
       fetchPriority={priority ? "high" : undefined}
       onError={() => setFailed(true)}

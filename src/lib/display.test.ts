@@ -89,7 +89,12 @@ describe("catalog freshness", () => {
     expect(
       catalogRowNeedsEnrich({
         parseVersion: CURRENT_PARSE_VERSION,
-        playStyles: [{ name: "Precision Header" }],
+        playStyles: [
+          {
+            name: "Precision Header",
+            description: "Player has exceptional performance when heading the ball.",
+          },
+        ],
       }),
     ).toBe(false);
     expect(
@@ -107,8 +112,20 @@ describe("catalog freshness", () => {
     ).toBe(true);
     expect(
       catalogRowNeedsEnrich({
+        parseVersion: CURRENT_PARSE_VERSION,
+        playStyles: [{ name: "Accelerator" }],
+        traits: [{ name: "Long Passer" }],
+      }),
+    ).toBe(true);
+    expect(
+      catalogRowNeedsEnrich({
         parseVersion: CURRENT_PARSE_VERSION - 1,
-        playStyles: [{ name: "Precision Header" }],
+        playStyles: [
+          {
+            name: "Precision Header",
+            description: "Player has exceptional performance when heading the ball.",
+          },
+        ],
       }),
     ).toBe(true);
   });

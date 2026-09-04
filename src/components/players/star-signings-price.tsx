@@ -1,9 +1,12 @@
+import { PlayerImage } from '@/components/players/player-image';
 import { formatCoinAmount } from '@/lib/display';
 
 export function StarSigningsPrice({
+  playerId,
   buy,
   sell,
 }: {
+  playerId: string;
   buy?: number;
   sell?: number;
 }) {
@@ -21,22 +24,43 @@ export function StarSigningsPrice({
         Star Signings
       </p>
       <div className="grid grid-cols-2 gap-1.5">
-        <PriceChip label="Buy" value={buy} />
-        <PriceChip label="Sell" value={sell} />
+        <PriceChip playerId={playerId} label="Buy" value={buy} />
+        <PriceChip playerId={playerId} label="Sell" value={sell} />
       </div>
     </div>
   );
 }
 
-function PriceChip({ label, value }: { label: string; value?: number }) {
+function PriceChip({
+  playerId,
+  label,
+  value,
+}: {
+  playerId: string;
+  label: string;
+  value?: number;
+}) {
   return (
     <div className="bg-card rounded-lg border px-2 py-1.5 text-center">
       <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
         {label}
       </p>
-      <p className="text-sm font-medium tabular-nums">
-        {value !== undefined ? formatCoinAmount(value) : '—'}
-      </p>
+      {value !== undefined ? (
+        <p className="flex items-center justify-center gap-1 text-sm font-medium tabular-nums">
+          <PlayerImage
+            id={playerId}
+            kind="star-shard"
+            alt=""
+            width={14}
+            height={14}
+            hideOnError
+            className="size-3.5 shrink-0"
+          />
+          <span>{formatCoinAmount(value)}</span>
+        </p>
+      ) : (
+        <p className="text-sm font-medium tabular-nums">—</p>
+      )}
     </div>
   );
 }

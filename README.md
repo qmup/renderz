@@ -28,6 +28,10 @@ Open [http://localhost:3000/players](http://localhost:3000/players). Listing def
 
 `npm run seed` upserts the public `/players` listing then enriches those ids only. Re-run skips rows already at the current parse version. `--summaries-only` skips detail fetches. Seed also drops cards older than 3 months.
 
+## Daily production catalog
+
+GitHub Actions workflow `.github/workflows/daily-catalog.yml` runs at **00:00 Asia/Ho_Chi_Minh** (discovery-only, same as the Update catalog button), packs `data/images.sqlite`, and commits `data/catalog.snapshot.sqlite` + images so the next Vercel deploy serves the new snapshot. Manual run: Actions → “Daily catalog update” → Run workflow. Locally: `npm run catalog:daily-update` (add `--skip-images` to skip the image pack). `data/images.sqlite` is stored with Git LFS.
+
 ## Catalog window
 
 ```bash
