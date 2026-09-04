@@ -17,7 +17,8 @@
     "ingest": "npx tsx scripts/ingest.ts",
     "catalog:verify": "npx tsx scripts/verify-catalog.ts",
     "catalog:cache-images": "npx tsx scripts/cache-images.ts",
-    "catalog:daily-update": "npx tsx scripts/catalog-daily-update.ts"
+    "catalog:daily-update": "npx tsx scripts/catalog-daily-update.ts",
+    "catalog:enrich-v6": "caffeinate -dims npx tsx scripts/enrich-parse-v6.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.102.8",

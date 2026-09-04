@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import {
   catalogUpdateStatusSchema,
   idleCatalogUpdateStatus,
@@ -10,9 +10,19 @@ import {
 } from "@/lib/catalog/update-status";
 import { catalogQueryKeys, playerQueryKeys } from "@/lib/query/keys";
 
+const DAILY_KEY = "catalog-silent-discovery-day";
+
+function localDayKey(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 function progressLabel(status: CatalogUpdateStatus): string {
   if (status.phase === "syncing") {
-    return status.message ?? "Looking for new player ids";
+    return status.message ?? "Checking for new players…";
   }
   if (status.phase === "ingesting") {
     const total = Math.max(status.total, status.processed + status.remaining);
@@ -21,15 +31,16 @@ function progressLabel(status: CatalogUpdateStatus): string {
   if (status.phase === "error") {
     return status.error ?? status.message ?? "Update failed";
   }
-  if (status.phase === "done") {
-    return status.message ?? "Catalog update finished";
-  }
   return "";
 }
 
 export function CatalogUpdateControl() {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const wasRunning = useRef(false);
+  const startedRef = useRef(false);
+  const [toastCount, setToastCount] = useState<number | null>(null);
+
   const query = useQuery({
     queryKey: catalogQueryKeys.update,
     queryFn: async () => {
@@ -44,6 +55,30 @@ export function CatalogUpdateControl() {
   const status = query.data ?? idleCatalogUpdateStatus;
 
   useEffect(() => {
+    if (startedRef.current) {
+      return;
+    }
+    startedRef.current = true;
+    const today = localDayKey();
+    if (localStorage.getItem(DAILY_KEY) === today) {
+      return;
+    }
+    localStorage.setItem(DAILY_KEY, today);
+
+    void (async () => {
+      const response = await fetch("/api/catalog/update", { method: "POST" });
+      if (!response.ok && response.status !== 409) {
+        return;
+      }
+      queryClient.setQueryData(
+        catalogQueryKeys.update,
+        catalogUpdateStatusSchema.parse(await response.json()),
+      );
+      await queryClient.invalidateQueries({ queryKey: catalogQueryKeys.update });
+    })();
+  }, [queryClient]);
+
+  useEffect(() => {
     if (status.running) {
       wasRunning.current = true;
       return;
@@ -52,53 +87,41 @@ export function CatalogUpdateControl() {
       return;
     }
     wasRunning.current = false;
-    void queryClient.invalidateQueries({ queryKey: playerQueryKeys.all });
-  }, [queryClient, status.running]);
+    if (status.phase === "done" && status.succeeded > 0) {
+      setToastCount(status.succeeded);
+    }
+  }, [status.phase, status.running, status.succeeded]);
 
-  async function start() {
-    const confirmed = window.confirm(
-      "Add new players from the RenderZ sitemap?\n\nExisting cards are left unchanged. Only new ids are fetched, at about 1 request per second. You can keep browsing while it runs.",
-    );
-    if (!confirmed) {
-      return;
-    }
-    const response = await fetch("/api/catalog/update", { method: "POST" });
-    if (!response.ok && response.status !== 409) {
-      throw new Error("Failed to start catalog update");
-    }
-    queryClient.setQueryData(
-      catalogQueryKeys.update,
-      catalogUpdateStatusSchema.parse(await response.json()),
-    );
-    await query.refetch();
+  function refreshListing() {
+    setToastCount(null);
+    void queryClient.invalidateQueries({ queryKey: playerQueryKeys.all });
+    router.refresh();
   }
 
-  const label = progressLabel(status);
+  const label = status.running || status.phase === "error" ? progressLabel(status) : "";
 
   return (
-    <div className="flex min-w-0 items-center justify-end gap-2">
+    <>
       {label ? (
         <p
           aria-live="polite"
-          className="text-muted-foreground hidden max-w-[12rem] truncate text-xs sm:block"
+          className="text-muted-foreground max-w-56 truncate text-right text-xs sm:max-w-72"
           title={status.error ?? label}
         >
           {label}
         </p>
       ) : null}
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        className="shrink-0"
-        disabled={status.running}
-        onClick={() => void start()}
-      >
-        <span className="sm:hidden">{status.running ? "Adding…" : "Update"}</span>
-        <span className="hidden sm:inline">
-          {status.running ? "Adding…" : "Update catalog"}
-        </span>
-      </Button>
-    </div>
+      {toastCount !== null ? (
+        <div className="fixed inset-x-0 bottom-4 z-50 flex justify-center px-4">
+          <button
+            type="button"
+            className="border-border bg-background text-foreground shadow-sm hover:bg-muted max-w-sm rounded-md border px-4 py-2.5 text-sm"
+            onClick={refreshListing}
+          >
+            Added {toastCount} player{toastCount === 1 ? "" : "s"} — tap to refresh
+          </button>
+        </div>
+      ) : null}
+    </>
   );
 }

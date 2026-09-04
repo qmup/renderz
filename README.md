@@ -24,13 +24,13 @@ npm test
 npm run dev
 ```
 
-Open [http://localhost:3000/players](http://localhost:3000/players). Listing defaults to **newest added first**. Copy `.env.example` to override the SQLite path or `RENDERZ_*` limiter settings.
+Open [http://localhost:3000/players](http://localhost:3000/players). Listing defaults to **newest added first**. On localhost, the first visit each local calendar day silently discovers new sitemap ids (header shows progress; a toast appears when new players were added). Later visits the same day skip discovery. Production on Vercel does not run this — use the snapshot pipeline below. Copy `.env.example` to override the SQLite path or `RENDERZ_*` limiter settings.
 
 `npm run seed` upserts the public `/players` listing then enriches those ids only. Re-run skips rows already at the current parse version. `--summaries-only` skips detail fetches. Seed also drops cards older than 3 months.
 
 ## Daily production catalog
 
-GitHub Actions workflow `.github/workflows/daily-catalog.yml` runs at **00:00 Asia/Ho_Chi_Minh** (discovery-only, same as the Update catalog button), packs `data/images.sqlite`, and commits `data/catalog.snapshot.sqlite` + images so the next Vercel deploy serves the new snapshot. Manual run: Actions → “Daily catalog update” → Run workflow. Locally: `npm run catalog:daily-update` (add `--skip-images` to skip the image pack). `data/images.sqlite` is stored with Git LFS — enable **Settings → Git → Git LFS** on the Vercel project (and redeploy) or listing cards stay as placeholders.
+GitHub Actions workflow `.github/workflows/daily-catalog.yml` runs at **00:00 Asia/Ho_Chi_Minh** (discovery-only, same pipeline as local silent discovery), packs `data/images.sqlite`, and commits `data/catalog.snapshot.sqlite` + images so the next Vercel deploy serves the new snapshot. Manual run: Actions → “Daily catalog update” → Run workflow. Locally: `npm run catalog:daily-update` (add `--skip-images` to skip the image pack). `data/images.sqlite` is stored with Git LFS — enable **Settings → Git → Git LFS** on the Vercel project (and redeploy) or listing cards stay as placeholders.
 
 ## Catalog window
 
