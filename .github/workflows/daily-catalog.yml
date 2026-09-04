@@ -4,7 +4,7 @@ name: Daily catalog update
 
 on:
   schedule:
-    - cron: "0 17 * * *"
+    - cron: '0 17 * * *'
   workflow_dispatch:
 
 permissions:
@@ -28,7 +28,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: '22'
           cache: npm
 
       - name: Install dependencies
@@ -37,8 +37,9 @@ jobs:
       - name: Discovery update + pack images
         run: npm run catalog:daily-update
         env:
-          RENDERZ_MAX_CONCURRENCY: "1"
-          RENDERZ_REQUESTS_PER_SECOND: "1"
+          RENDERZ_MAX_CONCURRENCY: '1'
+          RENDERZ_REQUESTS_PER_SECOND: '1'
+          RENDERZ_USER_AGENT: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
 
       - name: Commit snapshot artifacts
         run: |
