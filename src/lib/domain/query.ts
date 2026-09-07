@@ -48,6 +48,7 @@ export const playerListQuerySchema = z.object({
     nations: [],
     clubs: [],
     leagues: [],
+    includeAltPositions: false,
   }),
 });
 export type PlayerListQuery = z.infer<typeof playerListQuerySchema>;
