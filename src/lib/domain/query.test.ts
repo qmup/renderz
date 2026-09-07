@@ -32,6 +32,7 @@ describe("player list search params", () => {
     expect(query.sort).toBe("added_desc");
     expect(query.q).toBe("");
     expect(query.view).toBe("list");
+    expect(playerListQueryToSearchParams(query).get("sort")).toBeNull();
   });
 
   it("omits default list view from the URL", () => {
@@ -45,5 +46,23 @@ describe("player list search params", () => {
     const params = playerListQueryToSearchParams(query);
     expect(params.get("view")).toBe("grid");
     expect(playerListQueryFromSearchParams(params)).toEqual(query);
+  });
+
+  it("defaults includeAltPositions to off and writes altPos=1 when on", () => {
+    const empty = playerListQueryFromSearchParams(new URLSearchParams());
+    expect(empty.filters.includeAltPositions).toBe(false);
+    expect(playerListQueryToSearchParams(empty).get("altPos")).toBeNull();
+
+    const on = playerListQueryFromSearchParams(
+      new URLSearchParams("position=LW&altPos=1"),
+    );
+    expect(on.filters.includeAltPositions).toBe(true);
+    expect(on.filters.positions).toEqual(["LW"]);
+    expect(playerListQueryToSearchParams(on).get("altPos")).toBe("1");
+
+    const alias = playerListQueryFromSearchParams(
+      new URLSearchParams("includeAlt=1"),
+    );
+    expect(alias.filters.includeAltPositions).toBe(true);
   });
 });

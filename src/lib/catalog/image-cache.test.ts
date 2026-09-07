@@ -6,7 +6,6 @@ import {
   isUsableImageCacheFile,
   readCachedImage,
   sharedLoopCacheId,
-  loopPublicSrc,
   writeCachedImage,
 } from "@/lib/catalog/image-cache";
 import { ImageProxyRejectedError } from "@/lib/http/errors";
@@ -91,10 +90,5 @@ describe("sharedLoopCacheId", () => {
       ),
     ).toBe("loop:sprite_23_champions26_LIVE_LFC_LOOP");
     expect(sharedLoopCacheId("not-a-url")).toBeUndefined();
-    expect(
-      loopPublicSrc(
-        "https://images-v2.renderz.app/sprite_23_champions26_LIVE_LFC_LOOP?verify=1",
-      ),
-    ).toBe("/loops/sprite_23_champions26_LIVE_LFC_LOOP.png");
   });
 });

@@ -25,10 +25,8 @@ import {
 import {
   playerIdSchema,
   cardDisplayName,
-  findCardLoopKind,
   type Player,
 } from '@/lib/domain/player';
-import { loopPublicSrc } from '@/lib/catalog/image-cache';
 import { RateLimitedError } from '@/lib/http/errors';
 import { getRenderzSource } from '@/lib/providers/renderz/renderz-source';
 import { groupDetailStats } from '@/lib/stats';
@@ -104,11 +102,6 @@ export default async function PlayerDetailPage({
   const stale = isStaleCatalogRow(player);
   const groupedStats = groupDetailStats(player.stats);
   const program = displayProgramName(player.programName, player.programId);
-  const loopKind = findCardLoopKind(player.availableImageKinds);
-  const loopAsset = loopKind
-    ? await getPlayerCatalog().getAsset(player.id, loopKind)
-    : null;
-  const loopSrc = loopAsset ? loopPublicSrc(loopAsset.upstreamUrl) : undefined;
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-5 sm:gap-8 sm:py-8">
@@ -152,7 +145,6 @@ export default async function PlayerDetailPage({
             fill
             priority
             animate
-            loopSrc={loopSrc}
           />
           <StarSigningsPrice
             playerId={player.id}

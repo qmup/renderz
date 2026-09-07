@@ -26,6 +26,8 @@ export const playerListFiltersSchema = z.object({
   ratingMin: z.number().int().optional(),
   ratingMax: z.number().int().optional(),
   auctionable: z.boolean().optional(),
+  /** Off by default: listing currently matches primary `position` only. */
+  includeAltPositions: z.boolean().default(false),
 });
 export type PlayerListFilters = z.infer<typeof playerListFiltersSchema>;
 
@@ -155,6 +157,9 @@ export function playerListQueryToSearchParams(query: PlayerListQuery): URLSearch
   if (query.filters.auctionable !== undefined) {
     params.set("auctionable", query.filters.auctionable ? "true" : "false");
   }
+  if (query.filters.includeAltPositions) {
+    params.set("altPos", "1");
+  }
   return params;
 }
 
@@ -217,6 +222,7 @@ export function playerListQueryFromSearchParams(
       ratingMin: optionalInt(get("ratingMin") ?? get("rating_min")),
       ratingMax: optionalInt(get("ratingMax") ?? get("rating_max")),
       auctionable: optionalBool(get("auctionable")),
+      includeAltPositions: optionalBool(get("altPos") ?? get("includeAlt")),
     },
   });
 }

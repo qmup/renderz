@@ -19,15 +19,12 @@ export function CardLoopCanvas({
   maxFrames,
   className,
   fps = DEFAULT_FPS,
-  src,
 }: {
   playerId: string;
   kind: PlayerImageKind;
   maxFrames: number;
   className?: string;
   fps?: number;
-  /** Same-origin static LOOP sheet (CDN). Falls back to the image API. */
-  src?: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [failed, setFailed] = useState(false);
@@ -130,7 +127,7 @@ export function CardLoopCanvas({
         setFailed(true);
       }
     };
-    sheet.src = src ?? playerImageSrc(playerId, kind);
+    sheet.src = playerImageSrc(playerId, kind);
 
     media.addEventListener('change', onMotionChange);
 
@@ -142,7 +139,7 @@ export function CardLoopCanvas({
       sheet.onerror = null;
       sheet.src = '';
     };
-  }, [failed, fps, kind, maxFrames, playerId, src]);
+  }, [failed, fps, kind, maxFrames, playerId]);
 
   if (failed) {
     return null;

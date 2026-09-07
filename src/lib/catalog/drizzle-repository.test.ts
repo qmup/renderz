@@ -83,6 +83,55 @@ describe("DrizzlePlayerCatalog", () => {
     expect(pastEnd.page).toBe(2);
   });
 
+  it("keeps other facet options after selecting one program or league", async () => {
+    const { catalog } = createTestCatalog();
+    await catalog.upsertPlayer(
+      fakePlayer({
+        id: "24029971",
+        name: "Messi",
+        rating: 114,
+        programId: "NUMERO26",
+        nationName: "Argentina",
+        clubName: "Inter Miami CF",
+        leagueName: "MLS",
+      }),
+      [],
+    );
+    await catalog.upsertPlayer(
+      fakePlayer({
+        id: "24044714",
+        name: "Mbappe",
+        rating: 120,
+        programId: "GC26",
+        nationName: "France",
+        clubName: "Real Madrid",
+        leagueName: "LALIGA",
+      }),
+      [],
+    );
+
+    const byProgram = await catalog.list(
+      normalizePlayerListQuery({ filters: { programIds: ["NUMERO26"] } }),
+    );
+    expect(byProgram.total).toBe(1);
+    expect(byProgram.items[0]?.name).toBe("Messi");
+    expect(byProgram.facets.programs.map((option) => option.value)).toEqual([
+      "GC26",
+      "NUMERO26",
+    ]);
+
+    const byLeague = await catalog.list(
+      normalizePlayerListQuery({ filters: { leagues: ["MLS"] } }),
+    );
+    expect(byLeague.facets.leagues.map((option) => option.value)).toEqual([
+      "LALIGA",
+      "MLS",
+    ]);
+    expect(byLeague.facets.nations.map((option) => option.value)).toEqual([
+      "Argentina",
+    ]);
+  });
+
   it("matches accented names using ascii search", async () => {
     const { catalog } = createTestCatalog();
     await catalog.upsertPlayer(
@@ -122,6 +171,25 @@ describe("DrizzlePlayerCatalog", () => {
     );
     const result = await catalog.list(normalizePlayerListQuery({}));
     expect(result.items[0]?.altPositions).toEqual(["CM", "LW"]);
+
+    const primaryOnly = await catalog.list(
+      normalizePlayerListQuery({ filters: { positions: ["LW"] } }),
+    );
+    expect(primaryOnly.total).toBe(0);
+
+    const withAlt = await catalog.list(
+      normalizePlayerListQuery({
+        filters: { positions: ["LW"], includeAltPositions: true },
+      }),
+    );
+    expect(withAlt.items.map((row) => row.name)).toEqual(["Iniesta"]);
+
+    const stillPrimary = await catalog.list(
+      normalizePlayerListQuery({
+        filters: { positions: ["CAM"], includeAltPositions: true },
+      }),
+    );
+    expect(stillPrimary.items.map((row) => row.name)).toEqual(["Iniesta"]);
     expect(result.items[0]?.avgStats.map((stat) => [stat.label, stat.value])).toEqual(
       [
         ["PAC", 140],
@@ -216,35 +284,6 @@ describe("DrizzlePlayerCatalog", () => {
     expect(JSON.stringify(priced)).not.toContain("images-v2.renderz.app");
     const icon = await catalog.getAsset("24029971", "playstyle-12683081");
     expect(icon?.upstreamUrl).toContain("playstyle");
-  });
-
-  it("lists LOOP assets for the shared image packer", async () => {
-    const { catalog } = createTestCatalog();
-    const player = fakePlayer({
-      id: "24048619",
-      name: "Van Dijk",
-      rating: 122,
-      availableImageKinds: ["card", "loop-f45"],
-    });
-    await catalog.upsertPlayer(player, [
-      {
-        playerId: parsePlayerId("24048619"),
-        kind: "card",
-        upstreamUrl: "https://images-v2.renderz.app/card",
-        fetchedAt: 1,
-      },
-      {
-        playerId: parsePlayerId("24048619"),
-        kind: "loop-f45",
-        upstreamUrl:
-          "https://images-v2.renderz.app/sprite_23_champions26_LIVE_LFC_LOOP?verify=1",
-        fetchedAt: 1,
-      },
-    ]);
-    const loops = await catalog.listLoopAssets();
-    expect(loops).toHaveLength(1);
-    expect(loops[0]?.kind).toBe("loop-f45");
-    expect(loops[0]?.upstreamUrl).toContain("LFC_LOOP");
   });
 
   it("shares playstyle icons across players that have the same kind", async () => {

@@ -2,9 +2,21 @@ import {
   PLAYER_LIST_DEFAULT_PAGE_SIZE,
   PLAYER_LIST_MAX_PAGE_SIZE,
   playerListQuerySchema,
+  type FacetValue,
+  type PlayerListFacets,
   type PlayerListQuery,
 } from "@/lib/domain/query";
 import type { PlayerSummary } from "@/lib/domain/player";
+
+export const PLAYER_LIST_FACET_FILTER_KEYS = [
+  "positions",
+  "programIds",
+  "nations",
+  "clubs",
+  "leagues",
+] as const;
+export type PlayerListFacetFilterKey =
+  (typeof PLAYER_LIST_FACET_FILTER_KEYS)[number];
 
 type QueryInput = {
   q?: string;
@@ -20,6 +32,7 @@ type QueryInput = {
     ratingMin?: number;
     ratingMax?: number;
     auctionable?: boolean;
+    includeAltPositions?: boolean;
   };
 };
 
@@ -75,14 +88,7 @@ export function matchesPlayerFilters(
   }
 
   const { filters } = query;
-  if (filters.positions.length > 0 && !player.position) {
-    return false;
-  }
-  if (
-    filters.positions.length > 0 &&
-    player.position &&
-    !filters.positions.includes(player.position)
-  ) {
+  if (filters.positions.length > 0 && !playerMatchesSelectedPositions(player, filters)) {
     return false;
   }
   if (
@@ -122,6 +128,102 @@ export function matchesPlayerFilters(
     return false;
   }
   return true;
+}
+
+export function playerMatchesSelectedPositions(
+  player: Pick<PlayerSummary, "position" | "altPositions">,
+  filters: Pick<PlayerListQuery["filters"], "positions" | "includeAltPositions">,
+): boolean {
+  const { positions, includeAltPositions } = filters;
+  if (positions.length === 0) {
+    return true;
+  }
+  if (player.position && positions.includes(player.position)) {
+    return true;
+  }
+  if (includeAltPositions) {
+    return player.altPositions.some((position) => positions.includes(position));
+  }
+  return false;
+}
+
+export function omitFacetFilter(
+  query: PlayerListQuery,
+  facet: PlayerListFacetFilterKey,
+): PlayerListQuery {
+  return {
+    ...query,
+    filters: {
+      ...query.filters,
+      [facet]: [],
+    },
+  };
+}
+
+function countFacetValues(
+  rows: PlayerSummary[],
+  pick: (row: PlayerSummary) => string | undefined,
+  selected: string[] = [],
+): FacetValue[] {
+  const map = new Map<string, number>();
+  for (const row of rows) {
+    const value = pick(row);
+    if (!value) {
+      continue;
+    }
+    map.set(value, (map.get(value) ?? 0) + 1);
+  }
+  for (const value of selected) {
+    if (value && !map.has(value)) {
+      map.set(value, 0);
+    }
+  }
+  return [...map.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([value, count]) => ({ value, count }));
+}
+
+/**
+ * Facet options ignore that facet's own filter so the list does not collapse
+ * to the selected value (CLS). Other filters still apply; counts are
+ * "how many results if this facet were not constrained".
+ */
+export function buildPlayerListFacets(
+  players: PlayerSummary[],
+  query: PlayerListQuery,
+): PlayerListFacets {
+  const matching = (omit: PlayerListFacetFilterKey) =>
+    players.filter((player) =>
+      matchesPlayerFilters(player, omitFacetFilter(query, omit)),
+    );
+
+  return {
+    positions: countFacetValues(
+      matching("positions"),
+      (row) => row.position,
+      query.filters.positions,
+    ),
+    programs: countFacetValues(
+      matching("programIds"),
+      (row) => row.programId,
+      query.filters.programIds,
+    ),
+    nations: countFacetValues(
+      matching("nations"),
+      (row) => row.nationName,
+      query.filters.nations,
+    ),
+    clubs: countFacetValues(
+      matching("clubs"),
+      (row) => row.clubName,
+      query.filters.clubs,
+    ),
+    leagues: countFacetValues(
+      matching("leagues"),
+      (row) => row.leagueName,
+      query.filters.leagues,
+    ),
+  };
 }
 
 const MS_PER_UTC_DAY = 86_400_000;

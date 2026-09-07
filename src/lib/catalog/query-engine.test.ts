@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildPlayerListFacets,
   comparePlayers,
   matchesPlayerFilters,
   normalizePlayerListQuery,
@@ -106,6 +107,147 @@ describe("matchesPlayerFilters", () => {
         normalizePlayerListQuery({ filters: { positions: ["GK"] } }),
       ),
     ).toBe(false);
+  });
+
+  it("matches alternate positions only when includeAltPositions is on", () => {
+    const iniesta = summary({
+      id: "4",
+      name: "Iniesta",
+      rating: 118,
+      position: "CAM",
+      altPositions: ["CM", "LW"],
+    });
+    expect(
+      matchesPlayerFilters(
+        iniesta,
+        normalizePlayerListQuery({ filters: { positions: ["LW"] } }),
+      ),
+    ).toBe(false);
+    expect(
+      matchesPlayerFilters(
+        iniesta,
+        normalizePlayerListQuery({
+          filters: { positions: ["LW"], includeAltPositions: true },
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      matchesPlayerFilters(
+        iniesta,
+        normalizePlayerListQuery({
+          filters: { positions: ["ST"], includeAltPositions: true },
+        }),
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("buildPlayerListFacets", () => {
+  const messi = summary({
+    id: "1",
+    name: "Messi",
+    rating: 114,
+    position: "ST",
+    programId: "NUMERO26",
+    nationName: "Argentina",
+    clubName: "Inter Miami CF",
+    leagueName: "MLS",
+  });
+  const mbappe = summary({
+    id: "2",
+    name: "Mbappe",
+    rating: 120,
+    position: "LW",
+    programId: "GC26",
+    nationName: "France",
+    clubName: "Real Madrid",
+    leagueName: "LALIGA",
+  });
+  const haaland = summary({
+    id: "3",
+    name: "Haaland",
+    rating: 118,
+    position: "ST",
+    programId: "TOTY26",
+    nationName: "Norway",
+    clubName: "Manchester City",
+    leagueName: "EPL",
+  });
+  const catalog = [messi, mbappe, haaland];
+
+  it("keeps other program options after selecting one program", () => {
+    const facets = buildPlayerListFacets(
+      catalog,
+      normalizePlayerListQuery({ filters: { programIds: ["NUMERO26"] } }),
+    );
+    expect(facets.programs.map((option) => option.value)).toEqual([
+      "GC26",
+      "NUMERO26",
+      "TOTY26",
+    ]);
+    expect(facets.programs.find((option) => option.value === "NUMERO26")?.count).toBe(
+      1,
+    );
+    expect(facets.programs.find((option) => option.value === "GC26")?.count).toBe(1);
+  });
+
+  it("keeps other league, nation, and club options after selecting one", () => {
+    const byLeague = buildPlayerListFacets(
+      catalog,
+      normalizePlayerListQuery({ filters: { leagues: ["MLS"] } }),
+    );
+    expect(byLeague.leagues.map((option) => option.value)).toEqual([
+      "EPL",
+      "LALIGA",
+      "MLS",
+    ]);
+
+    const byNation = buildPlayerListFacets(
+      catalog,
+      normalizePlayerListQuery({ filters: { nations: ["Argentina"] } }),
+    );
+    expect(byNation.nations.map((option) => option.value)).toEqual([
+      "Argentina",
+      "France",
+      "Norway",
+    ]);
+
+    const byClub = buildPlayerListFacets(
+      catalog,
+      normalizePlayerListQuery({ filters: { clubs: ["Inter Miami CF"] } }),
+    );
+    expect(byClub.clubs.map((option) => option.value)).toEqual([
+      "Inter Miami CF",
+      "Manchester City",
+      "Real Madrid",
+    ]);
+  });
+
+  it("still applies other filters when computing a facet", () => {
+    const facets = buildPlayerListFacets(
+      catalog,
+      normalizePlayerListQuery({
+        filters: { programIds: ["NUMERO26"], positions: ["ST"] },
+      }),
+    );
+    expect(facets.programs.map((option) => option.value)).toEqual([
+      "NUMERO26",
+      "TOTY26",
+    ]);
+    expect(facets.positions.map((option) => option.value)).toEqual(["ST"]);
+  });
+
+  it("keeps a selected program with a zero count after other filters", () => {
+    const facets = buildPlayerListFacets(
+      catalog,
+      normalizePlayerListQuery({
+        filters: { programIds: ["NUMERO26"], leagues: ["EPL"] },
+      }),
+    );
+    expect(facets.programs).toEqual([
+      { value: "TOTY26", count: 1 },
+      { value: "NUMERO26", count: 0 },
+    ]);
   });
 });
 

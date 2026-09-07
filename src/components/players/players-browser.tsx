@@ -109,7 +109,7 @@ export function PlayersBrowser({
             id="mobile-player-search"
             value={searchDraft}
             onChange={(event) => setSearchDraft(event.target.value)}
-            placeholder="Name or slug"
+            placeholder="Search players…"
             autoComplete="off"
             className="h-10"
           />
@@ -138,17 +138,13 @@ export function PlayersBrowser({
               <SheetTitle>Filters</SheetTitle>
             </SheetHeader>
             <div className="px-4 pb-6">
-              <PlayerFilters
-                idPrefix="sheet"
-                includeSearch={false}
-                {...filterProps}
-              />
+              <PlayerFilters idPrefix="sheet" {...filterProps} />
             </div>
           </SheetContent>
         </Sheet>
       </div>
 
-      <aside className="hidden w-56 shrink-0 lg:block">
+      <aside className="hidden w-64 shrink-0 lg:block">
         <PlayerFilters idPrefix="desktop" includeSearch {...filterProps} />
       </aside>
 
@@ -163,37 +159,12 @@ export function PlayersBrowser({
         ) : (
           <>
             <div className="mb-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 sm:mb-3">
-              <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
-                <p className="text-muted-foreground text-sm tabular-nums">
-                  {data.total.toLocaleString()} player
-                  {data.total === 1 ? '' : 's'}
-                </p>
-                <label
-                  htmlFor="only-auctionable"
-                  className="text-foreground flex cursor-pointer items-center gap-2 text-sm"
-                >
-                  <input
-                    id="only-auctionable"
-                    type="checkbox"
-                    className="border-input accent-foreground size-4 rounded border"
-                    checked={query.filters.auctionable === true}
-                    onChange={(event) => {
-                      replaceQuery({
-                        ...query,
-                        q: searchDraft,
-                        page: 1,
-                        filters: {
-                          ...query.filters,
-                          auctionable: event.target.checked ? true : undefined,
-                        },
-                      });
-                    }}
-                  />
-                  Only auctionable
-                </label>
-              </div>
+              <p className="text-muted-foreground text-sm tabular-nums">
+                {data.total.toLocaleString()} player
+                {data.total === 1 ? '' : 's'}
+              </p>
               <div className="flex items-center gap-2">
-                {listQuery.isFetching && data ? (
+                {listQuery.isFetching ? (
                   <p className="text-muted-foreground hidden text-xs sm:block">
                     Updating…
                   </p>
@@ -299,12 +270,12 @@ function PlayerListLink({
       {player.addedAt != null ? (
         <time
           dateTime={new Date(player.addedAt).toISOString()}
-          className="text-muted-foreground hidden w-14 shrink-0 text-right text-xs whitespace-nowrap tabular-nums lg:block"
+          className="text-muted-foreground hidden shrink-0 text-right text-xs whitespace-nowrap tabular-nums lg:block"
         >
           {formatAddedDate(player.addedAt)}
         </time>
       ) : (
-        <span className="text-muted-foreground hidden w-14 shrink-0 text-right text-xs lg:block">
+        <span className="text-muted-foreground hidden shrink-0 text-right text-xs lg:block">
           —
         </span>
       )}
