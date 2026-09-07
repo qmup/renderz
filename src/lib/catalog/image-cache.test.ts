@@ -4,7 +4,9 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   isUsableImageCacheFile,
+  loopPublicSrc,
   readCachedImage,
+  sharedLoopCacheId,
   writeCachedImage,
 } from "@/lib/catalog/image-cache";
 import { ImageProxyRejectedError } from "@/lib/http/errors";
@@ -78,5 +80,21 @@ describe("isExpiredImageError", () => {
       false,
     );
     expect(isExpiredImageError(new Error("Image signature expired"))).toBe(false);
+  });
+});
+
+describe("sharedLoopCacheId", () => {
+  it("keys LOOP sheets by pathname without the signed query", () => {
+    expect(
+      sharedLoopCacheId(
+        "https://images-v2.renderz.app/sprite_23_champions26_LIVE_LFC_LOOP?verify=1",
+      ),
+    ).toBe("loop:sprite_23_champions26_LIVE_LFC_LOOP");
+    expect(sharedLoopCacheId("not-a-url")).toBeUndefined();
+    expect(
+      loopPublicSrc(
+        "https://images-v2.renderz.app/sprite_23_champions26_LIVE_LFC_LOOP?verify=1",
+      ),
+    ).toBe("/loops/sprite_23_champions26_LIVE_LFC_LOOP.png");
   });
 });

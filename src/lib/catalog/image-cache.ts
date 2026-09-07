@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   openSync,
+  readFileSync,
   readSync,
   closeSync,
   statSync,
@@ -26,6 +27,61 @@ const SQLITE_MAGIC = Buffer.from('SQLite format 3\0');
 const LFS_POINTER_PREFIX = Buffer.from(
   'version https://git-lfs.github.com/spec/v1',
 );
+
+/** Cache key for a LOOP sprite shared across players with the same sheet. */
+export function sharedLoopCacheId(upstreamUrl: string): string | undefined {
+  try {
+    const parsed = new URL(upstreamUrl);
+    const name = parsed.pathname.replace(/^\//, '');
+    return name ? `loop:${name}` : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function loopSheetFileName(upstreamUrl: string): string | undefined {
+  const sharedId = sharedLoopCacheId(upstreamUrl);
+  if (!sharedId?.startsWith('loop:')) {
+    return undefined;
+  }
+  return `${sharedId.slice('loop:'.length)}.png`;
+}
+
+/** Same-origin static path served by the CDN (not the serverless image cache). */
+export function loopPublicSrc(upstreamUrl: string): string | undefined {
+  const name = loopSheetFileName(upstreamUrl);
+  return name ? `/loops/${name}` : undefined;
+}
+
+export function loopPublicFilePath(
+  upstreamUrl: string,
+  cwd = process.cwd(),
+): string | undefined {
+  const name = loopSheetFileName(upstreamUrl);
+  return name ? path.join(cwd, 'public', 'loops', name) : undefined;
+}
+
+export function readLoopPublicFile(
+  upstreamUrl: string,
+  cwd = process.cwd(),
+): { bytes: Uint8Array; contentType: string } | null {
+  try {
+    const filePath = loopPublicFilePath(upstreamUrl, cwd);
+    if (!filePath || !existsSync(filePath)) {
+      return null;
+    }
+    const bytes = new Uint8Array(readFileSync(filePath));
+    if (!looksLikeImage(bytes)) {
+      return null;
+    }
+    return {
+      bytes,
+      contentType: sniffImageContentType(null, bytes),
+    };
+  } catch {
+    return null;
+  }
+}
 
 export function imageCacheSqlitePath(cwd = process.cwd()): string {
   return path.join(cwd, 'data', 'images.sqlite');

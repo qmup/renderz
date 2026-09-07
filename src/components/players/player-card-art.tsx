@@ -25,6 +25,7 @@ export function PlayerCardArt({
   fill = false,
   priority = false,
   animate = false,
+  loopSrc,
 }: {
   id: string;
   kinds: string[];
@@ -39,6 +40,8 @@ export function PlayerCardArt({
   priority?: boolean;
   /** Detail-only: play LOOP sprite when a loop kind is present. */
   animate?: boolean;
+  /** Same-origin static LOOP sheet URL from the catalog sprite name. */
+  loopSrc?: string;
 }) {
   const has = (kind: PlayerImageKind) => kinds.includes(kind);
   const loopKind = animate ? findCardLoopKind(kinds) : undefined;
@@ -46,6 +49,7 @@ export function PlayerCardArt({
   const showLoop =
     loopKind !== undefined && loopFrames !== undefined && loopFrames > 0;
   const showStack = has('background') || has('card') || showLoop;
+  const showBackground = has('background');
   const badge = Math.round(size * 0.135);
   const boxStyle = fill ? undefined : { width: size, height: size };
   const cardName = displayName?.trim();
@@ -91,9 +95,7 @@ export function PlayerCardArt({
       )}
       style={boxStyle}
     >
-      {showLoop && loopKind && loopFrames ? (
-        <CardLoopCanvas playerId={id} kind={loopKind} maxFrames={loopFrames} />
-      ) : has('background') ? (
+      {showBackground ? (
         <PlayerImage
           id={id}
           kind="background"
@@ -103,6 +105,14 @@ export function PlayerCardArt({
           hideOnError
           priority={priority}
           className="absolute inset-0 h-full w-full"
+        />
+      ) : null}
+      {showLoop && loopKind && loopFrames ? (
+        <CardLoopCanvas
+          playerId={id}
+          kind={loopKind}
+          maxFrames={loopFrames}
+          src={loopSrc}
         />
       ) : null}
       {has('card') ? (

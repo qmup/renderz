@@ -1,1 +1,2 @@
 data/images.sqlite filter=lfs diff=lfs merge=lfs -text
+public/loops/*.png filter=lfs diff=lfs merge=lfs -text
