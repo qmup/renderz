@@ -12,8 +12,8 @@ describe("programEventLabel", () => {
     expect(programEventLabel("PROGRAM_GC26")).toBe("Game Changer");
     expect(programEventLabel("PROGRAM_RTAC26")).toBe("Road to AFC");
     expect(programEventLabel("PROGRAM_CHAMPIONS26")).toBe("Champions");
-    expect(programEventLabel("PROGRAM_SUMMERSPECIAL")).toBe("SUMMERSPECIAL");
-    expect(programEventLabel("PROGRAM_RECORDHOLDERS")).toBe("RECORDHOLDERS");
+    expect(programEventLabel("PROGRAM_SUMMERSPECIAL")).toBe("Summer Special");
+    expect(programEventLabel("PROGRAM_RECORDHOLDERS")).toBe("Record Holders");
     expect(programEventLabel("PROGRAM_TWG26")).toBe("The World's Game 26");
     expect(programEventLabel("PROGRAM_TOTY26")).toBe("TOTY 26");
     expect(programEventLabel("PROGRAM_ICONS")).toBe("Icons");

@@ -184,9 +184,10 @@ function countFacetValues(
 }
 
 /**
- * Facet options ignore that facet's own filter so the list does not collapse
- * to the selected value (CLS). Other filters still apply; counts are
- * "how many results if this facet were not constrained".
+ * Most facets ignore their own filter so the list does not collapse to the
+ * selected value (CLS); other filters still apply. Program / Event is the
+ * exception: it always lists every program in the catalog so Position, OVR,
+ * search, etc. never shrink or reorder that accordion.
  */
 export function buildPlayerListFacets(
   players: PlayerSummary[],
@@ -204,7 +205,7 @@ export function buildPlayerListFacets(
       query.filters.positions,
     ),
     programs: countFacetValues(
-      matching("programIds"),
+      players,
       (row) => row.programId,
       query.filters.programIds,
     ),

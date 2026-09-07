@@ -30,12 +30,12 @@ export const RENDERZ_PROGRAM_CATALOG: ProgramCatalogEntry[] = [
     logo: "CHAMPIONS26",
   },
   {
-    label: "SUMMERSPECIAL",
+    label: "Summer Special",
     aliases: ["SUMMERSPECIAL", "SUMMER_SPECIAL"],
     logo: "SUMMERSPECIAL",
   },
   {
-    label: "RECORDHOLDERS",
+    label: "Record Holders",
     aliases: ["RECORDHOLDERS26", "RECORDHOLDERS", "RECORD_HOLDERS"],
     logo: "RECORDHOLDERS26",
   },

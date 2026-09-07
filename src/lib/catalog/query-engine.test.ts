@@ -230,23 +230,54 @@ describe("buildPlayerListFacets", () => {
         filters: { programIds: ["NUMERO26"], positions: ["ST"] },
       }),
     );
+    // Programs stay catalog-complete; positions still respect other filters.
     expect(facets.programs.map((option) => option.value)).toEqual([
+      "GC26",
       "NUMERO26",
       "TOTY26",
     ]);
     expect(facets.positions.map((option) => option.value)).toEqual(["ST"]);
   });
 
-  it("keeps a selected program with a zero count after other filters", () => {
+  it("keeps the full program list when position or rating filters change", () => {
+    const byPosition = buildPlayerListFacets(
+      catalog,
+      normalizePlayerListQuery({ filters: { positions: ["ST"] } }),
+    );
+    expect(byPosition.programs.map((option) => option.value)).toEqual([
+      "GC26",
+      "NUMERO26",
+      "TOTY26",
+    ]);
+
+    const byRating = buildPlayerListFacets(
+      catalog,
+      normalizePlayerListQuery({ filters: { ratingMin: 119, ratingMax: 120 } }),
+    );
+    expect(byRating.programs.map((option) => option.value)).toEqual([
+      "GC26",
+      "NUMERO26",
+      "TOTY26",
+    ]);
+    expect(byRating.leagues.map((option) => option.value)).toEqual(["LALIGA"]);
+  });
+
+  it("keeps a selected program visible after other filters", () => {
     const facets = buildPlayerListFacets(
       catalog,
       normalizePlayerListQuery({
         filters: { programIds: ["NUMERO26"], leagues: ["EPL"] },
       }),
     );
-    expect(facets.programs).toEqual([
-      { value: "TOTY26", count: 1 },
-      { value: "NUMERO26", count: 0 },
+    expect(facets.programs.map((option) => option.value)).toEqual([
+      "GC26",
+      "NUMERO26",
+      "TOTY26",
+    ]);
+    // League facet still respects the program filter (own filter isolated only).
+    expect(facets.leagues.map((option) => option.value)).toEqual([
+      "MLS",
+      "EPL",
     ]);
   });
 });

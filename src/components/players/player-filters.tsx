@@ -107,6 +107,7 @@ export function PlayerFilters({
           selected={query.filters.programIds}
           labelFor={formatProgramFacetLabel}
           iconSrcFor={programLogoSrc}
+          hideCount
           onToggle={(value) => toggleFacet('programIds', value)}
         />
       </FacetAccordion>
@@ -375,6 +376,7 @@ function SearchableFacetList({
   selected,
   labelFor,
   iconSrcFor,
+  hideCount = false,
   onToggle,
 }: {
   idPrefix: string;
@@ -382,6 +384,7 @@ function SearchableFacetList({
   selected: string[];
   labelFor?: (value: string) => string;
   iconSrcFor?: (value: string) => string | undefined;
+  hideCount?: boolean;
   onToggle: (value: string) => void;
 }) {
   const [needle, setNeedle] = useState('');
@@ -444,9 +447,11 @@ function SearchableFacetList({
                   <FacetOptionIcon src={iconSrcFor(option.value)} />
                 ) : null}
                 <span className="min-w-0 flex-1 truncate">{label}</span>
-                <span className="text-muted-foreground tabular-nums text-xs">
-                  {option.count}
-                </span>
+                {hideCount ? null : (
+                  <span className="text-muted-foreground tabular-nums text-xs">
+                    {option.count}
+                  </span>
+                )}
               </label>
             </li>
           );

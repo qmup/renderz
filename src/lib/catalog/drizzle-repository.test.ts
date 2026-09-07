@@ -130,6 +130,16 @@ describe("DrizzlePlayerCatalog", () => {
     expect(byLeague.facets.nations.map((option) => option.value)).toEqual([
       "Argentina",
     ]);
+
+    const byPosition = await catalog.list(
+      normalizePlayerListQuery({
+        filters: { positions: ["ST"], ratingMin: 100, ratingMax: 115 },
+      }),
+    );
+    expect(byPosition.facets.programs.map((option) => option.value)).toEqual([
+      "GC26",
+      "NUMERO26",
+    ]);
   });
 
   it("matches accented names using ascii search", async () => {

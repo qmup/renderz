@@ -16,7 +16,6 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { ingestJobs, playerAssets, players } from '@/db/schema';
 import { SEED_PARSE_VERSION } from '@/lib/catalog/parse-version';
 import {
-  PLAYER_LIST_FACET_FILTER_KEYS,
   buildPlayerListFacets,
   escapeLike,
   foldSearchText,
@@ -302,11 +301,9 @@ export class DrizzlePlayerCatalog implements PlayerCatalog {
       .offset(offset)
       .all();
 
-    const facetSource = this.db
-      .select()
-      .from(players)
-      .where(this.buildWhere(query, new Set(PLAYER_LIST_FACET_FILTER_KEYS)))
-      .all();
+    // Full catalog for facets: Program / Event must stay complete regardless of
+    // Position / OVR / search; other facets re-apply filters in memory.
+    const facetSource = this.db.select().from(players).all();
 
     return {
       items: rows.map(rowToPlayer).map(toPlayerSummary),
