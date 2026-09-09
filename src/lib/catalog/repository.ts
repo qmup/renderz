@@ -57,6 +57,7 @@ export interface PlayerCatalog {
     now?: number,
   ): Promise<void>;
   getAsset(playerId: string, kind: PlayerImageKind): Promise<PlayerAssetRow | null>;
+  listLoopAssets(): Promise<PlayerAssetRow[]>;
   findSharedIconAsset(kind: PlayerImageKind): Promise<PlayerAssetRow | null>;
   enqueueDiscovery(playerId: string, slug?: string, now?: number): Promise<IngestJob>;
   enqueueRefresh(playerId: string, slug?: string, now?: number): Promise<IngestJob>;

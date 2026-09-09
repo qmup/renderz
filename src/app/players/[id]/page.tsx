@@ -28,7 +28,10 @@ import {
   findCardLoopKind,
   type Player,
 } from '@/lib/domain/player';
-import { loopPublicSrc } from '@/lib/catalog/image-cache';
+import {
+  loopPublicSrc,
+  readLoopPublicFile,
+} from '@/lib/catalog/image-cache';
 import { RateLimitedError } from '@/lib/http/errors';
 import { getRenderzSource } from '@/lib/providers/renderz/renderz-source';
 import { groupDetailStats } from '@/lib/stats';
@@ -108,7 +111,12 @@ export default async function PlayerDetailPage({
   const loopAsset = loopKind
     ? await getPlayerCatalog().getAsset(player.id, loopKind)
     : null;
-  const loopSrc = loopAsset ? loopPublicSrc(loopAsset.upstreamUrl) : undefined;
+  // Only point the canvas at /loops when the PNG is actually on disk; otherwise
+  // CardLoopCanvas falls back to the image API (which can fetch upstream).
+  const loopSrc =
+    loopAsset && readLoopPublicFile(loopAsset.upstreamUrl)
+      ? loopPublicSrc(loopAsset.upstreamUrl)
+      : undefined;
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-5 sm:gap-8 sm:py-8">

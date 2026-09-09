@@ -1,6 +1,7 @@
 /**
  * Daily production pack: discovery-only catalog update (same as Update catalog
- * button), then refresh listing image cache into data/images.sqlite.
+ * button), then refresh listing images into data/images.sqlite and LOOP sprites
+ * into public/loops.
  *
  *   npx tsx scripts/catalog-daily-update.ts
  *   npx tsx scripts/catalog-daily-update.ts --skip-images
