@@ -212,3 +212,15 @@ export function writeCachedImage(
     // Read-only deploy filesystem.
   }
 }
+
+export function closeImageCache(): void {
+  for (const [filePath, sqlite] of cacheDbs) {
+    try {
+      sqlite.pragma('wal_checkpoint(TRUNCATE)');
+      sqlite.close();
+    } catch {
+      // Ignore close errors during shutdown.
+    }
+    cacheDbs.delete(filePath);
+  }
+}

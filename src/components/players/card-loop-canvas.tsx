@@ -112,6 +112,9 @@ export function CardLoopCanvas({
       raf = requestAnimationFrame(tick);
     };
 
+    const apiSrc = playerImageSrc(playerId, kind);
+    let triedApiFallback = false;
+
     sheet.onload = () => {
       if (cancelled) {
         return;
@@ -119,6 +122,12 @@ export function CardLoopCanvas({
       const cols = Math.max(1, Math.ceil(Math.sqrt(maxFrames)));
       const frameW = sheet.naturalWidth / cols;
       if (!Number.isFinite(frameW) || frameW < MIN_LOOP_FRAME_PX) {
+        // Static path may 404 as HTML/placeholder SVG — try the image API once.
+        if (src && !triedApiFallback) {
+          triedApiFallback = true;
+          sheet.src = apiSrc;
+          return;
+        }
         setFailed(true);
         return;
       }
@@ -126,11 +135,17 @@ export function CardLoopCanvas({
       onMotionChange();
     };
     sheet.onerror = () => {
-      if (!cancelled) {
-        setFailed(true);
+      if (cancelled) {
+        return;
       }
+      if (src && !triedApiFallback) {
+        triedApiFallback = true;
+        sheet.src = apiSrc;
+        return;
+      }
+      setFailed(true);
     };
-    sheet.src = src ?? playerImageSrc(playerId, kind);
+    sheet.src = src ?? apiSrc;
 
     media.addEventListener('change', onMotionChange);
 

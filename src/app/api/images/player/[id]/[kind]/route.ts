@@ -1,10 +1,15 @@
 import { getPlayerCatalog } from '@/lib/catalog/runtime';
-import { readCachedImage, writeCachedImage } from '@/lib/catalog/image-cache';
+import {
+  readCachedImage,
+  readLoopPublicFile,
+  sharedLoopCacheId,
+  writeCachedImage,
+} from '@/lib/catalog/image-cache';
 import { enrichDiscoveredPlayer } from '@/lib/catalog/enrichment';
-import { isDev } from '@/lib/dev';
 import {
   isPlayerCommonImageKind,
   isPlayerIconImageKind,
+  isPlayerLoopImageKind,
   playStyleBaseImageKind,
   playStyleLevelFromImageKind,
   playStyleLevelFromUpstreamUrl,
@@ -153,16 +158,55 @@ export async function GET(
       return placeholder();
     }
 
+    if (isPlayerLoopImageKind(kind)) {
+      const sharedId = sharedLoopCacheId(asset.upstreamUrl);
+      if (sharedId) {
+        const sharedCached = readCachedImage(sharedId, kind);
+        if (sharedCached) {
+          return imageResponse(
+            sharedCached.bytes,
+            sharedCached.contentType,
+            true,
+          );
+        }
+      }
+      const fromPublic = readLoopPublicFile(asset.upstreamUrl);
+      if (fromPublic) {
+        if (sharedId) {
+          writeCachedImage(sharedId, kind, fromPublic.bytes);
+        }
+        return imageResponse(fromPublic.bytes, fromPublic.contentType, true);
+      }
+    }
+
     try {
-      const image = await fetchAndCache(id, kind, asset.upstreamUrl);
+      const cacheId = isPlayerLoopImageKind(kind)
+        ? (sharedLoopCacheId(asset.upstreamUrl) ?? id)
+        : id;
+      const image = await fetchAndCache(cacheId, kind, asset.upstreamUrl);
       return imageResponse(image.bytes, image.contentType, false);
     } catch (error) {
-      if (isExpiredImageError(error) && isDev) {
+      // Signed CDN URLs expire; refresh the player row and retry. Needed in
+      // production when a new LOOP sheet is not yet in public/loops.
+      if (isExpiredImageError(error)) {
         try {
           await enrichDiscoveredPlayer(catalog, getRenderzSource(), id);
           asset = await resolveAsset(catalog, id, kind);
           if (asset) {
-            const image = await fetchAndCache(id, kind, asset.upstreamUrl);
+            if (isPlayerLoopImageKind(kind)) {
+              const fromPublic = readLoopPublicFile(asset.upstreamUrl);
+              if (fromPublic) {
+                return imageResponse(
+                  fromPublic.bytes,
+                  fromPublic.contentType,
+                  true,
+                );
+              }
+            }
+            const cacheId = isPlayerLoopImageKind(kind)
+              ? (sharedLoopCacheId(asset.upstreamUrl) ?? id)
+              : id;
+            const image = await fetchAndCache(cacheId, kind, asset.upstreamUrl);
             return imageResponse(image.bytes, image.contentType, false);
           }
         } catch {
