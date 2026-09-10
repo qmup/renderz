@@ -1,7 +1,7 @@
 /**
  * Daily production pack: discovery-only catalog update (same as Update catalog
  * button), then refresh listing images into data/images.sqlite and LOOP sprites
- * into public/loops.
+ * into public/loops. Fails if any catalog LOOP sheet is still missing after pack.
  *
  *   npx tsx scripts/catalog-daily-update.ts
  *   npx tsx scripts/catalog-daily-update.ts --skip-images
@@ -9,6 +9,7 @@
 import { copyFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { closeCatalogDb } from '../src/db/index';
+import { assertLoopSheetsPresent } from '../src/lib/catalog/loop-sheets';
 import { cacheListingImages } from './cache-images';
 import { runCatalogUpdate } from '../src/lib/catalog/update';
 import { getPlayerCatalog } from '../src/lib/catalog/runtime';
@@ -48,7 +49,12 @@ async function main() {
   console.log('Wrote data/catalog.snapshot.sqlite');
 
   if (skipImages) {
-    console.log('Skipped image cache (--skip-images)');
+    // Still refuse to finish when LOOP sprites are missing — otherwise a
+    // snapshot-only commit can ship new cards without detail animation.
+    const checkCatalog = getPlayerCatalog();
+    await assertLoopSheetsPresent(checkCatalog);
+    closeCatalogDb();
+    console.log('Skipped image cache (--skip-images); LOOP sheets verified');
     return;
   }
 

@@ -8,6 +8,7 @@ import {
   sharedLoopCacheId,
   writeCachedImage,
 } from '../src/lib/catalog/image-cache';
+import { assertLoopSheetsPresent } from '../src/lib/catalog/loop-sheets';
 import { getPlayerCatalog } from '../src/lib/catalog/runtime';
 import { fetchAllowlistedImage } from '../src/lib/providers/renderz/image-proxy';
 import { looksLikeImage } from '../src/lib/providers/renderz/image-policy';
@@ -139,6 +140,11 @@ export async function cacheListingImages(): Promise<CacheTotals> {
   console.log(
     `done listing cached=${listing.done} failed=${listing.failed} skipped=${listing.skipped}; loops cached=${loopDone} failed=${loopFailed} skipped=${loopSkipped}`,
   );
+
+  // Hard gate: never treat a pack as successful if catalog still references
+  // LOOP sheets that are not on disk (new card designs would ship without animation).
+  await assertLoopSheetsPresent(catalog);
+
   return {
     done: listing.done + loopDone,
     failed: listing.failed + loopFailed,

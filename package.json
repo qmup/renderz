@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npx tsx scripts/verify-loops.ts && next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
@@ -16,7 +16,9 @@
     "seed": "npx tsx scripts/seed-listing.ts",
     "ingest": "npx tsx scripts/ingest.ts",
     "catalog:verify": "npx tsx scripts/verify-catalog.ts",
+    "catalog:verify-loops": "npx tsx scripts/verify-loops.ts",
     "catalog:cache-images": "npx tsx scripts/cache-images.ts",
+    "catalog:cache-missing-loops": "npx tsx scripts/cache-missing-loops.ts",
     "catalog:daily-update": "npx tsx scripts/catalog-daily-update.ts",
     "catalog:enrich-v6": "caffeinate -dims npx tsx scripts/enrich-parse-v6.ts"
   },

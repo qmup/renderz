@@ -1,0 +1,45 @@
+# Fail the job when catalog.snapshot references LOOP sheets missing from public/loops.
+# Runs on PRs and pushes that touch the catalog or loop assets.
+name: Verify LOOP sprites
+
+on:
+  pull_request:
+    paths:
+      - 'data/catalog.snapshot.sqlite'
+      - 'public/loops/**'
+      - 'scripts/verify-loops.ts'
+      - 'src/lib/catalog/loop-sheets.ts'
+      - 'src/lib/catalog/image-cache.ts'
+      - 'package.json'
+  push:
+    branches: [main]
+    paths:
+      - 'data/catalog.snapshot.sqlite'
+      - 'public/loops/**'
+      - 'scripts/verify-loops.ts'
+      - 'src/lib/catalog/loop-sheets.ts'
+      - 'src/lib/catalog/image-cache.ts'
+      - 'package.json'
+  workflow_dispatch:
+
+jobs:
+  verify-loops:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify every catalog LOOP sheet is in public/loops
+        run: npm run catalog:verify-loops
