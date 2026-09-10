@@ -30,7 +30,11 @@ Open [http://localhost:3000/players](http://localhost:3000/players). Listing def
 
 ## Daily production catalog
 
-GitHub Actions workflow `.github/workflows/daily-catalog.yml` runs at **00:00 Asia/Ho_Chi_Minh** (discovery-only, same pipeline as local silent discovery), packs `data/images.sqlite`, and commits `data/catalog.snapshot.sqlite` + images so the next Vercel deploy serves the new snapshot. Manual run: Actions → “Daily catalog update” → Run workflow. Locally: `npm run catalog:daily-update` (add `--skip-images` to skip the image pack). `data/images.sqlite` is stored with Git LFS — enable **Settings → Git → Git LFS** on the Vercel project (and redeploy) or listing cards stay as placeholders.
+GitHub Actions workflow `.github/workflows/daily-catalog.yml` runs at **00:00 Asia/Ho_Chi_Minh** (discovery-only, same pipeline as local silent discovery), packs `data/images.sqlite` **and** unique card LOOP sprites into `public/loops`, then commits those artifacts so the next Vercel deploy serves them. The pack **fails** if any catalog LOOP sheet is still missing. Manual run: Actions → “Daily catalog update” → Run workflow. Locally: `npm run catalog:daily-update` (add `--skip-images` to skip listing image pack; LOOP presence is still verified).
+
+`npm run catalog:verify-loops` (also run on Vercel `build` and in `.github/workflows/verify-loops.yml`) exits `1` when `data/catalog.snapshot.sqlite` references a LOOP sheet that is not a real PNG under `public/loops`. That blocks shipping new card designs without detail animation. If verify fails after enriching new players: `npm run catalog:cache-missing-loops` (re-enrich + download only the missing sheets) or `npm run catalog:cache-images`.
+
+`data/images.sqlite` and `public/loops/*.png` are stored with Git LFS — enable **Settings → Git → Git LFS** on the Vercel project (and redeploy) or listing cards / animations stay broken.
 
 ## Catalog window
 

@@ -41,6 +41,9 @@ jobs:
           RENDERZ_REQUESTS_PER_SECOND: '1'
           RENDERZ_USER_AGENT: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
 
+      - name: Verify LOOP sprites
+        run: npm run catalog:verify-loops
+
       - name: Commit snapshot artifacts
         run: |
           git lfs install

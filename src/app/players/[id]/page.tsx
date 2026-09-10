@@ -32,6 +32,7 @@ import {
   loopPublicSrc,
   readLoopPublicFile,
 } from '@/lib/catalog/image-cache';
+import { warmLoopSheet } from '@/lib/catalog/warm-loop';
 import { RateLimitedError } from '@/lib/http/errors';
 import { getRenderzSource } from '@/lib/providers/renderz/renderz-source';
 import { groupDetailStats } from '@/lib/stats';
@@ -108,15 +109,19 @@ export default async function PlayerDetailPage({
   const groupedStats = groupDetailStats(player.stats);
   const program = displayProgramName(player.programName, player.programId);
   const loopKind = findCardLoopKind(player.availableImageKinds);
+  const catalog = getPlayerCatalog();
   const loopAsset = loopKind
-    ? await getPlayerCatalog().getAsset(player.id, loopKind)
+    ? await catalog.getAsset(player.id, loopKind)
     : null;
-  // Only point the canvas at /loops when the PNG is actually on disk; otherwise
-  // CardLoopCanvas falls back to the image API (which can fetch upstream).
+  // Prefer static CDN /loops; when a brand-new sheet is not packed yet, warm
+  // the serverless image cache so CardLoopCanvas can animate via the API.
   const loopSrc =
     loopAsset && readLoopPublicFile(loopAsset.upstreamUrl)
       ? loopPublicSrc(loopAsset.upstreamUrl)
       : undefined;
+  if (loopKind && loopAsset && !loopSrc) {
+    await warmLoopSheet(catalog, player.id, loopKind, loopAsset);
+  }
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-5 sm:gap-8 sm:py-8">

@@ -1,20 +1,23 @@
 /**
  * Re-enrich one player per missing LOOP sheet, then download into public/loops.
- *   npx tsx scripts/cache-missing-loops.ts
+ *
+ *   npm run catalog:cache-missing-loops
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { closeCatalogDb } from '../src/db/index';
 import { enrichDiscoveredPlayer } from '../src/lib/catalog/enrichment';
 import {
   loopPublicFilePath,
-  loopSheetFileName,
   sharedLoopCacheId,
 } from '../src/lib/catalog/image-cache';
+import {
+  assertLoopSheetsPresent,
+  reportLoopSheets,
+} from '../src/lib/catalog/loop-sheets';
 import { getPlayerCatalog } from '../src/lib/catalog/runtime';
-import { fetchAllowlistedImage } from '../src/lib/providers/renderz/image-proxy';
-import { looksLikeImage } from '../src/lib/providers/renderz/image-policy';
-import { getRenderzSource } from '../src/lib/providers/renderz/renderz-source';
 import { isExpiredImageError } from '../src/lib/providers/renderz/image-errors';
+import { fetchAllowlistedImage } from '../src/lib/providers/renderz/image-proxy';
+import { getRenderzSource } from '../src/lib/providers/renderz/renderz-source';
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -25,53 +28,36 @@ async function main() {
   const source = getRenderzSource();
   mkdirSync('public/loops', { recursive: true });
 
-  const bySheet = new Map<
-    string,
-    { playerId: string; upstreamUrl: string; dest: string }
-  >();
+  const report = await reportLoopSheets(catalog);
+  console.log(
+    `LOOP sheets: ${report.present}/${report.total} present; missing=${report.missing.length}`,
+  );
 
-  for (const asset of await catalog.listLoopAssets()) {
-    const dest = loopPublicFilePath(asset.upstreamUrl);
-    const sheet = loopSheetFileName(asset.upstreamUrl);
-    const sharedId = sharedLoopCacheId(asset.upstreamUrl);
-    if (!dest || !sheet || !sharedId) {
-      continue;
-    }
-    if (existsSync(dest) && looksLikeImage(new Uint8Array(readFileSync(dest)))) {
-      continue;
-    }
-    if (!bySheet.has(sharedId)) {
-      bySheet.set(sharedId, {
-        playerId: asset.playerId,
-        upstreamUrl: asset.upstreamUrl,
-        dest,
-      });
-    }
-  }
-
-  console.log(`missing sheets: ${bySheet.size}`);
   let done = 0;
   let failed = 0;
 
-  for (const [sharedId, job] of bySheet) {
+  for (const sheet of report.missing) {
+    const dest =
+      loopPublicFilePath(sheet.upstreamUrl) ??
+      `public/loops/${sheet.fileName}`;
     try {
-      console.log(`enrich ${job.playerId} for ${sharedId}`);
-      await enrichDiscoveredPlayer(catalog, source, job.playerId);
+      console.log(`enrich ${sheet.samplePlayerId} for ${sheet.sharedId}`);
+      await enrichDiscoveredPlayer(catalog, source, sheet.samplePlayerId);
       await sleep(1100);
       const fresh = (await catalog.listLoopAssets()).find(
-        (asset) => sharedLoopCacheId(asset.upstreamUrl) === sharedId,
+        (asset) => sharedLoopCacheId(asset.upstreamUrl) === sheet.sharedId,
       );
-      const url = fresh?.upstreamUrl ?? job.upstreamUrl;
-      console.log(`fetching ${sharedId}`);
+      const url = fresh?.upstreamUrl ?? sheet.upstreamUrl;
+      console.log(`fetching ${sheet.sharedId}`);
       const image = await fetchAllowlistedImage(url);
-      writeFileSync(job.dest, Buffer.from(image.bytes));
-      console.log(`wrote ${job.dest} (${image.bytes.byteLength} bytes)`);
+      writeFileSync(dest, Buffer.from(image.bytes));
+      console.log(`wrote ${dest} (${image.bytes.byteLength} bytes)`);
       done += 1;
     } catch (error) {
       failed += 1;
       const message = error instanceof Error ? error.message : String(error);
       console.error(
-        `failed ${sharedId}:`,
+        `failed ${sheet.sharedId}:`,
         message,
         isExpiredImageError(error) ? '(expired)' : '',
       );
@@ -81,12 +67,14 @@ async function main() {
 
   closeCatalogDb();
   console.log(`done fetched=${done} failed=${failed}`);
-  if (failed > 0) {
-    process.exitCode = 1;
-  }
+
+  const check = getPlayerCatalog();
+  await assertLoopSheetsPresent(check);
+  closeCatalogDb();
+  console.log('All LOOP sheets present');
 }
 
 main().catch((error) => {
-  console.error(error);
+  console.error(error instanceof Error ? error.message : error);
   process.exit(1);
 });
