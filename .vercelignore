@@ -1,5 +1,5 @@
-# Same as .gitignore, except data/images.sqlite is uploaded so production
-# can serve player art without calling RenderZ from Vercel IPs.
+# Listing image bytes live in Vercel Blob, not the function bundle.
+# Catalog snapshot is still traced into serverless functions.
 
 /node_modules
 /.pnp
@@ -13,7 +13,6 @@
 /data/*.sqlite
 /data/*.sqlite-*
 !/data/catalog.snapshot.sqlite
-!/data/images.sqlite
 /data/image-cache/
 
 /test/fixtures/renderz/raw/*

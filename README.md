@@ -30,11 +30,13 @@ Open [http://localhost:3000/players](http://localhost:3000/players). Listing def
 
 ## Daily production catalog
 
-GitHub Actions workflow `.github/workflows/daily-catalog.yml` runs at **00:00 Asia/Ho_Chi_Minh** (discovery-only, same pipeline as local silent discovery), packs `data/images.sqlite` **and** unique card LOOP sprites into `public/loops`, then commits those artifacts so the next Vercel deploy serves them. The pack **fails** if any catalog LOOP sheet is still missing. Manual run: Actions → “Daily catalog update” → Run workflow. Locally: `npm run catalog:daily-update` (add `--skip-images` to skip listing image pack; LOOP presence is still verified).
+GitHub Actions workflow `.github/workflows/daily-catalog.yml` runs at **00:00 Asia/Ho_Chi_Minh** (discovery-only, same pipeline as local silent discovery), packs listing images into `data/images.sqlite`, uploads that file to a **private Vercel Blob** store, and commits `data/catalog.snapshot.sqlite` plus unique card LOOP sprites in `public/loops`. The pack **fails** if any catalog LOOP sheet is still missing. Production functions download `images.sqlite` from Blob into `/tmp` on first image request — it is not bundled into Vercel Functions. Manual run: Actions → “Daily catalog update” → Run workflow. Locally: `npm run catalog:daily-update` (add `--skip-images` to skip listing image pack; LOOP presence is still verified). One-off Blob upload: `npm run catalog:upload-images` after `npx vercel env pull .env.local --yes`.
+
+The GitHub Action needs repository secret `BLOB_READ_WRITE_TOKEN` (copy from the Vercel project env of the same name).
 
 `npm run catalog:verify-loops` (also run on Vercel `build` and in `.github/workflows/verify-loops.yml`) exits `1` when `data/catalog.snapshot.sqlite` references a LOOP sheet that is not a real PNG under `public/loops`. That blocks shipping new card designs without detail animation. If verify fails after enriching new players: `npm run catalog:cache-missing-loops` (re-enrich + download only the missing sheets) or `npm run catalog:cache-images`.
 
-`data/images.sqlite` and `public/loops/*.png` are stored with Git LFS — enable **Settings → Git → Git LFS** on the Vercel project (and redeploy) or listing cards / animations stay broken.
+`public/loops/*.png` are stored with Git LFS — enable **Settings → Git → Git LFS** on the Vercel project (and redeploy) or detail animations stay broken. Listing card images come from Blob, not LFS.
 
 ## Catalog window
 

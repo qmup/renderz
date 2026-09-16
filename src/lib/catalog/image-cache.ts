@@ -1,12 +1,10 @@
 import {
-  copyFileSync,
   existsSync,
   mkdirSync,
   openSync,
   readFileSync,
   readSync,
   closeSync,
-  statSync,
 } from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
@@ -15,6 +13,10 @@ import {
   looksLikeImage,
   sniffImageContentType,
 } from '@/lib/providers/renderz/image-policy';
+import {
+  downloadImageCacheFromBlob,
+  VERCEL_IMAGE_CACHE_PATH,
+} from '@/lib/catalog/image-cache-blob';
 
 const CREATE_SQL = `CREATE TABLE IF NOT EXISTS images (
   player_id TEXT NOT NULL,
@@ -114,29 +116,42 @@ export function isUsableImageCacheFile(filePath: string): boolean {
   }
 }
 
-function fileSize(filePath: string): number {
-  try {
-    return existsSync(filePath) ? statSync(filePath).size : 0;
-  } catch {
-    return 0;
+function writableCachePath(cwd = process.cwd()): string {
+  if (process.env.VERCEL) {
+    return VERCEL_IMAGE_CACHE_PATH;
   }
+  return imageCacheSqlitePath(cwd);
 }
 
-function writableCachePath(cwd = process.cwd()): string {
-  const bundled = imageCacheSqlitePath(cwd);
+const HYDRATE_TTL_MS = 60 * 60 * 1000;
+let hydratePromise: Promise<void> | undefined;
+let lastHydrateAt = 0;
+
+/** On Vercel, copy the packed sqlite from Blob into /tmp (no-op locally). */
+export async function ensureImageCache(): Promise<void> {
   if (!process.env.VERCEL) {
-    return bundled;
+    return;
   }
-  const dest = '/tmp/images.sqlite';
-  // Prefer the bundled LFS DB when it is usable and larger than a stale
-  // /tmp copy (e.g. empty schema created before Git LFS was enabled).
-  if (
-    isUsableImageCacheFile(bundled) &&
-    (!isUsableImageCacheFile(dest) || fileSize(bundled) > fileSize(dest))
-  ) {
-    copyFileSync(bundled, dest);
+  if (lastHydrateAt > 0 && Date.now() - lastHydrateAt < HYDRATE_TTL_MS) {
+    return;
   }
-  return isUsableImageCacheFile(dest) ? dest : bundled;
+  if (!hydratePromise) {
+    hydratePromise = (async () => {
+      closeImageCache();
+      const result = await downloadImageCacheFromBlob(VERCEL_IMAGE_CACHE_PATH);
+      if (result !== 'missing') {
+        lastHydrateAt = Date.now();
+      }
+    })().catch((error: unknown) => {
+      lastHydrateAt = 0;
+      console.error('Failed to hydrate image cache from Vercel Blob', error);
+    });
+  }
+  try {
+    await hydratePromise;
+  } finally {
+    hydratePromise = undefined;
+  }
 }
 
 const cacheDbs = new Map<string, Database.Database>();

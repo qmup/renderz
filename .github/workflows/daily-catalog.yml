@@ -37,6 +37,7 @@ jobs:
       - name: Discovery update + pack images
         run: npm run catalog:daily-update
         env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
           RENDERZ_MAX_CONCURRENCY: '1'
           RENDERZ_REQUESTS_PER_SECOND: '1'
           RENDERZ_USER_AGENT: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
@@ -49,7 +50,7 @@ jobs:
           git lfs install
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/catalog.snapshot.sqlite data/images.sqlite public/loops .gitattributes
+          git add data/catalog.snapshot.sqlite public/loops .gitattributes
           if git diff --staged --quiet; then
             echo "No catalog/image changes to commit"
             exit 0
