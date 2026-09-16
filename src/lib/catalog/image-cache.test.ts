@@ -3,7 +3,6 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  ensureImageCache,
   isUsableImageCacheFile,
   loopPublicSrc,
   readCachedImage,
@@ -69,10 +68,6 @@ describe("image cache", () => {
     } finally {
       rmSync(cwd, { recursive: true, force: true });
     }
-  });
-
-  it("does not download from Blob outside Vercel", async () => {
-    await expect(ensureImageCache()).resolves.toBeUndefined();
   });
 });
 

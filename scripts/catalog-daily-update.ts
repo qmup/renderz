@@ -1,8 +1,7 @@
 /**
  * Daily production pack: discovery-only catalog update (same as Update catalog
- * button), then refresh listing images into data/images.sqlite, upload that
- * file to Vercel Blob, and pack LOOP sprites into public/loops. Fails if any
- * catalog LOOP sheet is still missing after pack.
+ * button), then refresh listing images into data/images.sqlite, extract them
+ * into public/player-art, and pack LOOP sprites into public/loops.
  *
  *   npx tsx scripts/catalog-daily-update.ts
  *   npx tsx scripts/catalog-daily-update.ts --skip-images
@@ -12,7 +11,7 @@ import path from 'node:path';
 import { closeCatalogDb } from '../src/db/index';
 import { assertLoopSheetsPresent } from '../src/lib/catalog/loop-sheets';
 import { cacheListingImages } from './cache-images';
-import { uploadPackedImageCache } from './upload-image-cache';
+import { extractPlayerArt } from './extract-player-art';
 import { runCatalogUpdate } from '../src/lib/catalog/update';
 import { getPlayerCatalog } from '../src/lib/catalog/runtime';
 import { getRenderzSource } from '../src/lib/providers/renderz/renderz-source';
@@ -63,7 +62,7 @@ async function main() {
   await cacheListingImages();
   closeCatalogDb();
   console.log('Updated data/images.sqlite');
-  await uploadPackedImageCache();
+  extractPlayerArt();
 }
 
 main().catch((error) => {

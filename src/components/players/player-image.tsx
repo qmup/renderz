@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import type { PlayerImageKind } from "@/lib/domain/player";
-import { playerImageSrc } from "@/lib/images";
+import { playerArtPublicSrc, playerImageApiSrc } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
 export function PlayerImage({
@@ -26,7 +26,13 @@ export function PlayerImage({
   hideOnError?: boolean;
   priority?: boolean;
 }) {
+  const staticSrc = playerArtPublicSrc(id, kind);
+  const [src, setSrc] = useState(staticSrc);
   const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setSrc(staticSrc);
+    setFailed(false);
+  }, [staticSrc]);
   if (failed) {
     if (hideOnError) {
       return null;
@@ -44,10 +50,10 @@ export function PlayerImage({
     );
   }
   return (
-    // Same-origin proxy; signed CDN URLs never reach the browser.
+    // Static CDN files first; API proxy is same-origin fallback (no RenderZ URLs).
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={playerImageSrc(id, kind)}
+      src={src}
       alt={alt}
       width={width}
       height={height}
@@ -55,7 +61,13 @@ export function PlayerImage({
       style={style}
       loading={priority ? "eager" : "lazy"}
       fetchPriority={priority ? "high" : undefined}
-      onError={() => setFailed(true)}
+      onError={() => {
+        if (src === staticSrc) {
+          setSrc(playerImageApiSrc(id, kind));
+          return;
+        }
+        setFailed(true);
+      }}
     />
   );
 }

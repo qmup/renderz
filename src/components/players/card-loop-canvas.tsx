@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { PlayerImageKind } from '@/lib/domain/player';
-import { playerImageSrc } from '@/lib/images';
+import { playerImageApiSrc } from '@/lib/images';
 import { cn } from '@/lib/utils';
 
 const DEFAULT_FPS = 18;
@@ -112,7 +112,7 @@ export function CardLoopCanvas({
       raf = requestAnimationFrame(tick);
     };
 
-    const apiSrc = playerImageSrc(playerId, kind);
+    const apiSrc = playerImageApiSrc(playerId, kind);
     let triedApiFallback = false;
 
     sheet.onload = () => {

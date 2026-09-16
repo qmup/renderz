@@ -13,10 +13,6 @@ import {
   looksLikeImage,
   sniffImageContentType,
 } from '@/lib/providers/renderz/image-policy';
-import {
-  downloadImageCacheFromBlob,
-  VERCEL_IMAGE_CACHE_PATH,
-} from '@/lib/catalog/image-cache-blob';
 
 const CREATE_SQL = `CREATE TABLE IF NOT EXISTS images (
   player_id TEXT NOT NULL,
@@ -118,40 +114,9 @@ export function isUsableImageCacheFile(filePath: string): boolean {
 
 function writableCachePath(cwd = process.cwd()): string {
   if (process.env.VERCEL) {
-    return VERCEL_IMAGE_CACHE_PATH;
+    return '/tmp/images.sqlite';
   }
   return imageCacheSqlitePath(cwd);
-}
-
-const HYDRATE_TTL_MS = 60 * 60 * 1000;
-let hydratePromise: Promise<void> | undefined;
-let lastHydrateAt = 0;
-
-/** On Vercel, copy the packed sqlite from Blob into /tmp (no-op locally). */
-export async function ensureImageCache(): Promise<void> {
-  if (!process.env.VERCEL) {
-    return;
-  }
-  if (lastHydrateAt > 0 && Date.now() - lastHydrateAt < HYDRATE_TTL_MS) {
-    return;
-  }
-  if (!hydratePromise) {
-    hydratePromise = (async () => {
-      closeImageCache();
-      const result = await downloadImageCacheFromBlob(VERCEL_IMAGE_CACHE_PATH);
-      if (result !== 'missing') {
-        lastHydrateAt = Date.now();
-      }
-    })().catch((error: unknown) => {
-      lastHydrateAt = 0;
-      console.error('Failed to hydrate image cache from Vercel Blob', error);
-    });
-  }
-  try {
-    await hydratePromise;
-  } finally {
-    hydratePromise = undefined;
-  }
 }
 
 const cacheDbs = new Map<string, Database.Database>();

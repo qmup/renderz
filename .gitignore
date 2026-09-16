@@ -14,8 +14,12 @@
 /data/*.sqlite
 /data/*.sqlite-*
 !/data/catalog.snapshot.sqlite
+!/data/images.sqlite
 /data/image-cache/
 /data/*.db
+
+# generated at build from data/images.sqlite
+/public/player-art/
 
 # full third-party HTML / JSON (minimized fixtures are committed)
 /test/fixtures/renderz/raw/*

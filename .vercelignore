@@ -1,5 +1,5 @@
-# Listing image bytes live in Vercel Blob, not the function bundle.
-# Catalog snapshot is still traced into serverless functions.
+# Catalog snapshot is traced into functions. images.sqlite is build input only
+# (extracted to public/player-art); do not put it in outputFileTracingIncludes.
 
 /node_modules
 /.pnp
@@ -13,6 +13,7 @@
 /data/*.sqlite
 /data/*.sqlite-*
 !/data/catalog.snapshot.sqlite
+!/data/images.sqlite
 /data/image-cache/
 
 /test/fixtures/renderz/raw/*

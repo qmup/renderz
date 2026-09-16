@@ -1,6 +1,5 @@
 import { getPlayerCatalog } from '@/lib/catalog/runtime';
 import {
-  ensureImageCache,
   readCachedImage,
   readLoopPublicFile,
   sharedLoopCacheId,
@@ -144,7 +143,6 @@ export async function GET(
     const params = await context.params;
     const id = playerIdSchema.parse(params.id);
     const kind = playerImageKindSchema.parse(params.kind);
-    await ensureImageCache();
     const cached = readCachedImage(id, kind);
     if (cached) {
       return imageResponse(cached.bytes, cached.contentType, true);

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npx tsx scripts/verify-loops.ts && next build",
+    "build": "npx tsx scripts/extract-player-art.ts && npx tsx scripts/verify-loops.ts && next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
@@ -18,15 +18,14 @@
     "catalog:verify": "npx tsx scripts/verify-catalog.ts",
     "catalog:verify-loops": "npx tsx scripts/verify-loops.ts",
     "catalog:cache-images": "npx tsx scripts/cache-images.ts",
+    "catalog:extract-player-art": "npx tsx scripts/extract-player-art.ts",
     "catalog:cache-missing-loops": "npx tsx scripts/cache-missing-loops.ts",
     "catalog:daily-update": "npx tsx scripts/catalog-daily-update.ts",
-    "catalog:upload-images": "npx tsx scripts/upload-image-cache.ts",
     "catalog:enrich-v6": "caffeinate -dims npx tsx scripts/enrich-parse-v6.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.102.8",
     "@vercel/analytics": "^2.0.1",
-    "@vercel/blob": "^2.8.0",
     "better-sqlite3": "^13.0.3",
     "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",

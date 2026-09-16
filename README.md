@@ -30,13 +30,11 @@ Open [http://localhost:3000/players](http://localhost:3000/players). Listing def
 
 ## Daily production catalog
 
-GitHub Actions workflow `.github/workflows/daily-catalog.yml` runs at **00:00 Asia/Ho_Chi_Minh** (discovery-only, same pipeline as local silent discovery), packs listing images into `data/images.sqlite`, uploads that file to a **private Vercel Blob** store, and commits `data/catalog.snapshot.sqlite` plus unique card LOOP sprites in `public/loops`. The pack **fails** if any catalog LOOP sheet is still missing. Production functions download `images.sqlite` from Blob into `/tmp` on first image request — it is not bundled into Vercel Functions. Manual run: Actions → “Daily catalog update” → Run workflow. Locally: `npm run catalog:daily-update` (add `--skip-images` to skip listing image pack; LOOP presence is still verified). One-off Blob upload: `npm run catalog:upload-images` after `npx vercel env pull .env.local --yes`.
-
-The GitHub Action needs repository secret `BLOB_READ_WRITE_TOKEN` (copy from the Vercel project env of the same name).
+GitHub Actions workflow `.github/workflows/daily-catalog.yml` runs at **00:00 Asia/Ho_Chi_Minh** (discovery-only, same pipeline as local silent discovery), packs listing images into `data/images.sqlite` (Git LFS), and commits that file plus `data/catalog.snapshot.sqlite` and unique card LOOP sprites in `public/loops`. Vercel `build` extracts the sqlite into static files under `public/player-art` (CDN / Fast Data Transfer). Do **not** put `images.sqlite` in `outputFileTracingIncludes` — that re-bundles ~95MB into every serverless function. The pack **fails** if any catalog LOOP sheet is still missing. Manual run: Actions → “Daily catalog update” → Run workflow. Locally: `npm run catalog:daily-update` (add `--skip-images` to skip listing image pack; LOOP presence is still verified).
 
 `npm run catalog:verify-loops` (also run on Vercel `build` and in `.github/workflows/verify-loops.yml`) exits `1` when `data/catalog.snapshot.sqlite` references a LOOP sheet that is not a real PNG under `public/loops`. That blocks shipping new card designs without detail animation. If verify fails after enriching new players: `npm run catalog:cache-missing-loops` (re-enrich + download only the missing sheets) or `npm run catalog:cache-images`.
 
-`public/loops/*.png` are stored with Git LFS — enable **Settings → Git → Git LFS** on the Vercel project (and redeploy) or detail animations stay broken. Listing card images come from Blob, not LFS.
+`data/images.sqlite` and `public/loops/*.png` are stored with Git LFS — enable **Settings → Git → Git LFS** on the Vercel project (and redeploy) or listing art and detail animations stay broken.
 
 ## Catalog window
 
@@ -59,7 +57,7 @@ Parser v2 stops copying the whole player page into `programName`. Re-run seed or
 
 ## Images
 
-Cards load through `GET /api/images/player/:id/:kind` (allowlisted CDN hosts, SSRF controls, placeholder on failure). Signed CDN URLs never reach the browser. Expired signatures trigger a catalog refresh for that id, then one retry.
+Listing card art is served as static files (`/player-art/...`) extracted at build from `data/images.sqlite`. The UI falls back to `GET /api/images/player/:id/:kind` (allowlisted CDN hosts, SSRF controls, placeholder on failure). Signed CDN URLs never reach the browser. Expired signatures trigger a catalog refresh for that id, then one retry.
 
 ## Fixtures
 
