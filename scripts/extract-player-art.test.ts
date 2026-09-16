@@ -35,6 +35,32 @@ describe("extractPlayerArt", () => {
     ).toEqual(png);
   });
 
+  it("copies shared icons into public/player-art/_shared", () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "extract-player-art-"));
+    dirs.push(cwd);
+    writeCachedImage("30920616", "untradeable", png, cwd);
+    writeCachedImage("30920602", "playstyle-1012306335-l2", png, cwd);
+    closeImageCache();
+
+    expect(extractPlayerArt(cwd)).toBe(2);
+    expect(
+      readFileSync(
+        path.join(cwd, "public", "player-art", "_shared", "untradeable.png"),
+      ),
+    ).toEqual(png);
+    expect(
+      readFileSync(
+        path.join(
+          cwd,
+          "public",
+          "player-art",
+          "_shared",
+          "playstyle-1012306335-l2.png",
+        ),
+      ),
+    ).toEqual(png);
+  });
+
   it("skips when the sqlite cache is missing", () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "extract-player-art-"));
     dirs.push(cwd);

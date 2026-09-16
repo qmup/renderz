@@ -8,11 +8,16 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
+import { isSharedImageKind } from "../src/lib/domain/player";
 import {
   imageCacheSqlitePath,
   isUsableImageCacheFile,
 } from "../src/lib/catalog/image-cache";
-import { playerArtPublicDir, playerArtPublicFileName } from "../src/lib/images";
+import {
+  playerArtPublicDir,
+  playerArtPublicFileName,
+  SHARED_PLAYER_ART_DIR,
+} from "../src/lib/images";
 
 export function extractPlayerArt(
   cwd = process.cwd(),
@@ -37,11 +42,17 @@ export function extractPlayerArt(
     .iterate() as Iterable<{ player_id: string; kind: string; bytes: Buffer }>;
 
   let packed = 0;
+  const sharedRoot = path.join(outRoot, SHARED_PLAYER_ART_DIR);
   for (const row of rows) {
+    const fileName = playerArtPublicFileName(row.kind);
     const dir = path.join(outRoot, playerArtPublicDir(row.player_id));
     mkdirSync(dir, { recursive: true });
-    writeFileSync(path.join(dir, playerArtPublicFileName(row.kind)), row.bytes);
+    writeFileSync(path.join(dir, fileName), row.bytes);
     packed += 1;
+    if (isSharedImageKind(row.kind)) {
+      mkdirSync(sharedRoot, { recursive: true });
+      writeFileSync(path.join(sharedRoot, fileName), row.bytes);
+    }
   }
   db.close();
   console.log(`extracted ${packed} images into ${outRoot}`);

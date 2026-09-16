@@ -5,6 +5,7 @@ import {
   playerArtPublicSrc,
   playerImageApiSrc,
   playerImageSrc,
+  SHARED_PLAYER_ART_DIR,
 } from "@/lib/images";
 
 describe("player art paths", () => {
@@ -16,6 +17,12 @@ describe("player art paths", () => {
     );
     expect(playerImageSrc("30920616", "card")).toBe(
       "/player-art/30920616/card.png",
+    );
+    expect(playerArtPublicSrc("30920616", "untradeable")).toBe(
+      `/player-art/${SHARED_PLAYER_ART_DIR}/untradeable.png`,
+    );
+    expect(playerArtPublicSrc("30920616", "playstyle-1012306335-l2")).toBe(
+      `/player-art/${SHARED_PLAYER_ART_DIR}/playstyle-1012306335-l2.png`,
     );
   });
 
