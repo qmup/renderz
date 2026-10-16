@@ -9,6 +9,7 @@ import {
 import path from 'node:path';
 import Database from 'better-sqlite3';
 import { isSharedImageKind, type PlayerImageKind } from '@/lib/domain/player';
+import { withImageCdn } from '@/lib/images';
 import {
   looksLikeImage,
   sniffImageContentType,
@@ -48,7 +49,7 @@ export function loopSheetFileName(upstreamUrl: string): string | undefined {
 /** Same-origin static path served by the CDN (not the serverless image cache). */
 export function loopPublicSrc(upstreamUrl: string): string | undefined {
   const name = loopSheetFileName(upstreamUrl);
-  return name ? `/loops/${name}` : undefined;
+  return name ? withImageCdn(`/loops/${name}`) : undefined;
 }
 
 export function loopPublicFilePath(

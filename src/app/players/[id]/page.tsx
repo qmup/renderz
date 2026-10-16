@@ -12,6 +12,7 @@ import {
 import { StarSigningsPrice } from '@/components/players/star-signings-price';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { cardNameColor } from '@/lib/catalog/card-name-color';
 import { enrichDiscoveredPlayer } from '@/lib/catalog/enrichment';
 import { getPlayerCatalog } from '@/lib/catalog/runtime';
 import { isDev } from '@/lib/dev';
@@ -32,6 +33,7 @@ import {
   loopPublicSrc,
   readLoopPublicFile,
 } from '@/lib/catalog/image-cache';
+import { imageCdnBase } from '@/lib/images';
 import { warmLoopSheet } from '@/lib/catalog/warm-loop';
 import { RateLimitedError } from '@/lib/http/errors';
 import { getRenderzSource } from '@/lib/providers/renderz/renderz-source';
@@ -39,6 +41,7 @@ import { groupDetailStats } from '@/lib/stats';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 
 type EnrichNotice = 'rate_limited' | 'enrich_failed';
 
@@ -110,15 +113,23 @@ export default async function PlayerDetailPage({
   const program = displayProgramName(player.programName, player.programId);
   const loopKind = findCardLoopKind(player.availableImageKinds);
   const catalog = getPlayerCatalog();
-  const loopAsset = loopKind
-    ? await catalog.getAsset(player.id, loopKind)
-    : null;
+  const [loopAsset, backgroundAsset] = await Promise.all([
+    loopKind ? catalog.getAsset(player.id, loopKind) : Promise.resolve(null),
+    catalog.getAsset(player.id, 'background'),
+  ]);
+  const nameColor = cardNameColor(backgroundAsset?.upstreamUrl);
   // Prefer static CDN /loops; when a brand-new sheet is not packed yet, warm
   // the serverless image cache so CardLoopCanvas can animate via the API.
-  const loopSrc =
+  const packedLoop =
     loopAsset && readLoopPublicFile(loopAsset.upstreamUrl)
       ? loopPublicSrc(loopAsset.upstreamUrl)
       : undefined;
+  // On Vercel the sheet is on CloudFront, not on the function disk.
+  const loopSrc =
+    packedLoop ??
+    (loopAsset && imageCdnBase()
+      ? loopPublicSrc(loopAsset.upstreamUrl)
+      : undefined);
   if (loopKind && loopAsset && !loopSrc) {
     await warmLoopSheet(catalog, player.id, loopKind, loopAsset);
   }
@@ -152,7 +163,7 @@ export default async function PlayerDetailPage({
       ) : null}
 
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
-        <div className="mx-auto flex w-[11.5rem] shrink-0 flex-col items-center sm:mx-0 sm:w-52">
+        <div className="mx-auto flex w-64 shrink-0 flex-col items-center sm:mx-0 sm:w-72">
           <PlayerCardArt
             id={player.id}
             kinds={player.availableImageKinds}
@@ -161,7 +172,9 @@ export default async function PlayerDetailPage({
             auctionable={player.auctionable}
             displayName={cardDisplayName(player)}
             playStyles={player.playStyles}
-            size={208}
+            price={player.starSigningsBuy}
+            nameColor={nameColor}
+            size={288}
             fill
             priority
             animate

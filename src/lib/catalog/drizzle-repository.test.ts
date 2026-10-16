@@ -245,6 +245,27 @@ describe("DrizzlePlayerCatalog", () => {
     expect(byCommon.total).toBe(1);
   });
 
+  it("paints listing names from the background template", async () => {
+    const { catalog } = createTestCatalog();
+    const player = fakePlayer({
+      id: "30921214",
+      name: "David Beckham",
+      rating: 122,
+      availableImageKinds: ["background", "card"],
+    });
+    await catalog.upsertPlayer(player, [
+      {
+        playerId: parsePlayerId("30921214"),
+        kind: "background",
+        upstreamUrl:
+          "https://images-v2.renderz.app/bg_23_backgrounds_27_ANNIVERSARY27_ICON_STATIC",
+        fetchedAt: 1,
+      },
+    ]);
+    const listed = await catalog.list(normalizePlayerListQuery({}));
+    expect(listed.items[0]?.nameColor).toBe("#554620");
+  });
+
   it("stores assets without exposing them on the player domain object", async () => {
     const { catalog } = createTestCatalog();
     const player = fakePlayer({

@@ -10,6 +10,7 @@ import {
   type CardPlayStyle,
   type PlayerImageKind,
 } from '@/lib/domain/player';
+import { formatCoinAmount } from '@/lib/display';
 import { cn } from '@/lib/utils';
 
 export function PlayerCardArt({
@@ -20,6 +21,8 @@ export function PlayerCardArt({
   auctionable,
   displayName,
   playStyles,
+  price,
+  nameColor = '#FFFFFF',
   className,
   size = 96,
   fill = false,
@@ -34,6 +37,10 @@ export function PlayerCardArt({
   auctionable?: boolean;
   displayName?: string;
   playStyles?: CardPlayStyle[];
+  /** Star Signings buy price drawn on the card, matching RenderZ. */
+  price?: number;
+  /** RenderZ `animation.colors.name`, derived from the background template. */
+  nameColor?: string;
   className?: string;
   size?: number;
   fill?: boolean;
@@ -61,10 +68,10 @@ export function PlayerCardArt({
   );
   const ratingSize = fill
     ? undefined
-    : { fontSize: Math.max(11, Math.round(size * 0.105) + 2) };
+    : { fontSize: Math.max(11, Math.round(size * 0.124)) };
   const positionSize = fill
     ? undefined
-    : { fontSize: Math.max(8, Math.round(size * 0.065) + 2) };
+    : { fontSize: Math.max(8, Math.round(size * 0.078)) };
   const nameSize = fill
     ? {
         fontSize: cardNameFillFont(cardName),
@@ -89,7 +96,8 @@ export function PlayerCardArt({
   return (
     <div
       className={cn(
-        'relative shrink-0 overflow-hidden',
+        'relative shrink-0',
+        price === undefined ? 'overflow-hidden' : 'mb-[9%] overflow-visible',
         fill && '@container aspect-square w-full',
         className,
       )}
@@ -129,15 +137,14 @@ export function PlayerCardArt({
       ) : null}
 
       <div
-        className="pointer-events-none absolute top-[10%] left-[20%] z-10 flex flex-col items-center gap-px leading-none text-white"
-        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}
+        className="pointer-events-none absolute top-[9%] left-[22.5%] z-10 flex flex-col items-center leading-none text-white"
+        style={{ textShadow: '0 1px 1px rgba(0,0,0,0.85)' }}
       >
         {rating !== undefined ? (
           <span
             className={cn(
-              'font-heading font-bold tabular-nums',
-              fill &&
-                'text-[clamp(6px,11cqw,15px)] @[7rem]:text-[clamp(8px,13cqw,17px)]',
+              'font-card font-bold tracking-tight tabular-nums',
+              fill && 'text-[clamp(10px,12.4cqw,36px)] leading-none',
             )}
             style={ratingSize}
           >
@@ -147,9 +154,8 @@ export function PlayerCardArt({
         {position ? (
           <span
             className={cn(
-              'font-semibold tracking-wide',
-              fill &&
-                'text-[clamp(4.5px,7cqw,10px)] @[7rem]:text-[clamp(6.5px,9cqw,12px)]',
+              'font-card -mt-px font-semibold tracking-[0.02em]',
+              fill && 'text-[clamp(7px,7.8cqw,22px)]',
             )}
             style={positionSize}
           >
@@ -169,14 +175,14 @@ export function PlayerCardArt({
 
       {cardName ? (
         <div
-          className="pointer-events-none absolute inset-x-[12%] bottom-[24%] z-10 flex h-[12%] items-center justify-center text-center leading-none text-white"
-          style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}
+          className="pointer-events-none absolute inset-x-[12%] top-[62%] z-10 flex h-[8%] items-center justify-center text-center leading-none"
+          style={{ color: nameColor }}
           aria-hidden
         >
           <span
             className={cn(
-              'font-heading w-full font-bold uppercase',
-              fill ? 'truncate leading-none tracking-tight' : 'line-clamp-2',
+              'font-card w-full font-bold tracking-[0.01em] uppercase',
+              fill ? 'truncate leading-none' : 'line-clamp-2',
             )}
             style={nameSize}
           >
@@ -201,7 +207,7 @@ export function PlayerCardArt({
           width={badge}
           height={badge}
           hideOnError
-          className="absolute bottom-[11%] left-[30%] z-10 h-[12%] w-[12%]"
+          className="absolute bottom-[17.2%] left-[32.3%] z-10 h-[9.4%] w-[9.4%]"
         />
       ) : null}
       {has('club') ? (
@@ -212,8 +218,42 @@ export function PlayerCardArt({
           width={badge}
           height={badge}
           hideOnError
-          className="absolute right-[30%] bottom-[11%] z-10 h-[12%] w-[12%]"
+          className="absolute right-[33.4%] bottom-[17.2%] z-10 h-[9.4%] w-[9.4%]"
         />
+      ) : null}
+      {price !== undefined ? (
+        <div className="pointer-events-none absolute top-[96%] left-1/2 z-20 flex h-[12.5%] -translate-x-1/2 items-center gap-[0.35em] rounded-md bg-[#12141c] px-[0.7em] text-white shadow-[0_2px_6px_rgba(0,0,0,0.45)]">
+          <PlayerImage
+            id={id}
+            kind="star-shard"
+            alt=""
+            width={16}
+            height={16}
+            hideOnError
+            className={cn('shrink-0', fill ? 'size-[1.05em]' : undefined)}
+            style={
+              fill
+                ? undefined
+                : {
+                    width: Math.max(8, Math.round(size * 0.07)),
+                    height: Math.max(8, Math.round(size * 0.07)),
+                  }
+            }
+          />
+          <span
+            className={cn(
+              'font-card leading-none font-semibold tracking-tight tabular-nums',
+              fill && 'text-[clamp(8px,7cqw,20px)]',
+            )}
+            style={
+              fill
+                ? undefined
+                : { fontSize: Math.max(8, Math.round(size * 0.062)) }
+            }
+          >
+            {formatCoinAmount(price)}
+          </span>
+        </div>
       ) : null}
     </div>
   );
@@ -221,15 +261,15 @@ export function PlayerCardArt({
 
 function cardNameFontSize(size: number, name?: string): number {
   const len = name?.length ?? 0;
-  const ratio = len > 16 ? 0.052 : len > 12 ? 0.058 : 0.062;
-  return Math.max(6, Math.round(size * ratio));
+  const ratio = len > 16 ? 0.058 : len > 12 ? 0.07 : 0.082;
+  return Math.max(7, Math.round(size * ratio));
 }
 
 function cardNameFillFont(name?: string): string {
   const len = name?.length ?? 0;
-  if (len > 16) return 'clamp(5.5px, 6.8cqw, 10px)';
-  if (len > 12) return 'clamp(6px, 7.6cqw, 11px)';
-  return 'clamp(6.5px, 8.5cqw, 12px)';
+  if (len > 16) return 'clamp(7px, 6.6cqw, 16px)';
+  if (len > 12) return 'clamp(8px, 7.4cqw, 20px)';
+  return 'clamp(9px, 8.6cqw, 24px)';
 }
 
 function PlayStyleRail({
@@ -243,14 +283,14 @@ function PlayStyleRail({
   size: number;
   fill: boolean;
 }) {
-  const iconPx = Math.max(11, Math.round(size * 0.135));
-  const pad = Math.max(2, Math.round(size * 0.018));
-  const gap = Math.max(1, Math.round(size * 0.014));
+  const iconPx = Math.max(11, Math.round(size * 0.11));
+  const pad = Math.max(2, Math.round(size * 0.016));
+  const gap = Math.max(2, Math.round(size * 0.018));
   return (
     <div
       className={cn(
-        'pointer-events-none absolute top-0 left-0 z-10 flex flex-col items-center rounded-sm bg-black/55',
-        fill && 'gap-[1.5cqw] p-[2cqw] [&_img]:size-[12.5cqw]',
+        'pointer-events-none absolute top-[9.4%] left-[3.1%] z-10 flex flex-col items-center rounded border border-white/10 bg-[#111122]/60',
+        fill && 'gap-[1.2cqw] px-[3.1cqw] pt-[1.6cqw] pb-[1.2cqw] [&_img]:size-[10.2cqw]',
       )}
       style={fill ? undefined : { padding: pad, gap }}
     >
@@ -279,19 +319,19 @@ function UntradeableMark({
   size: number;
 }) {
   const box = fill
-    ? { width: '16%' as const, height: '16%' as const }
+    ? { width: '12.5%' as const, height: '12.5%' as const }
     : { width: size, height: size };
 
   return (
     <span
-      className="pointer-events-none absolute top-0 right-[3%] z-20 block"
+      className="pointer-events-none absolute top-0 right-[6.2%] z-20 block"
       style={box}
       title="Untradeable"
     >
       {/* Dark disc so the white RenderZ glyph stays visible on transparent card corners. */}
       <span
         aria-hidden
-        className="absolute inset-[8%] rounded-full bg-black/80"
+        className="absolute inset-0 rounded-full bg-[#111122]"
       />
       <PlayerImage
         id={playerId}

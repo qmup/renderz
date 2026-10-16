@@ -3,9 +3,12 @@
  * (newest promo first). Matching is by PROGRAM_* id aliases, not card
  * subtitles like "Numero 7 Premium Player".
  *
- * `logo` is the RenderZ programlogos_23 slug. Files are served from our
- * origin at `/program-logos/{slug}.png` — never signed upstream URLs.
+ * `logo` is the RenderZ programlogos_23 slug. Files live at
+ * `/program-logos/{slug}.png` and are prefixed with the image CDN when
+ * NEXT_PUBLIC_IMAGE_BASE_URL is set. Never use signed upstream URLs.
  */
+import { withImageCdn } from "@/lib/images";
+
 export type ProgramCatalogEntry = {
   label: string;
   aliases: string[];
@@ -167,12 +170,12 @@ export function programEventOrder(programId: string): number {
 export function programLogoSrc(programId: string): string | undefined {
   const hit = lookup(programId);
   if (hit?.logo) {
-    return `/program-logos/${hit.logo}.png`;
+    return withImageCdn(`/program-logos/${hit.logo}.png`);
   }
   if (!hit) {
     const slug = programId.replace(/^PROGRAM_/i, "").trim();
     if (LOGO_SLUG.test(slug)) {
-      return `/program-logos/${slug}.png`;
+      return withImageCdn(`/program-logos/${slug}.png`);
     }
   }
   return undefined;

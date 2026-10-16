@@ -32,6 +32,7 @@ import { ZodError } from 'zod';
 import type { PlayerCatalog } from '@/lib/catalog/repository';
 
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 
 /** Server-only well-known common assets (never ship these URLs to the browser). */
 const COMMON_IMAGE_UPSTREAM_URLS: Record<PlayerCommonImageKind, string> = {
@@ -209,10 +210,22 @@ export async function GET(
             const image = await fetchAndCache(cacheId, kind, asset.upstreamUrl);
             return imageResponse(image.bytes, image.contentType, false);
           }
-        } catch {
+        } catch (refreshError) {
+          console.error(
+            'player image refresh failed',
+            id,
+            kind,
+            refreshError instanceof Error ? refreshError.message : refreshError,
+          );
           return placeholder();
         }
       }
+      console.error(
+        'player image fetch failed',
+        id,
+        kind,
+        error instanceof Error ? error.message : error,
+      );
       return placeholder();
     }
   } catch (error) {
@@ -225,9 +238,10 @@ export async function GET(
     if (isAppError(error) && error instanceof NotFoundError) {
       return placeholder();
     }
-    if (error instanceof ImageProxyRejectedError) {
-      return placeholder();
-    }
+    console.error(
+      'player image failed',
+      error instanceof Error ? error.message : error,
+    );
     return placeholder();
   }
 }

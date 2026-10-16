@@ -15,6 +15,7 @@ import {
 } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { ingestJobs, playerAssets, players } from '@/db/schema';
+import { applyCardNameColors } from '@/lib/catalog/card-name-color';
 import { SEED_PARSE_VERSION } from '@/lib/catalog/parse-version';
 import {
   buildPlayerListFacets,
@@ -305,9 +306,13 @@ export class DrizzlePlayerCatalog implements PlayerCatalog {
     // Full catalog for facets: Program / Event must stay complete regardless of
     // Position / OVR / search; other facets re-apply filters in memory.
     const facetSource = this.db.select().from(players).all();
+    const summaries = rows.map(rowToPlayer).map(toPlayerSummary);
 
     return {
-      items: rows.map(rowToPlayer).map(toPlayerSummary),
+      items: applyCardNameColors(
+        summaries,
+        this.backgroundUrlByPlayerId(summaries.map((item) => item.id)),
+      ),
       total,
       page,
       pageSize: query.pageSize,
@@ -316,6 +321,26 @@ export class DrizzlePlayerCatalog implements PlayerCatalog {
         query,
       ),
     };
+  }
+
+  private backgroundUrlByPlayerId(ids: readonly string[]): Map<string, string> {
+    if (ids.length === 0) {
+      return new Map();
+    }
+    const rows = this.db
+      .select({
+        playerId: playerAssets.playerId,
+        upstreamUrl: playerAssets.upstreamUrl,
+      })
+      .from(playerAssets)
+      .where(
+        and(
+          eq(playerAssets.kind, 'background'),
+          inArray(playerAssets.playerId, [...ids]),
+        ),
+      )
+      .all();
+    return new Map(rows.map((row) => [row.playerId, row.upstreamUrl]));
   }
 
   private buildWhere(

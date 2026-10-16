@@ -12,9 +12,9 @@
 
 /data/*.sqlite
 /data/*.sqlite-*
-!/data/catalog.snapshot.sqlite
-!/data/images.sqlite
 /data/image-cache/
+/public/loops
+/public/player-art
 
 /test/fixtures/renderz/raw/*
 !/test/fixtures/renderz/raw/.gitkeep

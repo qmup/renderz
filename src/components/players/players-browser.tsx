@@ -239,6 +239,7 @@ function PlayerListLink({
           auctionable={player.auctionable}
           displayName={cardDisplayName(player)}
           playStyles={player.playStyles}
+          nameColor={player.nameColor}
           size={80}
           fill
         />
@@ -302,6 +303,7 @@ function PlayerGridLink({
         auctionable={player.auctionable}
         displayName={cardDisplayName(player)}
         playStyles={player.playStyles}
+        nameColor={player.nameColor}
         size={140}
         fill
       />

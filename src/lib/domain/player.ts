@@ -248,6 +248,11 @@ export const playerSummarySchema = playerIdentitySchema.extend({
   avgStats: z.array(playerStatSchema).default([]),
   playStyles: z.array(cardPlayStyleSchema).default([]),
   availableImageKinds: z.array(availableImageKindSchema),
+  /** From the background asset filename. Absent on rows that were not listed. */
+  nameColor: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/)
+    .optional(),
   addedAt: z.number().int().optional(),
   fetchedAt: z.number().int(),
   parseVersion: z.number().int().nonnegative(),

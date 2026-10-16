@@ -26,6 +26,19 @@ describe("player art paths", () => {
     );
   });
 
+  it("prefixes CloudFront when the image base URL is set", () => {
+    const previous = process.env.NEXT_PUBLIC_IMAGE_BASE_URL;
+    process.env.NEXT_PUBLIC_IMAGE_BASE_URL = "https://cdn.example/";
+    expect(playerArtPublicSrc("30920616", "card")).toBe(
+      "https://cdn.example/player-art/30920616/card.png",
+    );
+    if (previous === undefined) {
+      delete process.env.NEXT_PUBLIC_IMAGE_BASE_URL;
+    } else {
+      process.env.NEXT_PUBLIC_IMAGE_BASE_URL = previous;
+    }
+  });
+
   it("keeps the image API on the same origin", () => {
     expect(playerImageApiSrc("id/with space", "card")).toBe(
       "/api/images/player/id%2Fwith%20space/card",

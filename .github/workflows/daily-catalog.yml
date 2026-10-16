@@ -1,29 +1,27 @@
-# Daily discovery-only catalog update + listing image pack for production.
-# Schedule: 00:00 Asia/Ho_Chi_Minh (= 17:00 UTC previous calendar day).
-name: Daily catalog update
+# 07:00 and 23:00 Asia/Ho_Chi_Minh.
+# GitHub runners can reach RenderZ. Fargate in ap-southeast-1 gets HTTP 403.
+name: Catalog sync
 
 on:
   schedule:
-    - cron: '0 17 * * *'
+    - cron: '0 0 * * *'
+    - cron: '0 16 * * *'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: daily-catalog-update
+  group: catalog-sync
   cancel-in-progress: false
 
 jobs:
-  update:
+  sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 180
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          lfs: true
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -32,27 +30,19 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
-      - name: Discovery update + pack images
-        run: npm run catalog:daily-update
+      - name: Discover new players and upload missing images
+        run: npm run catalog:sync
         env:
+          AURORA_HOST: ${{ secrets.AURORA_HOST }}
+          AURORA_PORT: ${{ secrets.AURORA_PORT }}
+          AURORA_USER: ${{ secrets.AURORA_USER }}
+          AURORA_DATABASE: ${{ secrets.AURORA_DATABASE }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S3_BUCKET: renderz-bucket
           RENDERZ_MAX_CONCURRENCY: '1'
           RENDERZ_REQUESTS_PER_SECOND: '1'
           RENDERZ_USER_AGENT: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
-
-      - name: Verify LOOP sprites
-        run: npm run catalog:verify-loops
-
-      - name: Commit snapshot artifacts
-        run: |
-          git lfs install
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/catalog.snapshot.sqlite data/images.sqlite public/loops .gitattributes
-          if git diff --staged --quiet; then
-            echo "No catalog/image changes to commit"
-            exit 0
-          fi
-          git commit -m "chore: daily catalog discovery + image pack"
-          git push

@@ -4,6 +4,7 @@ import { isAppError, publicErrorMessage } from "@/lib/http/errors";
 import { ZodError } from "zod";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function GET(request: Request) {
   try {
