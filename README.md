@@ -11,30 +11,24 @@ This is not a RenderZ client, not a private-API wrapper, and not a UI clone.
 - Domain models (`Player` / `PlayerSummary`) contain **no URLs**. The UI builds image paths from `id` + `kind`.
 - On-demand enrichment is **catalog-only**: unknown ids 404.
 - Public sitemaps list **10,000** player URLs. RenderZ marketing copy claims 30,000+; treat the sitemap as the discovery set.
-- SQLite is a local file (`data/catalog.sqlite`). Fine for personal use; swap the repository if you ever need multiple writers.
+- The catalog is Aurora PostgreSQL. Card art and LOOP sheets are on S3, served through CloudFront.
 - The catalog keeps only cards whose upstream **added** date is within **3 months**. Older rows are removed by `npm run catalog:verify` and skipped during ingest.
 
 ## Setup
 
 ```bash
 npm install
-npm run db:migrate
-npm run seed          # 50 listing players (~1 req/s)
 npm test
 npm run dev
 ```
 
-Open [http://localhost:3000/players](http://localhost:3000/players). Listing defaults to **newest added first**. On localhost, the first visit each local calendar day silently discovers new sitemap ids (header shows progress; a toast appears when new players were added). Later visits the same day skip discovery. Production on Vercel does not run this — use the snapshot pipeline below. Copy `.env.example` to override the SQLite path or `RENDERZ_*` limiter settings.
+Open [http://localhost:3000/players](http://localhost:3000/players). Listing defaults to **newest added first**. On localhost, the first visit each local calendar day silently discovers new sitemap ids (header shows progress; a toast appears when new players were added). Later visits the same day skip discovery. Production on Vercel does not run this — GitHub Actions runs `npm run catalog:sync` at 07:00 and 23:00 Asia/Ho_Chi_Minh. Copy `.env.example` for Aurora, S3, and the `RENDERZ_*` limiter.
 
 `npm run seed` upserts the public `/players` listing then enriches those ids only. Re-run skips rows already at the current parse version. `--summaries-only` skips detail fetches. Seed also drops cards older than 3 months.
 
 ## Daily production catalog
 
-GitHub Actions workflow `.github/workflows/daily-catalog.yml` runs at **00:00 Asia/Ho_Chi_Minh** (discovery-only, same pipeline as local silent discovery), packs listing images into `data/images.sqlite` (Git LFS), and commits that file plus `data/catalog.snapshot.sqlite` and unique card LOOP sprites in `public/loops`. Vercel `build` extracts the sqlite into static files under `public/player-art` (CDN / Fast Data Transfer). Do **not** put `images.sqlite` in `outputFileTracingIncludes` — that re-bundles ~95MB into every serverless function. The pack **fails** if any catalog LOOP sheet is still missing. Manual run: Actions → “Daily catalog update” → Run workflow. Locally: `npm run catalog:daily-update` (add `--skip-images` to skip listing image pack; LOOP presence is still verified).
-
-`npm run catalog:verify-loops` (also run on Vercel `build` and in `.github/workflows/verify-loops.yml`) exits `1` when `data/catalog.snapshot.sqlite` references a LOOP sheet that is not a real PNG under `public/loops`. That blocks shipping new card designs without detail animation. If verify fails after enriching new players: `npm run catalog:cache-missing-loops` (re-enrich + download only the missing sheets) or `npm run catalog:cache-images`.
-
-`data/images.sqlite` and `public/loops/*.png` are stored with Git LFS — enable **Settings → Git → Git LFS** on the Vercel project (and redeploy) or listing art and detail animations stay broken.
+GitHub Actions workflow `.github/workflows/daily-catalog.yml` runs at **07:00 and 23:00 Asia/Ho_Chi_Minh**. It discovers players added within 3 months, writes them to Aurora, and uploads missing card art, LOOP sheets, playstyles, and traits to S3. The browser loads those objects from CloudFront.
 
 ## Catalog window
 
@@ -57,7 +51,7 @@ Parser v2 stops copying the whole player page into `programName`. Re-run seed or
 
 ## Images
 
-Listing card art is served as static files (`/player-art/...`) extracted at build from `data/images.sqlite`. The UI falls back to `GET /api/images/player/:id/:kind` (allowlisted CDN hosts, SSRF controls, placeholder on failure). Signed CDN URLs never reach the browser. Expired signatures trigger a catalog refresh for that id, then one retry.
+Listing card art is served from CloudFront (`/player-art/...`). The UI falls back to `GET /api/images/player/:id/:kind` (allowlisted CDN hosts, SSRF controls, placeholder on failure). Signed CDN URLs never reach the browser. Expired signatures trigger a catalog refresh for that id, then one retry.
 
 ## Fixtures
 
@@ -71,4 +65,4 @@ npm run probe:renderz
 
 ## Stack
 
-Next.js App Router, TypeScript strict, Tailwind, shadcn/ui, TanStack Query (listing only), Zod, SQLite + Drizzle (`better-sqlite3`).
+Next.js App Router, TypeScript strict, Tailwind, shadcn/ui, TanStack Query (listing only), Zod, Aurora PostgreSQL + Drizzle. Unit tests use an in-memory SQLite catalog.

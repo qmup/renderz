@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { auroraConfigFromEnv } from "@/db/aurora-config";
 
 describe("auroraConfigFromEnv", () => {
-  it("stays on sqlite when AURORA_HOST is absent", () => {
+  it("returns null when AURORA_HOST is absent", () => {
     expect(auroraConfigFromEnv({ NODE_ENV: "test" })).toBeNull();
   });
 

@@ -112,23 +112,23 @@ async function discoverNewPlayers(startedAt: number): Promise<{
       }
 
       await catalog.enqueueDiscovery(entry.id, entry.slug, startedAt + scanned);
-      let outcome: "new" | "old" | "other" = "other";
+      const outcome = { value: "other" as "new" | "old" | "other" };
       const batch = await runIngestBatch(catalog, source, {
         limit: 1,
         consecutiveOldStop: 0,
         kind: "discovery",
         onProgress: (message) => {
           console.log(message);
-          if (message.startsWith("skipped old")) outcome = "old";
-          else if (message.startsWith("succeeded")) outcome = "new";
+          if (message.startsWith("skipped old")) outcome.value = "old";
+          else if (message.startsWith("succeeded")) outcome.value = "new";
         },
       });
       totals.succeeded += batch.succeeded;
       totals.failed += batch.failed;
-      if (outcome === "new") {
+      if (outcome.value === "new") {
         existing.add(entry.id);
         consecutiveOld = 0;
-      } else if (outcome === "old") {
+      } else if (outcome.value === "old") {
         skipped.add(entry.id);
         consecutiveOld += 1;
         if (consecutiveOld >= 3) {

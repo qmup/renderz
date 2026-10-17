@@ -237,8 +237,8 @@ describe("DrizzlePlayerCatalog", () => {
     expect(result.items[0]?.lastName).toBe("Fàbregas i Soler");
     expect(result.items[0]?.name).toBe("Francesc Fàbregas i Soler");
     expect(result.items[0]?.playStyles).toEqual([
-      { id: "12683081", level: 1 },
       { id: "987634376", level: 2 },
+      { id: "12683081", level: 1 },
     ]);
 
     const byCommon = await catalog.list(normalizePlayerListQuery({ q: "cesc" }));

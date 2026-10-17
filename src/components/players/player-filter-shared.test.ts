@@ -27,7 +27,7 @@ describe("player-filter-shared", () => {
 
   it("groups positions in RenderZ attack / midfield / defence order", () => {
     expect(POSITION_GROUPS.map((group) => [group.label, group.positions])).toEqual([
-      ["ATTACK", ["RW", "RF", "CF", "ST", "LF", "LW"]],
+      ["ATTACK", ["RW", "CF", "ST", "LW"]],
       ["MIDFIELD", ["RM", "CM", "CDM", "CAM", "LM"]],
       ["DEFENCE", ["GK", "RWB", "RB", "CB", "LB", "LWB"]],
     ]);

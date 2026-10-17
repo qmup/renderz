@@ -241,7 +241,6 @@ function PlayerListLink({
           playStyles={player.playStyles}
           nameColor={player.nameColor}
           size={80}
-          fill
         />
       </div>
       <div className="flex min-h-0 min-w-0 flex-1 items-center gap-2 overflow-hidden md:gap-4">
@@ -305,7 +304,6 @@ function PlayerGridLink({
         playStyles={player.playStyles}
         nameColor={player.nameColor}
         size={140}
-        fill
       />
     </Link>
   );

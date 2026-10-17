@@ -79,7 +79,7 @@ export async function assertLoopSheetsPresent(
     [
       `Missing ${report.missing.length}/${report.total} LOOP sprite sheet(s) in public/loops.`,
       'New card designs will have no detail animation until these PNGs are packed.',
-      'Fix: npm run catalog:cache-images   # or npm run catalog:cache-missing-loops',
+      'Upload the missing PNG to the image CDN at /loops/.',
       ...lines,
     ].join('\n'),
   );

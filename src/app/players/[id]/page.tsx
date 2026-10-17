@@ -175,7 +175,6 @@ export default async function PlayerDetailPage({
             price={player.starSigningsBuy}
             nameColor={nameColor}
             size={288}
-            fill
             priority
             animate
             loopSrc={loopSrc}

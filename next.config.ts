@@ -1,16 +1,5 @@
 import type { NextConfig } from "next";
 
-const usesAurora = Boolean(process.env.AURORA_HOST);
-
-const nextConfig: NextConfig = {
-  serverExternalPackages: ["better-sqlite3"],
-  ...(usesAurora
-    ? {}
-    : {
-        outputFileTracingIncludes: {
-          "*": ["./data/catalog.snapshot.sqlite", "./drizzle/**"],
-        },
-      }),
-};
+const nextConfig: NextConfig = {};
 
 export default nextConfig;

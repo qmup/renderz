@@ -1,9 +1,0 @@
-node_modules
-.next
-.git
-data
-public/player-art
-public/loops
-.env
-.env.*
-*.sqlite

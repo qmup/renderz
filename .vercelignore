@@ -1,6 +1,3 @@
-# Catalog snapshot is traced into functions. images.sqlite is build input only
-# (extracted to public/player-art); do not put it in outputFileTracingIncludes.
-
 /node_modules
 /.pnp
 .pnp.*
