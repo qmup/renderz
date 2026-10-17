@@ -5,7 +5,11 @@ import {
   formatRefreshClock,
   formatRefreshDate,
 } from "@/lib/display";
-import { cardDisplayName, type PlayerSummary } from "@/lib/domain/player";
+import {
+  cardDisplayName,
+  type PlayerId,
+  type PlayerSummary,
+} from "@/lib/domain/player";
 import {
   currentAlertRefreshAtMs,
   formatAlertRemaining,
@@ -17,7 +21,7 @@ const NOTICE_STORAGE_KEY = "fcvn.market-refresh-notices";
 
 type NoticeToast = {
   key: string;
-  playerId: string;
+  playerId: PlayerId;
   name: string;
   rating: number;
   refreshAtMs: number;
