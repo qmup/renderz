@@ -79,5 +79,5 @@ export function FollowingBrowser() {
     );
   }
 
-  return <PlayerList players={visible} />;
+  return <PlayerList players={visible} mobileMarketRefresh />;
 }

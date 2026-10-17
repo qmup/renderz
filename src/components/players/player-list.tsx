@@ -11,6 +11,7 @@ import {
 } from '@/lib/display';
 import { cardDisplayName, type PlayerSummary } from '@/lib/domain/player';
 import { marketRefreshAtDate } from '@/lib/market-refresh';
+import { cn } from '@/lib/utils';
 
 const listUpdatedColumnClass =
   'hidden w-[6.75rem] shrink-0 text-right lg:block';
@@ -47,7 +48,33 @@ function nextMarketRefreshAt(
   return marketRefreshAtDate(id);
 }
 
-function PlayerListLink({ player }: { player: PlayerSummary }) {
+function MobileMarketRefresh({ refreshAt }: { refreshAt: Date | null }) {
+  if (refreshAt) {
+    return (
+      <time
+        dateTime={refreshAt.toISOString()}
+        suppressHydrationWarning
+        className="text-muted-foreground ml-auto shrink-0 text-right text-xs leading-tight whitespace-nowrap tabular-nums lg:hidden"
+      >
+        <span className="block">{formatRefreshDate(refreshAt)}</span>
+        <span className="block">{formatRefreshClock(refreshAt)}</span>
+      </time>
+    );
+  }
+  return (
+    <span className="text-muted-foreground ml-auto shrink-0 text-xs lg:hidden">
+      —
+    </span>
+  );
+}
+
+function PlayerListLink({
+  player,
+  mobileMarketRefresh = false,
+}: {
+  player: PlayerSummary;
+  mobileMarketRefresh?: boolean;
+}) {
   const identity = [player.rating, player.position].filter(Boolean).join(' · ');
   const refreshAt = nextMarketRefreshAt(player.id, player.auctionable);
   return (
@@ -90,8 +117,14 @@ function PlayerListLink({ player }: { player: PlayerSummary }) {
         <PlayerGroupedStats
           stats={player.avgStats}
           compact
-          className="ml-auto"
+          className={cn(
+            'ml-auto',
+            mobileMarketRefresh && 'max-lg:hidden',
+          )}
         />
+        {mobileMarketRefresh ? (
+          <MobileMarketRefresh refreshAt={refreshAt} />
+        ) : null}
       </div>
       {player.addedAt != null ? (
         <time
@@ -127,14 +160,24 @@ function PlayerListLink({ player }: { player: PlayerSummary }) {
   );
 }
 
-export function PlayerList({ players }: { players: PlayerSummary[] }) {
+export function PlayerList({
+  players,
+  mobileMarketRefresh = false,
+}: {
+  players: PlayerSummary[];
+  /** On narrow viewports, swap avg-stat chips for market refresh time. */
+  mobileMarketRefresh?: boolean;
+}) {
   return (
     <div className="overflow-hidden rounded-xl border">
       <PlayerListHeader />
       <ul className="divide-border divide-y">
         {players.map((player) => (
           <li key={player.id}>
-            <PlayerListLink player={player} />
+            <PlayerListLink
+              player={player}
+              mobileMarketRefresh={mobileMarketRefresh}
+            />
           </li>
         ))}
       </ul>
