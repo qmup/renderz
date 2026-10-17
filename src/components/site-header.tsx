@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { CatalogUpdateControl } from "@/components/catalog-update-control";
+import { FollowNavLink } from "@/components/players/followed-players";
 import {
   hostnameFromHostHeader,
   isLocalhostHostname,
@@ -19,7 +20,10 @@ export async function SiteHeader() {
             FC Mobile catalog
           </span>
         </Link>
-        {showCatalogUpdate ? <CatalogUpdateControl /> : null}
+        <div className="flex items-center gap-3">
+          <FollowNavLink />
+          {showCatalogUpdate ? <CatalogUpdateControl /> : null}
+        </div>
       </div>
     </header>
   );

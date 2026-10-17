@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { CatalogNotice } from '@/components/catalog-notice';
 import { PlayerBio } from '@/components/players/player-bio';
 import { PlayerCardArt } from '@/components/players/player-card-art';
+import { PlayerFollowButton } from '@/components/players/followed-players';
 import { PlayerDetailBack } from '@/components/players/player-detail-back';
 import { PlayerDetailStats } from '@/components/players/player-detail-stats';
 import {
@@ -239,6 +240,7 @@ export default async function PlayerDetailPage({
           </p>
         </>
       ) : null}
+      <PlayerFollowButton playerId={player.id} />
     </main>
   );
 }

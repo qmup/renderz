@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { CatalogNotice } from '@/components/catalog-notice';
 import { PlayerFilters } from '@/components/players/player-filters';
 import { PlayerCardArt } from '@/components/players/player-card-art';
-import { PlayerGroupedStats } from '@/components/players/player-grouped-stats';
+import { PlayerList } from '@/components/players/player-list';
 import { PlayerPagination } from '@/components/players/player-pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,13 +20,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import {
-  formatAddedDate,
-  formatRefreshClock,
-  formatRefreshDate,
-} from '@/lib/display';
 import { cardDisplayName } from '@/lib/domain/player';
-import { marketRefreshAtDate } from '@/lib/market-refresh';
 import type { PlayerListQuery, PlayerListResult } from '@/lib/domain/query';
 import {
   countPlayerListFilters,
@@ -59,9 +53,11 @@ export function PlayersBrowser({
   const fetchSearch = useMemo(() => listingSearch(search), [search]);
   const [, startTransition] = useTransition();
   const listQuery = usePlayerList(fetchSearch);
-  const data =
-    listQuery.data ??
-    (fetchSearch === listingSearch(initialSearch) ? initial : undefined);
+  const matchesInitial = fetchSearch === listingSearch(initialSearch);
+  const freshList = listQuery.isPlaceholderData ? undefined : listQuery.data;
+  const data = freshList ?? (matchesInitial ? initial : undefined);
+  const showListSkeleton =
+    !listQuery.isError && (listQuery.isPlaceholderData || !data);
   const [searchDraft, setSearchDraft] = useState(query.q);
   const queryRef = useRef(query);
   queryRef.current = query;
@@ -159,9 +155,9 @@ export function PlayersBrowser({
             Retry the listing. The browser only talks to this origin.
           </CatalogNotice>
         ) : null}
-        {!data ? (
+        {showListSkeleton ? (
           <ListingSkeleton view={query.view} />
-        ) : (
+        ) : data ? (
           <>
             <div className="mb-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 sm:mb-3">
               <p className="text-muted-foreground text-sm tabular-nums">
@@ -169,11 +165,6 @@ export function PlayersBrowser({
                 {data.total === 1 ? '' : 's'}
               </p>
               <div className="flex items-center gap-2">
-                {listQuery.isFetching ? (
-                  <p className="text-muted-foreground hidden text-xs sm:block">
-                    Updating…
-                  </p>
-                ) : null}
                 <ViewSwitch
                   view={query.view}
                   onChange={(view) =>
@@ -195,16 +186,7 @@ export function PlayersBrowser({
                     ))}
                   </ul>
                 ) : (
-                  <div className="overflow-hidden rounded-xl border">
-                    <PlayerListHeader />
-                    <ul className="divide-border divide-y">
-                      {data.items.map((player) => (
-                        <li key={player.id}>
-                          <PlayerListLink player={player} />
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                  <PlayerList players={data.items} />
                 )}
                 <PlayerPagination
                   page={data.page}
@@ -221,127 +203,9 @@ export function PlayersBrowser({
               </>
             )}
           </>
-        )}
+        ) : null}
       </section>
     </div>
-  );
-}
-
-const listUpdatedColumnClass =
-  'hidden w-[6.75rem] shrink-0 text-right lg:block';
-const listRefreshColumnClass =
-  'hidden w-[7.5rem] shrink-0 text-right lg:block';
-
-function PlayerListHeader() {
-  return (
-    <div className="text-muted-foreground hidden items-center gap-3 border-b px-3 py-2 text-[10px] font-medium tracking-[0.14em] uppercase lg:flex">
-      <span className="min-w-0 flex-1">Player</span>
-      <span className="w-[6.75rem] shrink-0 text-right">Updated</span>
-      <span className="w-[7.5rem] shrink-0 text-right leading-tight">
-        Market refresh
-      </span>
-    </div>
-  );
-}
-
-/**
- * Next market listing refresh for auctionable players.
- * Derived from the player id (same RenderZ cycle as the detail card). Not stored.
- */
-function nextMarketRefreshAt(
-  playerId: string,
-  auctionable?: boolean,
-): Date | null {
-  if (auctionable !== true) {
-    return null;
-  }
-  const id = Number(playerId);
-  if (!Number.isFinite(id) || id <= 0) {
-    return null;
-  }
-  return marketRefreshAtDate(id);
-}
-
-function PlayerListLink({
-  player,
-}: {
-  player: PlayerListResult['items'][number];
-}) {
-  const identity = [player.rating, player.position].filter(Boolean).join(' · ');
-  const refreshAt = nextMarketRefreshAt(player.id, player.auctionable);
-  return (
-    <Link
-      href={`/players/${player.id}`}
-      className="hover:bg-muted/60 flex h-20 items-center gap-2 px-2 sm:gap-2.5 sm:px-2.5 md:h-24 md:gap-3 md:px-3"
-    >
-      <div className="size-20 shrink-0 md:size-24">
-        <PlayerCardArt
-          id={player.id}
-          kinds={player.availableImageKinds}
-          rating={player.rating}
-          position={player.position}
-          auctionable={player.auctionable}
-          displayName={cardDisplayName(player)}
-          playStyles={player.playStyles}
-          nameColor={player.nameColor}
-          size={80}
-        />
-      </div>
-      <div className="flex min-h-0 min-w-0 flex-1 items-center gap-2 overflow-hidden md:gap-4">
-        <div className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium capitalize leading-tight md:text-base">
-            {cardDisplayName(player)}
-          </span>
-          <div className="mt-0.5 flex min-w-0 flex-col gap-0.5 overflow-hidden">
-            {identity ? (
-              <span className="text-muted-foreground text-[11px] tabular-nums sm:text-xs md:text-sm md:text-foreground">
-                {identity}
-              </span>
-            ) : null}
-            {player.altPositions.length > 0 ? (
-              <span className="text-muted-foreground truncate text-[10px] font-medium italic sm:text-[11px]">
-                {player.altPositions.join(' · ')}
-              </span>
-            ) : null}
-          </div>
-        </div>
-        <PlayerGroupedStats
-          stats={player.avgStats}
-          compact
-          className="ml-auto"
-        />
-      </div>
-      {player.addedAt != null ? (
-        <time
-          dateTime={new Date(player.addedAt).toISOString()}
-          className={`text-muted-foreground text-xs whitespace-nowrap tabular-nums ${listUpdatedColumnClass}`}
-        >
-          {formatAddedDate(player.addedAt)}
-        </time>
-      ) : (
-        <span
-          className={`text-muted-foreground text-xs ${listUpdatedColumnClass}`}
-        >
-          —
-        </span>
-      )}
-      {refreshAt ? (
-        <time
-          dateTime={refreshAt.toISOString()}
-          suppressHydrationWarning
-          className={`text-muted-foreground text-xs leading-tight whitespace-nowrap tabular-nums ${listRefreshColumnClass}`}
-        >
-          <span className="block">{formatRefreshDate(refreshAt)}</span>
-          <span className="block">{formatRefreshClock(refreshAt)}</span>
-        </time>
-      ) : (
-        <span
-          className={`text-muted-foreground text-xs ${listRefreshColumnClass}`}
-        >
-          —
-        </span>
-      )}
-    </Link>
   );
 }
 
@@ -418,25 +282,30 @@ function ListingSkeleton({ view }: { view: PlayerListQuery['view'] }) {
         aria-busy="true"
         aria-label="Loading players"
       >
-        <Skeleton className="aspect-square w-full" />
-        <Skeleton className="aspect-square w-full" />
-        <Skeleton className="aspect-square w-full" />
-        <Skeleton className="aspect-square w-full" />
-        <Skeleton className="aspect-square w-full" />
-        <Skeleton className="aspect-square w-full" />
+        {Array.from({ length: 12 }, (_, index) => (
+          <Skeleton key={index} className="aspect-square w-full" />
+        ))}
       </div>
     );
   }
   return (
     <div
-      className="flex flex-col gap-2"
+      className="overflow-hidden rounded-xl border"
       aria-busy="true"
       aria-label="Loading players"
     >
-      <Skeleton className="h-16 w-full" />
-      <Skeleton className="h-16 w-full" />
-      <Skeleton className="h-16 w-full" />
-      <Skeleton className="h-16 w-full" />
+      {Array.from({ length: 8 }, (_, index) => (
+        <div
+          key={index}
+          className="flex h-20 items-center gap-3 border-b border-border px-3 last:border-b-0 md:h-24"
+        >
+          <Skeleton className="size-16 shrink-0 rounded-md md:size-20" />
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-20" />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

@@ -14,6 +14,30 @@ export function parsePlayerId(value: string): PlayerId {
   return playerIdSchema.parse(value);
 }
 
+/** Cap for id lookups such as the followed-player list. */
+export const MAX_PLAYER_ID_LOOKUP = 100;
+
+/** Unique numeric ids, first occurrence wins, at most `limit`. */
+export function uniquePlayerIds(
+  ids: readonly string[],
+  limit = MAX_PLAYER_ID_LOOKUP,
+): PlayerId[] {
+  const seen = new Set<string>();
+  const unique: PlayerId[] = [];
+  for (const raw of ids) {
+    const id = parsePlayerId(raw);
+    if (seen.has(id)) {
+      continue;
+    }
+    seen.add(id);
+    unique.push(id);
+    if (unique.length >= limit) {
+      break;
+    }
+  }
+  return unique;
+}
+
 export const PLAYER_CARD_IMAGE_KINDS = [
   'card',
   'background',

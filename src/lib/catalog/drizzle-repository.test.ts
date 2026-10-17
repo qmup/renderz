@@ -266,6 +266,26 @@ describe("DrizzlePlayerCatalog", () => {
     expect(listed.items[0]?.nameColor).toBe("#554620");
   });
 
+  it("lists players by id in request order and skips missing ids", async () => {
+    const { catalog } = createTestCatalog();
+    await catalog.upsertPlayer(
+      fakePlayer({ id: "24029971", name: "Messi", rating: 114 }),
+      [],
+    );
+    await catalog.upsertPlayer(
+      fakePlayer({ id: "24044714", name: "Mbappe", rating: 120 }),
+      [],
+    );
+    const items = await catalog.listByIds([
+      "24044714",
+      "999",
+      "24029971",
+      "24044714",
+    ]);
+    expect(items.map((item) => item.id)).toEqual(["24044714", "24029971"]);
+    expect(await catalog.listByIds([])).toEqual([]);
+  });
+
   it("stores assets without exposing them on the player domain object", async () => {
     const { catalog } = createTestCatalog();
     const player = fakePlayer({

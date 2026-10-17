@@ -39,11 +39,13 @@ import {
   playerIdSchema,
   playerSchema,
   toPlayerSummary,
+  uniquePlayerIds,
   type Player,
   type PlayerAssetRow,
   type PlayerId,
   type PlayerImageKind,
   type PlayerSeed,
+  type PlayerSummary,
 } from '@/lib/domain/player';
 import type { PlayerListQuery, PlayerListResult } from '@/lib/domain/query';
 import { playerListQuerySchema } from '@/lib/domain/query';
@@ -281,6 +283,27 @@ export class DrizzlePlayerCatalog implements PlayerCatalog {
   async getById(id: string): Promise<Player | null> {
     const row = this.db.select().from(players).where(eq(players.id, id)).get();
     return row ? rowToPlayer(row) : null;
+  }
+
+  async listByIds(ids: readonly string[]): Promise<PlayerSummary[]> {
+    const unique = uniquePlayerIds(ids);
+    if (unique.length === 0) {
+      return [];
+    }
+    const rows = this.db
+      .select()
+      .from(players)
+      .where(inArray(players.id, unique))
+      .all();
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    const summaries = unique.flatMap((id) => {
+      const row = byId.get(id);
+      return row ? [toPlayerSummary(rowToPlayer(row))] : [];
+    });
+    return applyCardNameColors(
+      summaries,
+      this.backgroundUrlByPlayerId(summaries.map((item) => item.id)),
+    );
   }
 
   async list(input: PlayerListQuery): Promise<PlayerListResult> {

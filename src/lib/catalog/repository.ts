@@ -4,6 +4,7 @@ import type {
   PlayerId,
   PlayerImageKind,
   PlayerSeed,
+  PlayerSummary,
 } from "@/lib/domain/player";
 import type { PlayerListQuery, PlayerListResult } from "@/lib/domain/query";
 
@@ -43,6 +44,8 @@ export type PlayerIndexRow = {
 
 export interface PlayerCatalog {
   list(query: PlayerListQuery): Promise<PlayerListResult>;
+  /** Summaries in the requested id order. Missing ids are omitted. */
+  listByIds(ids: readonly string[]): Promise<PlayerSummary[]>;
   listPlayerIndex(): Promise<PlayerIndexRow[]>;
   getById(id: string): Promise<Player | null>;
   exists(id: string): Promise<boolean>;
