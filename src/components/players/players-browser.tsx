@@ -20,8 +20,9 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { formatAddedDate } from '@/lib/display';
+import { formatAddedDate, formatRefreshClock } from '@/lib/display';
 import { cardDisplayName } from '@/lib/domain/player';
+import { marketRefreshAtDate } from '@/lib/market-refresh';
 import type { PlayerListQuery, PlayerListResult } from '@/lib/domain/query';
 import {
   countPlayerListFilters,
@@ -190,13 +191,16 @@ export function PlayersBrowser({
                     ))}
                   </ul>
                 ) : (
-                  <ul className="divide-border divide-y overflow-hidden rounded-xl border">
-                    {data.items.map((player) => (
-                      <li key={player.id}>
-                        <PlayerListLink player={player} />
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="overflow-hidden rounded-xl border">
+                    <PlayerListHeader />
+                    <ul className="divide-border divide-y">
+                      {data.items.map((player) => (
+                        <li key={player.id}>
+                          <PlayerListLink player={player} />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
                 <PlayerPagination
                   page={data.page}
@@ -219,12 +223,48 @@ export function PlayersBrowser({
   );
 }
 
+const listUpdatedColumnClass =
+  'hidden w-[6.75rem] shrink-0 text-right lg:block';
+const listRefreshColumnClass =
+  'hidden w-[7.5rem] shrink-0 text-right lg:block';
+
+function PlayerListHeader() {
+  return (
+    <div className="text-muted-foreground hidden items-center gap-3 border-b px-3 py-2 text-[10px] font-medium tracking-[0.14em] uppercase lg:flex">
+      <span className="min-w-0 flex-1">Player</span>
+      <span className="w-[6.75rem] shrink-0 text-right">Updated</span>
+      <span className="w-[7.5rem] shrink-0 text-right leading-tight">
+        Market refresh
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Next market listing refresh for auctionable players.
+ * Derived from the player id (same RenderZ cycle as the detail card). Not stored.
+ */
+function nextMarketRefreshAt(
+  playerId: string,
+  auctionable?: boolean,
+): Date | null {
+  if (auctionable !== true) {
+    return null;
+  }
+  const id = Number(playerId);
+  if (!Number.isFinite(id) || id <= 0) {
+    return null;
+  }
+  return marketRefreshAtDate(id);
+}
+
 function PlayerListLink({
   player,
 }: {
   player: PlayerListResult['items'][number];
 }) {
   const identity = [player.rating, player.position].filter(Boolean).join(' · ');
+  const refreshAt = nextMarketRefreshAt(player.id, player.auctionable);
   return (
     <Link
       href={`/players/${player.id}`}
@@ -270,12 +310,30 @@ function PlayerListLink({
       {player.addedAt != null ? (
         <time
           dateTime={new Date(player.addedAt).toISOString()}
-          className="text-muted-foreground hidden shrink-0 text-right text-xs whitespace-nowrap tabular-nums lg:block"
+          className={`text-muted-foreground text-xs whitespace-nowrap tabular-nums ${listUpdatedColumnClass}`}
         >
           {formatAddedDate(player.addedAt)}
         </time>
       ) : (
-        <span className="text-muted-foreground hidden shrink-0 text-right text-xs lg:block">
+        <span
+          className={`text-muted-foreground text-xs ${listUpdatedColumnClass}`}
+        >
+          —
+        </span>
+      )}
+      {refreshAt ? (
+        <time
+          dateTime={refreshAt.toISOString()}
+          suppressHydrationWarning
+          className={`text-muted-foreground text-xs leading-tight whitespace-nowrap tabular-nums ${listRefreshColumnClass}`}
+        >
+          <span className="block">{formatAddedDate(refreshAt.getTime())}</span>
+          <span className="block">{formatRefreshClock(refreshAt)}</span>
+        </time>
+      ) : (
+        <span
+          className={`text-muted-foreground text-xs ${listRefreshColumnClass}`}
+        >
           —
         </span>
       )}

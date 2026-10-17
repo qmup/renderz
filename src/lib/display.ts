@@ -92,6 +92,16 @@ export function formatAddedDate(ms: number): string {
   }).format(ms);
 }
 
+/** Clock for a listing refresh instant. Same `en` locale and UTC zone as formatAddedDate. */
+export function formatRefreshClock(at: Date): string {
+  return new Intl.DateTimeFormat('en', {
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZone: 'UTC',
+  }).format(at);
+}
+
 export function formatFetchedRelative(ms: number, now = Date.now()): string {
   const delta = Math.max(0, now - ms);
   const minutes = Math.floor(delta / 60_000);

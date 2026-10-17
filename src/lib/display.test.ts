@@ -7,6 +7,7 @@ import {
   displayProgramName,
   displayTraitLabel,
   formatAddedDate,
+  formatRefreshClock,
   formatRetryAfter,
   isStaleCatalogRow,
 } from '@/lib/display';
@@ -147,6 +148,12 @@ describe('catalog freshness', () => {
     );
     expect(formatAddedDate(Date.parse('2026-01-14T00:00:00.000Z'))).toBe(
       'Jan 14, 2026',
+    );
+  });
+
+  it('formats a refresh instant as a UTC clock', () => {
+    expect(formatRefreshClock(new Date('2026-09-04T08:59:31.000Z'))).toBe(
+      '8:59:31 AM',
     );
   });
 });
