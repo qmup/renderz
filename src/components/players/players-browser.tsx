@@ -20,7 +20,11 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { formatAddedDate, formatRefreshClock } from '@/lib/display';
+import {
+  formatAddedDate,
+  formatRefreshClock,
+  formatRefreshDate,
+} from '@/lib/display';
 import { cardDisplayName } from '@/lib/domain/player';
 import { marketRefreshAtDate } from '@/lib/market-refresh';
 import type { PlayerListQuery, PlayerListResult } from '@/lib/domain/query';
@@ -327,7 +331,7 @@ function PlayerListLink({
           suppressHydrationWarning
           className={`text-muted-foreground text-xs leading-tight whitespace-nowrap tabular-nums ${listRefreshColumnClass}`}
         >
-          <span className="block">{formatAddedDate(refreshAt.getTime())}</span>
+          <span className="block">{formatRefreshDate(refreshAt)}</span>
           <span className="block">{formatRefreshClock(refreshAt)}</span>
         </time>
       ) : (

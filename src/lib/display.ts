@@ -92,13 +92,23 @@ export function formatAddedDate(ms: number): string {
   }).format(ms);
 }
 
-/** Clock for a listing refresh instant. Same `en` locale and UTC zone as formatAddedDate. */
+const INDOCHINA_TIME = 'Asia/Ho_Chi_Minh';
+
+/** Calendar date of a listing refresh, in UTC+7. */
+export function formatRefreshDate(at: Date): string {
+  return new Intl.DateTimeFormat('en', {
+    dateStyle: 'medium',
+    timeZone: INDOCHINA_TIME,
+  }).format(at);
+}
+
+/** Clock for a listing refresh instant, in UTC+7. */
 export function formatRefreshClock(at: Date): string {
   return new Intl.DateTimeFormat('en', {
     hour: 'numeric',
     minute: '2-digit',
     second: '2-digit',
-    timeZone: 'UTC',
+    timeZone: INDOCHINA_TIME,
   }).format(at);
 }
 

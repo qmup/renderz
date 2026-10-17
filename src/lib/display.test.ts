@@ -8,6 +8,7 @@ import {
   displayTraitLabel,
   formatAddedDate,
   formatRefreshClock,
+  formatRefreshDate,
   formatRetryAfter,
   isStaleCatalogRow,
 } from '@/lib/display';
@@ -151,9 +152,12 @@ describe('catalog freshness', () => {
     );
   });
 
-  it('formats a refresh instant as a UTC clock', () => {
-    expect(formatRefreshClock(new Date('2026-09-04T08:59:31.000Z'))).toBe(
-      '8:59:31 AM',
+  it('formats a refresh instant in UTC+7', () => {
+    const at = new Date('2026-09-04T08:59:31.000Z');
+    expect(formatRefreshClock(at)).toBe('3:59:31 PM');
+    expect(formatRefreshDate(at)).toBe('Sep 4, 2026');
+    expect(formatRefreshDate(new Date('2026-10-17T18:00:00.000Z'))).toBe(
+      'Oct 18, 2026',
     );
   });
 });
