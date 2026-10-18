@@ -1,5 +1,4 @@
 import { CURRENT_PARSE_VERSION } from "@/lib/catalog/parse-version";
-import { pruneOldPlayers } from "@/lib/catalog/prune";
 import { enrichDiscoveredPlayer } from "@/lib/catalog/enrichment";
 import type { PlayerCatalog } from "@/lib/catalog/repository";
 import type { PlayerDataSource } from "@/lib/providers/types";
@@ -57,17 +56,6 @@ export async function seedListingCatalog(
         options.onProgress?.(`failed ${seed.name} (${seed.id}): ${message}`);
       }
     }
-  }
-
-  if (enrich) {
-    const prune = await pruneOldPlayers(catalog, {
-      now: options.now,
-      removeUnknownAddedAt: false,
-      onProgress: options.onProgress,
-    });
-    options.onProgress?.(
-      `pruned older than 3 months: ${prune.pruned} (kept ${prune.kept})`,
-    );
   }
 
   return { discovered: seeds.length, enriched, skipped, failed };

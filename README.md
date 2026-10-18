@@ -12,7 +12,7 @@ This is not a RenderZ client, not a private-API wrapper, and not a UI clone.
 - On-demand enrichment is **catalog-only**: unknown ids 404.
 - Public sitemaps list **10,000** player URLs. RenderZ marketing copy claims 30,000+; treat the sitemap as the discovery set.
 - The catalog is Aurora PostgreSQL. Card art and LOOP sheets are on S3, served through CloudFront.
-- The catalog keeps only cards whose upstream **added** date is within **3 months**. Older rows are removed by `npm run catalog:verify` and skipped during ingest.
+- The catalog keeps players it has already stored. Sync only adds cards that are missing. Programs 39–106 on renderz.app/programs are skipped; newer events and programs 1–38, Icons, and Heroes are kept.
 
 ## Setup
 
@@ -22,21 +22,21 @@ npm test
 npm run dev
 ```
 
-Open [http://localhost:3000/players](http://localhost:3000/players). Listing defaults to **newest added first**. On localhost, the first visit each local calendar day silently discovers new sitemap ids (header shows progress; a toast appears when new players were added). Later visits the same day skip discovery. Production on Vercel does not run this — GitHub Actions runs `npm run catalog:sync` at 07:00 and 23:00 Asia/Ho_Chi_Minh. Copy `.env.example` for Aurora, S3, and the `RENDERZ_*` limiter.
+Open [http://localhost:3000/players](http://localhost:3000/players). Listing defaults to **newest added first**. On localhost, the first visit each local calendar day silently discovers new sitemap ids at the head of the sitemap (header shows progress; a toast appears when new players were added). Later visits the same day skip discovery. Production on Vercel does not run this — GitHub Actions runs `npm run catalog:sync` at 07:00 and 23:00 Asia/Ho_Chi_Minh. Copy `.env.example` for Aurora, S3, and the `RENDERZ_*` limiter.
 
-`npm run seed` upserts the public `/players` listing then enriches those ids only. Re-run skips rows already at the current parse version. `--summaries-only` skips detail fetches. Seed also drops cards older than 3 months.
+`npm run seed` upserts the public `/players` listing then enriches those ids only. Re-run skips rows already at the current parse version. `--summaries-only` skips detail fetches.
 
 ## Daily production catalog
 
-GitHub Actions workflow `.github/workflows/daily-catalog.yml` runs at **07:00 and 23:00 Asia/Ho_Chi_Minh**. It discovers players added within 3 months, writes them to Aurora, and uploads missing card art, LOOP sheets, playstyles, and traits to S3. The browser loads those objects from CloudFront.
+GitHub Actions workflow `.github/workflows/daily-catalog.yml` runs at **07:00 and 23:00 Asia/Ho_Chi_Minh**, on GitHub's runners, so the laptop can be off. Each run adds missing cards and uploads their art, then stops before the job timeout. The next run continues. Players already in Aurora are left in place. The browser loads card art from CloudFront.
 
-## Catalog window
+## Catalog check
 
 ```bash
 npm run catalog:verify
 ```
 
-Removes players with `addedAt` older than 3 months, and players with no `addedAt`. Exits `1` if any such row remains. Ingest records those ids as skipped so sitemap sync does not fetch them again.
+Prints how many players are stored. It does not delete older players.
 
 ## Ingest
 

@@ -9,7 +9,7 @@ const RECENT = Date.parse("2026-08-01T00:00:00.000Z");
 const OLD = Date.parse("2026-01-01T00:00:00.000Z");
 
 describe("pruneOldPlayers", () => {
-  it("removes cards older than three months and rows without addedAt", async () => {
+  it("keeps cards older than three months and rows without addedAt", async () => {
     const { catalog } = createTestCatalog();
     await catalog.upsertPlayer(
       fakePlayer({
@@ -42,15 +42,15 @@ describe("pruneOldPlayers", () => {
     );
 
     const result = await pruneOldPlayers(catalog, { now: NOW });
-    expect(result.kept).toBe(1);
-    expect(result.pruned).toBe(2);
-    expect(result.remaining).toBe(1);
+    expect(result.kept).toBe(3);
+    expect(result.pruned).toBe(0);
+    expect(result.remaining).toBe(3);
     expect(result.invalid).toBe(0);
     expect((await catalog.getById("1"))?.name).toBe("Keep");
-    expect(await catalog.getById("2")).toBeNull();
-    expect(await catalog.getById("3")).toBeNull();
-    expect(await catalog.isSkipped("2")).toBe(true);
-    expect(await catalog.isSkipped("3")).toBe(true);
+    expect((await catalog.getById("2"))?.name).toBe("Old");
+    expect((await catalog.getById("3"))?.name).toBe("Unknown");
+    expect(await catalog.isSkipped("2")).toBe(false);
+    expect(await catalog.isSkipped("3")).toBe(false);
   });
 
   it("keeps old FC Base cards", async () => {

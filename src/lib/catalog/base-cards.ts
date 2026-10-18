@@ -86,10 +86,10 @@ function tierFromLabel(value: string | undefined): BaseCardTier | null {
     return null;
   }
   const text = value.trim().replace(/\s+/g, ' ').toLowerCase();
-  if (text === 'fc base gold player') {
+  if (text.startsWith('fc base gold player')) {
     return 'gold';
   }
-  if (text === 'fc base silver player') {
+  if (text.startsWith('fc base silver player')) {
     return 'silver';
   }
   return null;

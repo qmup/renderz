@@ -1,5 +1,6 @@
 # 07:00 and 23:00 Asia/Ho_Chi_Minh.
 # GitHub runners can reach RenderZ. Fargate in ap-southeast-1 gets HTTP 403.
+# The sync script stops itself after ~340 minutes. A queued schedule run continues the rest.
 name: Catalog sync
 
 on:
@@ -18,7 +19,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 360
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,4 +46,5 @@ jobs:
           S3_BUCKET: renderz-bucket
           RENDERZ_MAX_CONCURRENCY: '1'
           RENDERZ_REQUESTS_PER_SECOND: '1'
+          CATALOG_SYNC_BUDGET_MS: '20400000'
           RENDERZ_USER_AGENT: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'

@@ -71,7 +71,7 @@ describe("ingest runner", () => {
     expect(await catalog.claimNext(10, 2_000)).toHaveLength(0);
   });
 
-  it("does not keep players added more than three months ago", async () => {
+  it("keeps promo cards added more than three months ago", async () => {
     const { catalog } = createTestCatalog();
     const now = Date.parse("2026-09-03T00:00:00.000Z");
     const old = fakePlayer({
@@ -80,9 +80,30 @@ describe("ingest runner", () => {
       rating: 99,
       slug: "antique",
       addedAt: Date.parse("2026-01-01T00:00:00.000Z"),
+      programId: "PROGRAM_ICONS",
     });
     const source = FakePlayerDataSource.fromPlayers([old]);
     await catalog.enqueueDiscovery("8", "antique", now);
+    const run = await runIngestBatch(catalog, source, { now });
+    expect(run.succeeded).toBe(1);
+    expect(run.skipped).toBe(0);
+    expect((await catalog.getById("8"))?.name).toBe("Antique");
+    expect(await catalog.isSkipped("8")).toBe(false);
+  });
+
+  it("does not store a card from a declined program", async () => {
+    const { catalog } = createTestCatalog();
+    const now = Date.parse("2026-09-03T00:00:00.000Z");
+    const source = FakePlayerDataSource.fromPlayers([
+      fakePlayer({
+        id: "8",
+        name: "Skip Me",
+        rating: 99,
+        slug: "skip-me",
+        programId: "PROGRAM_TOTS25",
+      }),
+    ]);
+    await catalog.enqueueDiscovery("8", "skip-me", now);
     const run = await runIngestBatch(catalog, source, { now });
     expect(run.skipped).toBe(1);
     expect(await catalog.getById("8")).toBeNull();
@@ -115,7 +136,7 @@ describe("ingest runner", () => {
     expect(await catalog.isSkipped("19225645")).toBe(false);
   });
 
-  it("stops sitemap discovery after a streak of old addedAt cards", async () => {
+  it("keeps older sitemap cards instead of stopping the queue", async () => {
     const { catalog } = createTestCatalog();
     const now = Date.parse("2026-09-03T00:00:00.000Z");
     const recentAt = Date.parse("2026-08-01T00:00:00.000Z");
@@ -162,10 +183,10 @@ describe("ingest runner", () => {
     const run = await runIngestBatch(catalog, source, { limit: 10, now });
 
     expect((await catalog.getById("1"))?.name).toBe("Recent");
-    expect(await catalog.getById("5")).toBeNull();
-    expect(await catalog.isSkipped("5")).toBe(true);
-    expect(source.getPlayerCalls).toEqual(["1", "2", "3", "4"]);
-    expect(run.skipped).toBeGreaterThanOrEqual(4);
+    expect((await catalog.getById("5"))?.name).toBe("OldTail");
+    expect(await catalog.isSkipped("5")).toBe(false);
+    expect(source.getPlayerCalls).toEqual(["1", "2", "3", "4", "5"]);
+    expect(run.skipped).toBe(0);
     expect(await catalog.claimNext(10, now + 1)).toHaveLength(0);
   });
 

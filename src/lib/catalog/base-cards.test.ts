@@ -11,6 +11,16 @@ describe('baseCardTier', () => {
   it('recognizes the gold and silver subtitles and frames', () => {
     expect(baseCardTier({ programName: 'FC Base Gold Player' })).toBe('gold');
     expect(baseCardTier({ programName: 'FC Base Silver Player' })).toBe('silver');
+    expect(
+      baseCardTier({
+        programName:
+          'FC Base Silver Player. Base Player Items are subject to change',
+      }),
+    ).toBe('silver');
+    expect(baseCardTier({ artHint: 'sprite_23_base_B_BASE_SILVER' })).toBe(
+      'silver',
+    );
+    expect(baseCardTier({ artHint: 'bg_23_B_BASE2' })).toBeNull();
     expect(baseCardTier({ bindingXml: 'PlayerCardUI_S11_Gold_Base' })).toBe('gold');
     expect(baseCardTier({ bindingXml: 'PLAYERCARDUI_BASE_GOLD_B' })).toBe('gold');
     expect(baseCardTier({ bindingXml: 'PlayerCardUI_S11_Sliver_Base' })).toBe(

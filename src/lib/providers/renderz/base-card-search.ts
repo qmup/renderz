@@ -67,6 +67,54 @@ export function entriesFromSearchPayload(payload: unknown): BaseCardSearchEntry[
   return entries;
 }
 
+export function sourceSearchBody(source: string, from: number, size = PAGE_SIZE) {
+  return {
+    query: {
+      bool: {
+        must: [
+          {
+            query_string: {
+              fields: ['source'],
+              query: source,
+            },
+          },
+        ],
+        should: [],
+        must_not: [],
+      },
+    },
+    sort: [{ assetId: { order: 'asc' } }],
+    from,
+    size,
+    _source: [],
+  };
+}
+
+export async function listSourceCardEntries(
+  source: string,
+  client = new RenderzClient(),
+): Promise<BaseCardSearchEntry[]> {
+  const entries: BaseCardSearchEntry[] = [];
+  const seen = new Set<string>();
+  for (let from = 0; from < MAX_FROM; from += PAGE_SIZE) {
+    const payload = await client.getSearchJson(
+      encodeRenderzSearchQuery(sourceSearchBody(source, from)),
+    );
+    const page = entriesFromSearchPayload(payload);
+    for (const entry of page) {
+      if (seen.has(entry.id)) {
+        continue;
+      }
+      seen.add(entry.id);
+      entries.push(entry);
+    }
+    if (page.length < PAGE_SIZE) {
+      break;
+    }
+  }
+  return entries;
+}
+
 export async function listBaseCardEntries(
   client = new RenderzClient(),
 ): Promise<BaseCardSearchEntry[]> {

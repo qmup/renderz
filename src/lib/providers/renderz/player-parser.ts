@@ -1,5 +1,8 @@
 import { load } from 'cheerio';
-import { assignBaseCardIdentity } from '@/lib/catalog/base-cards';
+import {
+  assignBaseCardIdentity,
+  baseCardTier,
+} from '@/lib/catalog/base-cards';
 import { CURRENT_PARSE_VERSION } from '@/lib/catalog/parse-version';
 import {
   cardLoopImageKind,
@@ -928,6 +931,42 @@ function rawFromHtml(html: string): Record<string, unknown> | undefined {
   return undefined;
 }
 
+function subtitleFromHtml(html: string | undefined): string | undefined {
+  const match = html?.match(/FC Base (?:Gold|Silver) Player/i);
+  return match?.[0];
+}
+
+/** Frame and sprite names that identify gold/silver base art. */
+function baseArtHint(raw: Record<string, unknown>): string | undefined {
+  const parts: string[] = [];
+  collectBaseArtNames(raw.images, parts);
+  collectBaseArtNames(raw.animation, parts);
+  return parts.length > 0 ? parts.join(' ') : undefined;
+}
+
+function collectBaseArtNames(value: unknown, parts: string[], depth = 0): void {
+  if (depth > 6) {
+    return;
+  }
+  if (typeof value === 'string') {
+    if (/base[_-](?:gold|silver|sliver)|(?:gold|silver|sliver)[_-]base/i.test(value)) {
+      parts.push(value);
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectBaseArtNames(item, parts, depth + 1);
+    }
+    return;
+  }
+  if (isRecord(value)) {
+    for (const item of Object.values(value)) {
+      collectBaseArtNames(item, parts, depth + 1);
+    }
+  }
+}
+
 export function parsePlayerPage(input: {
   html?: string;
   dataJson?: string;
@@ -945,11 +984,17 @@ export function parsePlayerPage(input: {
   const labeled = labels
     ? applyExtractedLabels(parsed.player, labels)
     : parsed.player;
-  const images = isRecord(raw.images) ? raw.images : undefined;
-  const player = assignBaseCardIdentity(labeled, {
-    bindingXml: asString(raw.bindingXml),
-    artHint: asString(images?.playerCardBackground),
-  });
+  const subtitle = subtitleFromHtml(input.html);
+  const programName = baseCardTier({ programName: labeled.programName })
+    ? labeled.programName
+    : (subtitle ?? labeled.programName);
+  const player = assignBaseCardIdentity(
+    { ...labeled, programName },
+    {
+      bindingXml: asString(raw.bindingXml),
+      artHint: baseArtHint(raw),
+    },
+  );
   const htmlAssets = labels
     ? iconAssetsFromHtmlLabels(player.id, player, labels, fetchedAt)
     : [];

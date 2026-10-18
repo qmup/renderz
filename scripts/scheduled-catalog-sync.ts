@@ -5,9 +5,9 @@
  *   npx tsx scripts/scheduled-catalog-sync.ts
  *
  * Requires AURORA_HOST and AWS credentials that can connect to Aurora and write
- * s3://$S3_BUCKET (default renderz-bucket). Stops promo discovery after 3
- * consecutive cards older than 3 months, then fetches a slice of FC Base gold
- * and silver cards from the RenderZ search API.
+ * s3://$S3_BUCKET (default renderz-bucket). Adds missing cards from the selected
+ * programs and new sitemap ids. Older cards stay. One run stops at
+ * CATALOG_SYNC_BUDGET_MS so the next GitHub Actions schedule can continue.
  */
 import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
@@ -18,6 +18,8 @@ import {
   BASE_CARD_SYNC_LIMIT,
   enqueueBaseCardDiscoveries,
 } from "../src/lib/catalog/base-cards";
+import { SYNC_KEEP_PROGRAM_IDS } from "../src/lib/catalog/sync-programs";
+import { takeSitemapHead } from "../src/lib/ingest/sitemap-head";
 import {
   planCatalogUploads,
   type CatalogUploadCandidate,
@@ -25,7 +27,11 @@ import {
 } from "../src/lib/catalog/object-keys";
 import { getPlayerCatalog } from "../src/lib/catalog/runtime";
 import { runIngestBatch } from "../src/lib/ingest/runner";
-import { listBaseCardEntries } from "../src/lib/providers/renderz/base-card-search";
+import {
+  listBaseCardEntries,
+  listSourceCardEntries,
+} from "../src/lib/providers/renderz/base-card-search";
+import { RenderzClient } from "../src/lib/providers/renderz/client";
 import { isExpiredImageError } from "../src/lib/providers/renderz/image-errors";
 import { fetchAllowlistedImage } from "../src/lib/providers/renderz/image-proxy";
 import { getRenderzSource } from "../src/lib/providers/renderz/renderz-source";
@@ -33,6 +39,9 @@ import { getRenderzSource } from "../src/lib/providers/renderz/renderz-source";
 const IMAGE_CONCURRENCY = 4;
 const CACHE_CONTROL = "public, max-age=31536000, immutable";
 const DB_ATTEMPTS = 3;
+const DEFAULT_SYNC_BUDGET_MS = 165 * 60 * 1000;
+const INGEST_SLICE = 15;
+const IMAGE_HEAL_MS = 3 * 24 * 60 * 60 * 1000;
 
 function describeError(error: unknown): string {
   if (!(error instanceof Error)) {
@@ -66,16 +75,59 @@ type AssetRow = {
   fetchedAt: number;
 };
 
-async function discoverNewPlayers(startedAt: number): Promise<{
-  succeeded: number;
-  failed: number;
-}> {
+function syncDeadline(startedAt: number): number {
+  const raw = Number(process.env.CATALOG_SYNC_BUDGET_MS);
+  const budget = Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_SYNC_BUDGET_MS;
+  return startedAt + budget;
+}
+
+async function ingestQueuedPlayers(
+  deadline: number,
+  label: string,
+  afterSlice?: (since: number) => Promise<void>,
+): Promise<{ succeeded: number; failed: number; idle: boolean }> {
   const catalog = getPlayerCatalog();
   const source = getRenderzSource();
-  console.log("reading sitemap");
-  const entries = await source.listSitemapEntries();
-  console.log(`sitemap=${entries.length}`);
-  return withDbRetry("discovery", async () => {
+  const totals = { succeeded: 0, failed: 0, idle: false };
+  let processed = 0;
+  let sliceStart = Date.now();
+  while (Date.now() < deadline) {
+    const batch = await runIngestBatch(catalog, source, {
+      limit: 1,
+      consecutiveOldStop: 0,
+      kind: "discovery",
+      onProgress: (message) => console.log(message),
+    });
+    if (batch.processed === 0) {
+      totals.idle = true;
+      break;
+    }
+    totals.succeeded += batch.succeeded;
+    totals.failed += batch.failed;
+    processed += 1;
+    if (processed % INGEST_SLICE === 0) {
+      console.log(
+        `${label} ${processed} players=${totals.succeeded} failures=${totals.failed}`,
+      );
+      await afterSlice?.(sliceStart);
+      sliceStart = Date.now();
+    }
+  }
+  await afterSlice?.(sliceStart);
+  console.log(
+    `${label} done players=${totals.succeeded} failures=${totals.failed} idle=${totals.idle}`,
+  );
+  return totals;
+}
+
+async function discoverSelectedPrograms(
+  startedAt: number,
+  deadline: number,
+  afterSlice?: (since: number) => Promise<void>,
+): Promise<{ succeeded: number; failed: number; idle: boolean }> {
+  const catalog = getPlayerCatalog();
+  const client = new RenderzClient();
+  return withDbRetry("selected programs", async () => {
     const db = getPostgresDb();
     const cleared = await db
       .delete(ingestJobs)
@@ -86,79 +138,70 @@ async function discoverNewPlayers(startedAt: number): Promise<{
         ),
       );
     const existingRows = await db.select({ id: players.id }).from(players);
+    const existing = new Set(existingRows.map((row) => row.id));
+    console.log(
+      `known players=${existing.size} clearedPending=${cleared.rowCount ?? 0}`,
+    );
+    const pending: Array<{ id: string; slug: string }> = [];
+    for (const programId of SYNC_KEEP_PROGRAM_IDS) {
+      if (Date.now() >= deadline) {
+        break;
+      }
+      const listed = await listSourceCardEntries(programId, client);
+      const missing = listed.filter((entry) => !existing.has(entry.id));
+      pending.push(...missing);
+      console.log(
+        `program ${programId} listed=${listed.length} missing=${missing.length}`,
+      );
+    }
+    console.log(`selected programs pending=${pending.length}`);
+    if (pending.length === 0) {
+      return { succeeded: 0, failed: 0, idle: true };
+    }
+    await enqueueBaseCardDiscoveries(catalog, pending, startedAt);
+    return ingestQueuedPlayers(deadline, "selected programs", afterSlice);
+  });
+}
+
+async function discoverSitemapHead(
+  startedAt: number,
+  deadline: number,
+  afterSlice?: (since: number) => Promise<void>,
+): Promise<{ succeeded: number; failed: number; idle: boolean }> {
+  if (Date.now() >= deadline) {
+    return { succeeded: 0, failed: 0, idle: false };
+  }
+  const catalog = getPlayerCatalog();
+  const source = getRenderzSource();
+  console.log("reading sitemap head");
+  const entries = await source.listSitemapEntries();
+  return withDbRetry("sitemap head", async () => {
+    const db = getPostgresDb();
+    const existingRows = await db.select({ id: players.id }).from(players);
     const skippedRows = await db
       .select({ playerId: ingestJobs.playerId })
       .from(ingestJobs)
       .where(eq(ingestJobs.status, "skipped"));
-    const existing = new Set(existingRows.map((row) => row.id));
-    const skipped = new Set(skippedRows.map((row) => row.playerId));
-    console.log(
-      `known players=${existing.size} skipped=${skipped.size} clearedPending=${cleared.rowCount ?? 0}`,
-    );
-
-    const totals = { succeeded: 0, failed: 0 };
-    let consecutiveOld = 0;
-    let scanned = 0;
-    for (const entry of entries) {
-      scanned += 1;
-      if (existing.has(entry.id)) {
-        consecutiveOld = 0;
-        if (scanned % 2000 === 0) {
-          console.log(`scan ${scanned}/${entries.length} still in catalog`);
-        }
-        continue;
-      }
-      if (skipped.has(entry.id)) {
-        consecutiveOld += 1;
-        if (consecutiveOld >= 3) {
-          console.log(`stopped after ${consecutiveOld} known-old cards at ${entry.id}`);
-          break;
-        }
-        continue;
-      }
-
-      await catalog.enqueueDiscovery(entry.id, entry.slug, startedAt + scanned);
-      const outcome = { value: "other" as "new" | "old" | "other" };
-      const batch = await runIngestBatch(catalog, source, {
-        limit: 1,
-        consecutiveOldStop: 0,
-        kind: "discovery",
-        onProgress: (message) => {
-          console.log(message);
-          if (message.startsWith("skipped old")) outcome.value = "old";
-          else if (message.startsWith("succeeded")) outcome.value = "new";
-        },
-      });
-      totals.succeeded += batch.succeeded;
-      totals.failed += batch.failed;
-      if (outcome.value === "new") {
-        existing.add(entry.id);
-        consecutiveOld = 0;
-      } else if (outcome.value === "old") {
-        skipped.add(entry.id);
-        consecutiveOld += 1;
-        if (consecutiveOld >= 3) {
-          console.log(`stopped after ${consecutiveOld} old cards at ${entry.id}`);
-          break;
-        }
-      }
-      if (scanned % 250 === 0) {
-        console.log(`scan ${scanned}/${entries.length} consecutiveOld=${consecutiveOld}`);
-      }
+    const settled = new Set([
+      ...existingRows.map((row) => row.id),
+      ...skippedRows.map((row) => row.playerId),
+    ]);
+    const fresh = takeSitemapHead(entries, (id) => settled.has(id));
+    console.log(`sitemap=${entries.length} head=${fresh.length}`);
+    if (fresh.length === 0) {
+      return { succeeded: 0, failed: 0, idle: true };
     }
-    console.log(
-      `discovery scanned=${scanned}/${entries.length} players=${totals.succeeded} failures=${totals.failed}`,
-    );
-    return totals;
+    await enqueueBaseCardDiscoveries(catalog, fresh, startedAt);
+    return ingestQueuedPlayers(deadline, "sitemap head", afterSlice);
   });
 }
 
-async function discoverBaseCards(startedAt: number): Promise<{
-  succeeded: number;
-  failed: number;
-}> {
+async function discoverBaseCards(
+  startedAt: number,
+  deadline: number,
+  afterSlice?: (since: number) => Promise<void>,
+): Promise<{ succeeded: number; failed: number; idle: boolean }> {
   const catalog = getPlayerCatalog();
-  const source = getRenderzSource();
   console.log("reading base gold and silver cards");
   const listed = await listBaseCardEntries();
   console.log(`base cards listed=${listed.length}`);
@@ -170,29 +213,11 @@ async function discoverBaseCards(startedAt: number): Promise<{
       .filter((entry) => !existing.has(entry.id))
       .slice(0, BASE_CARD_SYNC_LIMIT);
     console.log(`base cards pending=${pending.length} limit=${BASE_CARD_SYNC_LIMIT}`);
-    if (pending.length === 0) {
-      return { succeeded: 0, failed: 0 };
+    if (pending.length === 0 || Date.now() >= deadline) {
+      return { succeeded: 0, failed: 0, idle: pending.length === 0 };
     }
     await enqueueBaseCardDiscoveries(catalog, pending, startedAt);
-    const totals = { succeeded: 0, failed: 0 };
-    for (let index = 0; index < pending.length; index += 1) {
-      const batch = await runIngestBatch(catalog, source, {
-        limit: 1,
-        consecutiveOldStop: 0,
-        kind: "discovery",
-        onProgress: (message) => {
-          console.log(message);
-        },
-      });
-      totals.succeeded += batch.succeeded;
-      totals.failed += batch.failed;
-      if ((index + 1) % 25 === 0 || index + 1 === pending.length) {
-        console.log(
-          `base cards ${index + 1}/${pending.length} players=${totals.succeeded} failures=${totals.failed}`,
-        );
-      }
-    }
-    return totals;
+    return ingestQueuedPlayers(deadline, "base cards", afterSlice);
   });
 }
 
@@ -314,6 +339,21 @@ async function uploadMissing(
   return { uploaded, present, failed, requiredFailed };
 }
 
+async function uploadFetchedSince(
+  since: number,
+  bucket: string,
+  region: string,
+): Promise<{ uploaded: number; requiredFailed: number }> {
+  const candidates = await loadUploadCandidates(since);
+  const jobs = planCatalogUploads(candidates);
+  console.log(`upload candidates=${candidates.length} objects=${jobs.length}`);
+  if (jobs.length === 0) {
+    return { uploaded: 0, requiredFailed: 0 };
+  }
+  const images = await uploadMissing(new S3Client({ region }), bucket, jobs);
+  return { uploaded: images.uploaded, requiredFailed: images.requiredFailed };
+}
+
 async function main() {
   if (!auroraConfigFromEnv()) {
     throw new Error("AURORA_HOST is required");
@@ -321,21 +361,35 @@ async function main() {
   const bucket = process.env.S3_BUCKET?.trim() || "renderz-bucket";
   const region = process.env.AWS_REGION?.trim() || "ap-southeast-1";
   const startedAt = Date.now();
-  console.log(`catalog sync start bucket=${bucket}`);
+  const deadline = syncDeadline(startedAt);
+  console.log(`catalog sync start bucket=${bucket} budgetMs=${deadline - startedAt}`);
 
-  const discovery = await discoverNewPlayers(startedAt);
-  const baseCards = await discoverBaseCards(startedAt);
-  const candidates = await loadUploadCandidates(startedAt);
-  const jobs = planCatalogUploads(candidates);
-  console.log(`upload candidates=${candidates.length} objects=${jobs.length}`);
+  const uploadTotals = { uploaded: 0, requiredFailed: 0 };
+  const uploadSlice = async (since: number) => {
+    const images = await uploadFetchedSince(since, bucket, region);
+    uploadTotals.uploaded += images.uploaded;
+    uploadTotals.requiredFailed += images.requiredFailed;
+  };
 
-  const images = await uploadMissing(new S3Client({ region }), bucket, jobs);
-  const playersAdded = discovery.succeeded + baseCards.succeeded;
-  const playerFailures = discovery.failed + baseCards.failed;
+  const healed = await uploadFetchedSince(startedAt - IMAGE_HEAL_MS, bucket, region);
+  uploadTotals.uploaded += healed.uploaded;
+  uploadTotals.requiredFailed += healed.requiredFailed;
+
+  const selected = await discoverSelectedPrograms(startedAt, deadline, uploadSlice);
+  const head = selected.idle
+    ? await discoverSitemapHead(startedAt, deadline, uploadSlice)
+    : { succeeded: 0, failed: 0, idle: false };
+  const baseCards =
+    selected.idle && head.idle
+      ? await discoverBaseCards(startedAt, deadline, uploadSlice)
+      : { succeeded: 0, failed: 0, idle: false };
+
+  const playersAdded = selected.succeeded + head.succeeded + baseCards.succeeded;
+  const playerFailures = selected.failed + head.failed + baseCards.failed;
   console.log(
-    `catalog sync done players=${playersAdded} playerFailures=${playerFailures} uploaded=${images.uploaded} present=${images.present} imageFailures=${images.failed}`,
+    `catalog sync done players=${playersAdded} playerFailures=${playerFailures} uploaded=${uploadTotals.uploaded} imageFailures=${uploadTotals.requiredFailed}`,
   );
-  if ((playerFailures > 0 && playersAdded === 0) || images.requiredFailed > 0) {
+  if ((playerFailures > 0 && playersAdded === 0) || uploadTotals.requiredFailed > 0) {
     process.exitCode = 1;
   }
 }

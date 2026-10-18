@@ -22,7 +22,7 @@ describe("recent catalog eligibility", () => {
     expect(isKnownOldPlayer({ addedAt: old }, NOW)).toBe(true);
   });
 
-  it("keeps FC Base gold and silver past the three-month cutoff", () => {
+  it("keeps every card regardless of added date", () => {
     const old = Date.parse("2023-09-26T00:00:00.000Z");
     expect(shouldSkipForAge({ addedAt: old, programId: BASE_PROGRAM_GOLD }, NOW)).toBe(
       false,
@@ -31,7 +31,7 @@ describe("recent catalog eligibility", () => {
       false,
     );
     expect(shouldSkipForAge({ addedAt: old, programId: "PROGRAM_TOTW27" }, NOW)).toBe(
-      true,
+      false,
     );
   });
 

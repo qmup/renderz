@@ -101,7 +101,7 @@ describe("seedListingCatalog", () => {
     expect((await catalog.getById("1"))?.name).toBe("A");
   });
 
-  it("drops enriched players older than three months", async () => {
+  it("keeps enriched players older than three months", async () => {
     const { catalog } = createTestCatalog();
     const source = FakePlayerDataSource.fromPlayers([
       fakePlayer({
@@ -121,7 +121,7 @@ describe("seedListingCatalog", () => {
       now: Date.parse("2026-09-03T00:00:00.000Z"),
     });
     expect(result.enriched).toBe(2);
-    expect(await catalog.getById("1")).toBeNull();
+    expect((await catalog.getById("1"))?.name).toBe("Old Card");
     expect((await catalog.getById("2"))?.name).toBe("New Card");
   });
 });

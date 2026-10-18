@@ -1,4 +1,5 @@
-import { shouldSkipForAge, SKIP_REASON_TOO_OLD } from "@/lib/catalog/eligibility";
+import { SKIP_REASON_PROGRAM, isDeclinedSyncProgram } from "@/lib/catalog/sync-programs";
+import { SKIP_REASON_TOO_OLD } from "@/lib/catalog/eligibility";
 import { computeBackoffMs, loadUpstreamLimiterConfig } from "@/lib/http/upstream";
 import {
   RateLimitedError,
@@ -16,8 +17,8 @@ import {
 export const DEFAULT_INGEST_BATCH = 10;
 export const MAX_JOB_ATTEMPTS = 5;
 export const DEFAULT_REFRESH_TTL_MS = 24 * 60 * 60 * 1000;
-/** Sitemap is newest-first. After this many old discovery cards in a row, skip the rest. */
-export const CONSECUTIVE_OLD_DISCOVERY_STOP = 3;
+/** Opt-in only. The scheduled sync does not stop the queue after old cards. */
+export const CONSECUTIVE_OLD_DISCOVERY_STOP = 0;
 
 export type IngestSyncResult = {
   sitemapEntries: number;
@@ -49,9 +50,9 @@ async function upsertFromSource(
   now = Date.now(),
 ): Promise<"kept" | "skipped"> {
   const { player, assets } = await source.getPlayer(id, slug);
-  if (shouldSkipForAge(player, now)) {
+  if (isDeclinedSyncProgram(player.programId)) {
     await catalog.deletePlayer(player.id);
-    await catalog.recordSkipped(player.id, player.slug, SKIP_REASON_TOO_OLD, now);
+    await catalog.recordSkipped(player.id, player.slug, SKIP_REASON_PROGRAM, now);
     return "skipped";
   }
   await catalog.upsertPlayer(player, assets);
@@ -134,7 +135,7 @@ export async function runIngestBatch(
       if (outcome === "skipped") {
         await catalog.markSucceeded(job.id, now);
         skipped += 1;
-        options.onProgress?.(`skipped old ${job.kind} ${job.playerId}`);
+        options.onProgress?.(`skipped ${job.kind} ${job.playerId}`);
         if (job.kind === "discovery") {
           consecutiveOldDiscoveries += 1;
           if (

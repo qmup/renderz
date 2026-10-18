@@ -5,6 +5,7 @@ import {
 } from "@/lib/catalog/update-status";
 import { enqueueSitemapDiscoveries } from "@/lib/ingest/queue";
 import { runIngestBatch } from "@/lib/ingest/runner";
+import { takeSitemapHeadAsync } from "@/lib/ingest/sitemap-head";
 import type { PlayerDataSource } from "@/lib/providers/types";
 
 export const CATALOG_UPDATE_BATCH = 10;
@@ -53,7 +54,10 @@ export async function runCatalogUpdate(
   });
 
   const entries = await source.listSitemapEntries();
-  const discovered = await enqueueSitemapDiscoveries(catalog, entries, now);
+  const fresh = await takeSitemapHeadAsync(entries, async (id) => {
+    return (await catalog.exists(id)) || (await catalog.isSkipped(id));
+  });
+  const discovered = await enqueueSitemapDiscoveries(catalog, fresh, now);
   const remaining = await countOpenDiscoveries(catalog);
   patch({
     discovered,
