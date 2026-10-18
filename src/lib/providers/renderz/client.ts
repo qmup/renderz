@@ -10,6 +10,7 @@ import { UpstreamHttpError } from "@/lib/http/errors";
 import { RENDERZ_ORIGIN, RENDERZ_PAGE_HEADERS } from "@/lib/providers/renderz/urls";
 
 const MAX_PAGE_BYTES = 2_000_000;
+const MAX_SEARCH_BYTES = 8_000_000;
 
 export type RenderzClientOptions = {
   limiter?: UpstreamLimiter;
@@ -60,5 +61,35 @@ export class RenderzClient {
       throw new UpstreamHttpError(502, "Upstream page exceeded size limit");
     }
     return buffer.toString("utf8");
+  }
+
+  /** Player search. Page fetches stay blocked from `/api`; this is the one exception. */
+  async getSearchJson(encodedQuery: string): Promise<unknown> {
+    if (!/^[A-Za-z0-9_-]+$/.test(encodedQuery)) {
+      throw new UpstreamHttpError(400, "Invalid RenderZ search query");
+    }
+    const url = `${RENDERZ_ORIGIN}/api/search/23?v=1&q=${encodedQuery}`;
+    const response = await fetchUpstream(
+      url,
+      {
+        headers: {
+          ...RENDERZ_PAGE_HEADERS,
+          Accept: "application/json",
+        },
+      },
+      {
+        limiter: this.limiter,
+        config: this.config,
+        fetchImpl: this.fetchImpl,
+      },
+    );
+    if (!response.ok) {
+      throw new UpstreamHttpError(response.status);
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.byteLength > MAX_SEARCH_BYTES) {
+      throw new UpstreamHttpError(502, "Upstream search page exceeded size limit");
+    }
+    return JSON.parse(buffer.toString("utf8")) as unknown;
   }
 }

@@ -5,8 +5,9 @@
  *   npx tsx scripts/scheduled-catalog-sync.ts
  *
  * Requires AURORA_HOST and AWS credentials that can connect to Aurora and write
- * s3://$S3_BUCKET (default renderz-bucket). Stops discovery after 3 consecutive
- * cards older than 3 months.
+ * s3://$S3_BUCKET (default renderz-bucket). Stops promo discovery after 3
+ * consecutive cards older than 3 months, then fetches a slice of FC Base gold
+ * and silver cards from the RenderZ search API.
  */
 import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
@@ -14,12 +15,17 @@ import { auroraConfigFromEnv } from "../src/db/aurora-config";
 import { getPostgresDb } from "../src/db/postgres";
 import { ingestJobs, playerAssets, players } from "../src/db/postgres-schema";
 import {
+  BASE_CARD_SYNC_LIMIT,
+  enqueueBaseCardDiscoveries,
+} from "../src/lib/catalog/base-cards";
+import {
   planCatalogUploads,
   type CatalogUploadCandidate,
   type CatalogUploadJob,
 } from "../src/lib/catalog/object-keys";
 import { getPlayerCatalog } from "../src/lib/catalog/runtime";
 import { runIngestBatch } from "../src/lib/ingest/runner";
+import { listBaseCardEntries } from "../src/lib/providers/renderz/base-card-search";
 import { isExpiredImageError } from "../src/lib/providers/renderz/image-errors";
 import { fetchAllowlistedImage } from "../src/lib/providers/renderz/image-proxy";
 import { getRenderzSource } from "../src/lib/providers/renderz/renderz-source";
@@ -143,6 +149,49 @@ async function discoverNewPlayers(startedAt: number): Promise<{
     console.log(
       `discovery scanned=${scanned}/${entries.length} players=${totals.succeeded} failures=${totals.failed}`,
     );
+    return totals;
+  });
+}
+
+async function discoverBaseCards(startedAt: number): Promise<{
+  succeeded: number;
+  failed: number;
+}> {
+  const catalog = getPlayerCatalog();
+  const source = getRenderzSource();
+  console.log("reading base gold and silver cards");
+  const listed = await listBaseCardEntries();
+  console.log(`base cards listed=${listed.length}`);
+  return withDbRetry("base cards", async () => {
+    const db = getPostgresDb();
+    const existingRows = await db.select({ id: players.id }).from(players);
+    const existing = new Set(existingRows.map((row) => row.id));
+    const pending = listed
+      .filter((entry) => !existing.has(entry.id))
+      .slice(0, BASE_CARD_SYNC_LIMIT);
+    console.log(`base cards pending=${pending.length} limit=${BASE_CARD_SYNC_LIMIT}`);
+    if (pending.length === 0) {
+      return { succeeded: 0, failed: 0 };
+    }
+    await enqueueBaseCardDiscoveries(catalog, pending, startedAt);
+    const totals = { succeeded: 0, failed: 0 };
+    for (let index = 0; index < pending.length; index += 1) {
+      const batch = await runIngestBatch(catalog, source, {
+        limit: 1,
+        consecutiveOldStop: 0,
+        kind: "discovery",
+        onProgress: (message) => {
+          console.log(message);
+        },
+      });
+      totals.succeeded += batch.succeeded;
+      totals.failed += batch.failed;
+      if ((index + 1) % 25 === 0 || index + 1 === pending.length) {
+        console.log(
+          `base cards ${index + 1}/${pending.length} players=${totals.succeeded} failures=${totals.failed}`,
+        );
+      }
+    }
     return totals;
   });
 }
@@ -275,18 +324,18 @@ async function main() {
   console.log(`catalog sync start bucket=${bucket}`);
 
   const discovery = await discoverNewPlayers(startedAt);
+  const baseCards = await discoverBaseCards(startedAt);
   const candidates = await loadUploadCandidates(startedAt);
   const jobs = planCatalogUploads(candidates);
   console.log(`upload candidates=${candidates.length} objects=${jobs.length}`);
 
   const images = await uploadMissing(new S3Client({ region }), bucket, jobs);
+  const playersAdded = discovery.succeeded + baseCards.succeeded;
+  const playerFailures = discovery.failed + baseCards.failed;
   console.log(
-    `catalog sync done players=${discovery.succeeded} playerFailures=${discovery.failed} uploaded=${images.uploaded} present=${images.present} imageFailures=${images.failed}`,
+    `catalog sync done players=${playersAdded} playerFailures=${playerFailures} uploaded=${images.uploaded} present=${images.present} imageFailures=${images.failed}`,
   );
-  if (
-    (discovery.failed > 0 && discovery.succeeded === 0) ||
-    images.requiredFailed > 0
-  ) {
+  if ((playerFailures > 0 && playersAdded === 0) || images.requiredFailed > 0) {
     process.exitCode = 1;
   }
 }

@@ -249,12 +249,14 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
         id: players.id,
         slug: players.slug,
         addedAt: players.addedAt,
+        programId: players.programId,
       })
       .from(players);
     return rows.map((row) => ({
       id: asPlayerId(row.id),
       slug: row.slug,
       addedAt: row.addedAt ?? undefined,
+      programId: row.programId ?? undefined,
     }));
   }
 
@@ -679,6 +681,26 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
       await this.recordSkipped(id, slugById.get(id), reason, now);
     }
     return updated;
+  }
+
+  async clearSkipped(playerIds: readonly string[]): Promise<number> {
+    const ids = [...new Set(playerIds.map((playerId) => playerIdSchema.parse(playerId)))];
+    if (ids.length === 0) {
+      return 0;
+    }
+    const chunkSize = 400;
+    let cleared = 0;
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const chunk = ids.slice(i, i + chunkSize);
+      const deleted = await this.db
+        .delete(ingestJobs)
+        .where(
+          and(eq(ingestJobs.status, "skipped"), inArray(ingestJobs.playerId, chunk)),
+        )
+        .returning({ id: ingestJobs.id });
+      cleared += deleted.length;
+    }
+    return cleared;
   }
 
   async markSucceeded(jobId: number, now = Date.now()): Promise<void> {

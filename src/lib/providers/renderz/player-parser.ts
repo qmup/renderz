@@ -1,4 +1,5 @@
 import { load } from 'cheerio';
+import { assignBaseCardIdentity } from '@/lib/catalog/base-cards';
 import { CURRENT_PARSE_VERSION } from '@/lib/catalog/parse-version';
 import {
   cardLoopImageKind,
@@ -941,9 +942,14 @@ export function parsePlayerPage(input: {
   }
   const parsed = playerFromRaw(raw, fetchedAt, input.html);
   const labels = input.html ? extractHtmlLabels(input.html) : undefined;
-  const player = labels
+  const labeled = labels
     ? applyExtractedLabels(parsed.player, labels)
     : parsed.player;
+  const images = isRecord(raw.images) ? raw.images : undefined;
+  const player = assignBaseCardIdentity(labeled, {
+    bindingXml: asString(raw.bindingXml),
+    artHint: asString(images?.playerCardBackground),
+  });
   const htmlAssets = labels
     ? iconAssetsFromHtmlLabels(player.id, player, labels, fetchedAt)
     : [];

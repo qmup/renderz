@@ -1,3 +1,4 @@
+import { isBaseCardProgram } from "@/lib/catalog/base-cards";
 import {
   isRecentCatalogPlayer,
   SKIP_REASON_TOO_OLD,
@@ -25,7 +26,7 @@ export async function pruneOldPlayers(
   let pruned = 0;
 
   for (const row of await catalog.listPlayerIndex()) {
-    if (isRecentCatalogPlayer(row, now)) {
+    if (isBaseCardProgram(row.programId) || isRecentCatalogPlayer(row, now)) {
       kept += 1;
       continue;
     }
@@ -43,7 +44,9 @@ export async function pruneOldPlayers(
   }
 
   const remainingRows = await catalog.listPlayerIndex();
-  const invalid = remainingRows.filter((row) => !isRecentCatalogPlayer(row, now)).length;
+  const invalid = remainingRows.filter(
+    (row) => !isRecentCatalogPlayer(row, now) && !isBaseCardProgram(row.programId),
+  ).length;
   return {
     kept,
     pruned,

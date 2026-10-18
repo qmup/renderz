@@ -1,4 +1,4 @@
-import { isKnownOldPlayer, SKIP_REASON_TOO_OLD } from "@/lib/catalog/eligibility";
+import { shouldSkipForAge, SKIP_REASON_TOO_OLD } from "@/lib/catalog/eligibility";
 import { computeBackoffMs, loadUpstreamLimiterConfig } from "@/lib/http/upstream";
 import {
   RateLimitedError,
@@ -49,7 +49,7 @@ async function upsertFromSource(
   now = Date.now(),
 ): Promise<"kept" | "skipped"> {
   const { player, assets } = await source.getPlayer(id, slug);
-  if (isKnownOldPlayer(player, now)) {
+  if (shouldSkipForAge(player, now)) {
     await catalog.deletePlayer(player.id);
     await catalog.recordSkipped(player.id, player.slug, SKIP_REASON_TOO_OLD, now);
     return "skipped";

@@ -124,6 +124,36 @@ describe("parsePlayerPage", () => {
     expect(player.clubName).toBe("Inter Miami CF");
   });
 
+  it("assigns FC Base gold from the page subtitle", () => {
+    const html = `<span>FC Base Gold Player</span>
+<script>kit.start(app, element, {data:[null,{type:"data",data:{player:{id:19225645,cardName:"De Arrascaeta",firstName:"Giorgian",lastName:"De Arrascaeta",rating:83,position:"CAM",added:"2023-09-26T00:00:00.000Z",images:{playerCardBackground:"https://images-v2.renderz.app/bg_23_backgrounds_26_S11_GOLD_BASE_STATIC"}}}}]});</script>`;
+    const { player } = parsePlayerPage({ html });
+    expect(player.programId).toBe("FC_BASE_GOLD");
+    expect(player.programName).toBe("FC Base Gold Player");
+  });
+
+  it("assigns FC Base silver from the Sliver frame", () => {
+    const html = `<script>kit.start(app, element, {data:[null,{type:"data",data:{player:{id:19224983,cardName:"Vidales",firstName:"A",lastName:"Vidales",rating:70,position:"CB",bindingXml:"PlayerCardUI_S11_Sliver_Base",images:{}}}}]});</script>`;
+    const { player } = parsePlayerPage({ html });
+    expect(player.programId).toBe("FC_BASE_SILVER");
+    expect(player.programName).toBe("FC Base Silver Player");
+  });
+
+  it("does not treat FC Base bronze as a catalog program", () => {
+    const html = `<span>FC Base Bronze Player</span>
+<script>kit.start(app, element, {data:[null,{type:"data",data:{player:{id:19070001,cardName:"Bronze",firstName:"A",lastName:"Bronze",rating:55,position:"CB",images:{playerCardBackground:"https://images-v2.renderz.app/S11_BRONZE_BASE"}}}}]});</script>`;
+    const { player } = parsePlayerPage({ html });
+    expect(player.programId).toBeUndefined();
+    expect(player.programName).toBe("FC Base Bronze Player");
+  });
+
+  it("does not replace a promo program id with a base subtitle", () => {
+    const html = `<span>FC Base Gold Player</span>
+<script>kit.start(app, element, {data:[null,{type:"data",data:{player:{id:1,cardName:"Promo",firstName:"A",lastName:"Promo",rating:90,position:"ST",source:"PROGRAM_TOTW27",images:{}}}}]});</script>`;
+    const { player } = parsePlayerPage({ html });
+    expect(player.programId).toBe("PROGRAM_TOTW27");
+  });
+
   it("does not copy the whole page into programName", () => {
     const html = `<h1>Osimhen</h1>
 <div>FC Mobile Like Dislike Champions Club Player 122 ST Osimhen Animate Compare Download Card TEAM ignored

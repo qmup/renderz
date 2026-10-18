@@ -40,6 +40,7 @@ export type PlayerIndexRow = {
   id: PlayerId;
   slug: string;
   addedAt?: number;
+  programId?: string;
 };
 
 export interface PlayerCatalog {
@@ -93,6 +94,8 @@ export interface PlayerCatalog {
     reason: string,
     now?: number,
   ): Promise<number>;
+  /** Drop skipped rows so a later discovery enqueue can fetch these ids again. */
+  clearSkipped(playerIds: readonly string[]): Promise<number>;
   listStalePlayerIds(criteria: StalePlayerCriteria): Promise<PlayerId[]>;
   countOpenIngestJobs(kind?: IngestJobKind): Promise<number>;
 }

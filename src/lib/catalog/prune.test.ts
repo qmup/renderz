@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { BASE_PROGRAM_SILVER } from "@/lib/catalog/base-cards";
 import { pruneOldPlayers } from "@/lib/catalog/prune";
 import { createTestCatalog } from "@/lib/catalog/test-helpers";
 import { fakePlayer } from "@/lib/providers/fake-source";
@@ -50,5 +51,27 @@ describe("pruneOldPlayers", () => {
     expect(await catalog.getById("3")).toBeNull();
     expect(await catalog.isSkipped("2")).toBe(true);
     expect(await catalog.isSkipped("3")).toBe(true);
+  });
+
+  it("keeps old FC Base cards", async () => {
+    const { catalog } = createTestCatalog();
+    await catalog.upsertPlayer(
+      fakePlayer({
+        id: "4",
+        name: "Base",
+        rating: 70,
+        slug: "base",
+        addedAt: OLD,
+        programId: BASE_PROGRAM_SILVER,
+      }),
+      [],
+    );
+
+    const result = await pruneOldPlayers(catalog, { now: NOW });
+    expect(result.kept).toBe(1);
+    expect(result.pruned).toBe(0);
+    expect(result.invalid).toBe(0);
+    expect((await catalog.getById("4"))?.programId).toBe(BASE_PROGRAM_SILVER);
+    expect(await catalog.isSkipped("4")).toBe(false);
   });
 });

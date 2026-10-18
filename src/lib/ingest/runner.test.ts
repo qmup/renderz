@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { BASE_PROGRAM_GOLD, enqueueBaseCardDiscoveries } from "@/lib/catalog/base-cards";
 import { createTestCatalog } from "@/lib/catalog/test-helpers";
 import { CURRENT_PARSE_VERSION } from "@/lib/catalog/parse-version";
 import { runIngestBatch, syncIngestQueue } from "@/lib/ingest/runner";
@@ -86,6 +87,32 @@ describe("ingest runner", () => {
     expect(run.skipped).toBe(1);
     expect(await catalog.getById("8")).toBeNull();
     expect(await catalog.isSkipped("8")).toBe(true);
+  });
+
+  it("keeps FC Base cards that are older than three months", async () => {
+    const { catalog } = createTestCatalog();
+    const now = Date.parse("2026-09-03T00:00:00.000Z");
+    const old = fakePlayer({
+      id: "19225645",
+      name: "De Arrascaeta",
+      rating: 83,
+      slug: "de-arrascaeta",
+      programId: BASE_PROGRAM_GOLD,
+      programName: "FC Base Gold Player",
+      addedAt: Date.parse("2023-09-26T00:00:00.000Z"),
+    });
+    const source = FakePlayerDataSource.fromPlayers([old]);
+    await catalog.recordSkipped("19225645", "de-arrascaeta", "added_at_older_than_3_months", now);
+    await enqueueBaseCardDiscoveries(
+      catalog,
+      [{ id: "19225645", slug: "de-arrascaeta" }],
+      now,
+    );
+    const run = await runIngestBatch(catalog, source, { now });
+    expect(run.succeeded).toBe(1);
+    expect(run.skipped).toBe(0);
+    expect((await catalog.getById("19225645"))?.programId).toBe(BASE_PROGRAM_GOLD);
+    expect(await catalog.isSkipped("19225645")).toBe(false);
   });
 
   it("stops sitemap discovery after a streak of old addedAt cards", async () => {
