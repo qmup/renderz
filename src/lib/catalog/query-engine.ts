@@ -160,18 +160,17 @@ export function omitFacetFilter(
   };
 }
 
-function countFacetValues(
-  rows: PlayerSummary[],
-  pick: (row: PlayerSummary) => string | undefined,
-  selected: string[] = [],
+/** Sort facet counts and keep a selected value visible even when its count is 0. */
+export function facetValuesFromCounts(
+  counts: Iterable<readonly [string, number]>,
+  selected: readonly string[] = [],
 ): FacetValue[] {
   const map = new Map<string, number>();
-  for (const row of rows) {
-    const value = pick(row);
+  for (const [value, count] of counts) {
     if (!value) {
       continue;
     }
-    map.set(value, (map.get(value) ?? 0) + 1);
+    map.set(value, (map.get(value) ?? 0) + count);
   }
   for (const value of selected) {
     if (value && !map.has(value)) {
@@ -181,6 +180,21 @@ function countFacetValues(
   return [...map.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([value, count]) => ({ value, count }));
+}
+
+function countFacetValues(
+  rows: PlayerSummary[],
+  pick: (row: PlayerSummary) => string | undefined,
+  selected: string[] = [],
+): FacetValue[] {
+  const counts: Array<[string, number]> = [];
+  for (const row of rows) {
+    const value = pick(row);
+    if (value) {
+      counts.push([value, 1]);
+    }
+  }
+  return facetValuesFromCounts(counts, selected);
 }
 
 /**

@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
@@ -63,6 +64,10 @@ export const players = pgTable(
     fetchedAt: bigint("fetched_at", { mode: "number" }).notNull(),
     parseVersion: integer("parse_version").notNull(),
     discoveredAt: bigint("discovered_at", { mode: "number" }).notNull(),
+    // Folded name/slug/card fields. Maintained in Postgres; see player-search.ts.
+    searchText: text("search_text").generatedAlwaysAs(
+      sql`player_search_text("name", "slug", "first_name", "last_name", "common_name", "card_name")`,
+    ),
   },
   (table) => [
     index("idx_players_name").on(table.name),
@@ -70,6 +75,10 @@ export const players = pgTable(
     index("idx_players_position").on(table.position),
     index("idx_players_added_at").on(table.addedAt),
     index("idx_players_rating_name").on(table.rating, table.name),
+    index("idx_players_search_trgm").using(
+      "gin",
+      sql`${table.searchText} gin_trgm_ops`,
+    ),
   ],
 );
 
