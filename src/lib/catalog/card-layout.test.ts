@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { FM23_CARD_SIZE, FM23_LAYOUT, fm23BoxStyle, fm23Cqw, fm23Pct } from "@/lib/catalog/card-layout";
+import {
+  FM23_CARD_SIZE,
+  FM23_LAYOUT,
+  fm23BadgeLayout,
+  fm23BoxStyle,
+  fm23Cqw,
+  fm23Pct,
+} from "@/lib/catalog/card-layout";
 
 describe("fm23 layout", () => {
   it("keeps the measured 256px RenderZ coordinates", () => {
@@ -23,6 +30,18 @@ describe("fm23 layout", () => {
       top: "73.4375%",
       width: "9.375%",
       height: "9.375%",
+    });
+  });
+
+  it("spreads flag, league, and club on live frames", () => {
+    expect(fm23BadgeLayout(false)).toEqual({
+      nation: FM23_LAYOUT.nation,
+      club: FM23_LAYOUT.club,
+    });
+    expect(fm23BadgeLayout(true)).toEqual({
+      nation: { left: 64, top: 188, width: 24, height: 24 },
+      league: { left: 116, top: 188, width: 24, height: 24 },
+      club: { left: 168, top: 188, width: 24, height: 24 },
     });
   });
 });
