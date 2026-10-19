@@ -218,7 +218,7 @@ function PlayerGridLink({
     <Link
       href={`/players/${player.id}`}
       aria-label={player.name}
-      className="hover:bg-muted/60 block rounded-lg p-1"
+      className="hover:bg-muted/60 block"
     >
       <PlayerCardArt
         id={player.id}
@@ -229,7 +229,7 @@ function PlayerGridLink({
         displayName={cardDisplayName(player)}
         playStyles={player.playStyles}
         nameColor={player.nameColor}
-        size={140}
+        size={171}
       />
     </Link>
   );
@@ -297,9 +297,9 @@ function ListingSkeleton({ view }: { view: PlayerListQuery['view'] }) {
       {Array.from({ length: 8 }, (_, index) => (
         <div
           key={index}
-          className="flex h-20 items-center gap-3 border-b border-border px-3 last:border-b-0 md:h-24"
+          className="flex min-h-[104px] items-center gap-2 border-b border-border px-2 last:border-b-0"
         >
-          <Skeleton className="size-16 shrink-0 rounded-md md:size-20" />
+          <Skeleton className="size-16 shrink-0 rounded-md md:size-[85px]" />
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <Skeleton className="h-4 w-32" />
             <Skeleton className="h-3 w-20" />

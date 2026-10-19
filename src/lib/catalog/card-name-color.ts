@@ -1,25 +1,34 @@
 /**
- * RenderZ season 23 paints `.player-card .name` from `animation.colors.name`.
- * The stylesheet default is white. A season-22 template table in PlayerCard
- * (`ci[cardUiStyle]`) is not applied when the season is 23.
+ * RenderZ season 23 paints `.player-card .name` / `.rating` / `.position`
+ * from `animation.colors`. The stylesheet default is white. A season-22
+ * template table in PlayerCard (`ci[cardUiStyle]`) is not applied when the
+ * season is 23.
  *
  * We do not store `colors` or `cardUiStyle`. The background asset filename
- * matches the template class, so the name color is derived from that URL.
+ * matches the template class, so the colors are derived from that URL.
  * Patterns below are the non-white templates in the catalog; everything else
  * stays #FFFFFF. Player ids in the comments are the RenderZ cards measured.
  */
 export const CARD_NAME_WHITE = "#FFFFFF";
 
+export type CardTextColors = {
+  name: string;
+  rating: string;
+  position: string;
+};
+
 const CARD_NAME_COLOR_RULES: ReadonlyArray<{
   pattern: RegExp;
   color: string;
+  /** Rating + position when they are not white. Measured on RenderZ listing. */
+  ovr?: string;
 }> = [
   // anniversary27_icon — 30921214 Beckham, 30921265 Jairzinho, 30921268
   { pattern: /ANNIVERSARY27_ICON/, color: "#554620" },
   // footyverse26_icon_b — 30923002
   { pattern: /FOOTYVERSE26/, color: "#3F260A" },
   // ge26_icon_realmadrid_b — 30923001
-  { pattern: /GE26_ICON/, color: "#513D03" },
+  { pattern: /GE26_ICON/, color: "#513D03", ovr: "#FFEAB7" },
   // ginga26_icon_b — 30922504
   { pattern: /GINGA26_ICON/, color: "#3A2D04" },
   // welcometofc_base_b — 24050397
@@ -48,16 +57,45 @@ const CARD_NAME_COLOR_RULES: ReadonlyArray<{
   { pattern: /TOPDUOS26/, color: "#E1FAE3" },
 ];
 
-export function cardNameColor(backgroundAssetUrl: string | undefined): string {
+const WHITE_OVR = {
+  rating: CARD_NAME_WHITE,
+  position: CARD_NAME_WHITE,
+} as const;
+
+export function cardTextColors(
+  backgroundAssetUrl: string | undefined,
+): CardTextColors {
   if (!backgroundAssetUrl) {
-    return CARD_NAME_WHITE;
+    return { name: CARD_NAME_WHITE, ...WHITE_OVR };
   }
   for (const rule of CARD_NAME_COLOR_RULES) {
     if (rule.pattern.test(backgroundAssetUrl)) {
-      return rule.color;
+      return {
+        name: rule.color,
+        rating: rule.ovr ?? CARD_NAME_WHITE,
+        position: rule.ovr ?? CARD_NAME_WHITE,
+      };
     }
   }
-  return CARD_NAME_WHITE;
+  return { name: CARD_NAME_WHITE, ...WHITE_OVR };
+}
+
+export function cardNameColor(backgroundAssetUrl: string | undefined): string {
+  return cardTextColors(backgroundAssetUrl).name;
+}
+
+/**
+ * Rating / position fill when only the listing `nameColor` is available.
+ * GE26 is the measured template where those two are not white.
+ */
+export function cardOvrColors(nameColor: string | undefined): {
+  rating: string;
+  position: string;
+} {
+  if (nameColor?.toUpperCase() === "#513D03") {
+    return { rating: "#FFEAB7", position: "#FFEAB7" };
+  }
+  return WHITE_OVR;
 }
 
 export function applyCardNameColors<T extends { id: string }>(

@@ -29,14 +29,14 @@ export function PlayerGroupedStats({
           className={cn(
             'bg-muted flex min-w-0 flex-col items-center justify-center rounded-md',
             compact
-              ? 'min-w-8 px-0.5 py-px md:w-11 md:min-w-11 md:flex-none md:px-1 md:py-1'
+              ? 'w-[42px] min-w-[42px] flex-none gap-0.5 px-1 py-0.5'
               : 'px-1 py-1 md:min-w-14 md:px-2.5 md:py-2',
           )}
         >
           <span
             className={cn(
               'font-heading leading-none tabular-nums',
-              compact ? 'text-[9px] md:text-xs' : 'text-[11px] md:text-sm',
+              compact ? 'text-xs font-medium' : 'text-[11px] md:text-sm',
             )}
           >
             {stat.value}
@@ -45,7 +45,7 @@ export function PlayerGroupedStats({
             className={cn(
               'text-muted-foreground tracking-wide',
               compact
-                ? 'text-[7px] leading-none md:mt-0.5 md:text-[9px]'
+                ? 'w-full truncate text-center text-[10px] leading-none'
                 : 'mt-0.5 text-[9px] md:text-[10px]',
             )}
           >

@@ -95,44 +95,48 @@ function MarketRefreshTime({
 }
 
 function PlayerListLink({ player }: { player: PlayerSummary }) {
-  const identity = [player.rating, player.position].filter(Boolean).join(' · ');
+  const displayName = cardDisplayName(player);
   const refreshAt = nextMarketRefreshAt(player.id, player.auctionable);
   return (
     <Link
       href={`/players/${player.id}`}
-      className="hover:bg-muted/60 group flex h-20 items-center gap-2 px-2 sm:gap-2.5 sm:px-2.5 md:h-24 md:gap-3 md:px-3"
+      className="hover:bg-muted/60 group flex min-h-[104px] items-center gap-2 px-2"
     >
-      <div className="relative size-20 shrink-0 md:size-24">
+      <div className="relative w-16 shrink-0 md:w-[85px]">
         <PlayerCardArt
           id={player.id}
           kinds={player.availableImageKinds}
           rating={player.rating}
           position={player.position}
           auctionable={player.auctionable}
-          displayName={cardDisplayName(player)}
+          displayName={displayName}
           playStyles={player.playStyles}
           nameColor={player.nameColor}
-          size={80}
+          size={85}
         />
         <FollowHeartButton playerId={player.id} />
       </div>
-      <div className="flex min-h-0 min-w-0 flex-1 items-center gap-2 overflow-hidden md:gap-4">
-        <div className="min-w-0 flex-1">
-          <span className="block truncate text-sm leading-tight font-medium capitalize md:text-base">
-            {cardDisplayName(player)}
+      <div className="flex min-h-0 min-w-0 flex-1 items-center gap-2 overflow-hidden">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="block truncate text-xs font-semibold">
+            {displayName}
           </span>
-          <div className="mt-0.5 flex min-w-0 flex-col gap-0.5 overflow-hidden">
-            {identity ? (
-              <span className="text-muted-foreground text-[11px] tabular-nums sm:text-xs md:text-foreground md:text-sm">
-                {identity}
+          <span className="flex items-center gap-x-1.5 text-xs tabular-nums">
+            <span className="font-bold">{player.rating}</span>
+            {player.position ? (
+              <span className="text-muted-foreground truncate">
+                {player.position}
               </span>
             ) : null}
-            {player.altPositions.length > 0 ? (
-              <span className="text-muted-foreground truncate text-[10px] font-medium italic sm:text-[11px]">
-                {player.altPositions.join(' · ')}
-              </span>
-            ) : null}
-          </div>
+          </span>
+          {player.altPositions.length > 0 ? (
+            <span
+              className="text-muted-foreground text-[10px] leading-tight"
+              title="Alternate positions"
+            >
+              {player.altPositions.join(', ')}
+            </span>
+          ) : null}
         </div>
         <MarketRefreshTime
           at={refreshAt}

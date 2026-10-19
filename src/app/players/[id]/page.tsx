@@ -13,7 +13,7 @@ import {
 import { StarSigningsPrice } from '@/components/players/star-signings-price';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { cardNameColor } from '@/lib/catalog/card-name-color';
+import { cardTextColors } from '@/lib/catalog/card-name-color';
 import { enrichDiscoveredPlayer } from '@/lib/catalog/enrichment';
 import { getPlayerCatalog } from '@/lib/catalog/runtime';
 import { isDev } from '@/lib/dev';
@@ -118,7 +118,7 @@ export default async function PlayerDetailPage({
     loopKind ? catalog.getAsset(player.id, loopKind) : Promise.resolve(null),
     catalog.getAsset(player.id, 'background'),
   ]);
-  const nameColor = cardNameColor(backgroundAsset?.upstreamUrl);
+  const overlayColors = cardTextColors(backgroundAsset?.upstreamUrl);
   // Prefer static CDN /loops; when a brand-new sheet is not packed yet, warm
   // the serverless image cache so CardLoopCanvas can animate via the API.
   const packedLoop =
@@ -164,7 +164,7 @@ export default async function PlayerDetailPage({
       ) : null}
 
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
-        <div className="mx-auto flex w-64 shrink-0 flex-col items-center sm:mx-0 sm:w-72">
+        <div className="mx-auto flex w-64 shrink-0 flex-col items-center sm:mx-0">
           <PlayerCardArt
             id={player.id}
             kinds={player.availableImageKinds}
@@ -174,8 +174,10 @@ export default async function PlayerDetailPage({
             displayName={cardDisplayName(player)}
             playStyles={player.playStyles}
             price={player.starSigningsBuy}
-            nameColor={nameColor}
-            size={288}
+            nameColor={overlayColors.name}
+            ratingColor={overlayColors.rating}
+            positionColor={overlayColors.position}
+            size={256}
             priority
             animate
             loopSrc={loopSrc}
