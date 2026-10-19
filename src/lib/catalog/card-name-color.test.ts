@@ -55,6 +55,11 @@ describe("cardNameColor", () => {
       "#483721",
     );
     expect(cardNameColor(bg("bg_23_B_OUTSTANDING25_STATIC"))).toBe("#F9E0A6");
+    expect(cardTextColors(bg("bg_23_B_OUTSTANDING25_STATIC"))).toEqual({
+      name: "#F9E0A6",
+      rating: "#210F45",
+      position: "#210F45",
+    });
     expect(cardNameColor(bg("bg_23_B_MOMENTS25_ICON_STATIC"))).toBe("#014D4D");
     expect(cardNameColor(bg("bg_23_B_FCM25_MOMENTS_LIVE_STATIC"))).toBe(
       "#FFFF00",
@@ -92,6 +97,25 @@ describe("cardNameColor", () => {
       name: "#513D03",
       rating: "#FFEAB7",
       position: "#FFEAB7",
+    });
+    expect(
+      cardTextColors(bg("bg_23_B_STORY26_NETHERLANDS_ICON_STATIC")),
+    ).toEqual({
+      name: "#513D03",
+      rating: "#513D03",
+      position: "#513D03",
+    });
+    expect(
+      cardTextColors(bg("bg_23_B_A_NATION_S_STORY26_JAPAN_ICON_STATIC")),
+    ).toEqual({
+      name: "#513D03",
+      rating: "#513D03",
+      position: "#513D03",
+    });
+    expect(cardTextColors(bg("bg_23_B_BALLONDOR_ICON_STATIC"))).toEqual({
+      name: "#FFFFCD",
+      rating: "#FFFFCD",
+      position: "#FFFFCD",
     });
     expect(cardOvrColors("#513D03")).toEqual({
       rating: "#FFEAB7",
@@ -156,6 +180,10 @@ describe("applyCardNameColors", () => {
     );
     expect(colored.map((item) => item.nameColor)).toEqual([
       "#554620",
+      "#FFFFFF",
+    ]);
+    expect(colored.map((item) => item.ratingColor)).toEqual([
+      "#FFFFFF",
       "#FFFFFF",
     ]);
   });

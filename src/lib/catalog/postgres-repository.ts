@@ -15,15 +15,23 @@ import {
 } from "drizzle-orm";
 import type { AuroraDatabase } from "@/db/postgres";
 import { ensurePlayerColorColumns } from "@/db/player-columns";
-import { ensurePlayerSearchIndex } from "@/db/player-search";
 import { ingestJobs, playerAssets, players } from "@/db/postgres-schema";
 import { applyCardNameColors } from "@/lib/catalog/card-name-color";
+import {
+  clearPlayerListCache,
+  readFacetResult,
+  readPlayerListCache,
+  writeFacetResult,
+  writePlayerListCache,
+} from "@/lib/catalog/list-cache";
+
+export { clearPlayerListCache };
 import { SEED_PARSE_VERSION } from "@/lib/catalog/parse-version";
 import {
   escapeLike,
   facetValuesFromCounts,
-  foldSearchText,
   normalizePlayerListQuery,
+  playerSearchNeedle,
   type PlayerListFacetFilterKey,
 } from "@/lib/catalog/query-engine";
 import type {
@@ -40,6 +48,8 @@ import {
   playerAssetRowSchema,
   playerIdSchema,
   playerSchema,
+  playerSummarySchema,
+  sortPlayStylesByLevelDesc,
   toPlayerSummary,
   uniquePlayerIds,
   type Player,
@@ -54,65 +64,13 @@ import type {
   PlayerListQuery,
   PlayerListResult,
 } from "@/lib/domain/query";
-import { playerListQuerySchema } from "@/lib/domain/query";
+import {
+  playerListQuerySchema,
+  playerListQueryToSearchParams,
+} from "@/lib/domain/query";
+import { groupStatsFromPlayerStats } from "@/lib/stats";
 
 const DEFAULT_LEASE_MS = 5 * 60 * 1000;
-
-type PlayerRow = typeof players.$inferSelect;
-
-function jsonPlayerRow(raw: Record<string, unknown>): PlayerRow {
-  const textOrNull = (value: unknown): string | null =>
-    value == null ? null : String(value);
-  const numberOrNull = (value: unknown): number | null =>
-    value == null ? null : Number(value);
-  const list = <T>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
-  return {
-    id: String(raw.id),
-    slug: String(raw.slug ?? ""),
-    name: String(raw.name),
-    rating: Number(raw.rating),
-    firstName: textOrNull(raw.first_name),
-    lastName: textOrNull(raw.last_name),
-    commonName: textOrNull(raw.common_name),
-    cardName: textOrNull(raw.card_name),
-    position: textOrNull(raw.position),
-    altPositions: list<string>(raw.alt_positions),
-    programId: textOrNull(raw.program_id),
-    programName: textOrNull(raw.program_name),
-    clubName: textOrNull(raw.club_name),
-    nationName: textOrNull(raw.nation_name),
-    leagueName: textOrNull(raw.league_name),
-    auctionable: raw.auctionable == null ? null : Boolean(raw.auctionable),
-    foot: textOrNull(raw.foot),
-    weakFoot: textOrNull(raw.weak_foot),
-    skillMovesLevel: textOrNull(raw.skill_moves_level),
-    heightCm: numberOrNull(raw.height_cm),
-    weightKg: numberOrNull(raw.weight_kg),
-    workRateAtt: textOrNull(raw.work_rate_att),
-    workRateDef: textOrNull(raw.work_rate_def),
-    birthday: textOrNull(raw.birthday),
-    stats: list<PlayerRow["stats"][number]>(raw.stats),
-    totalStats: numberOrNull(raw.total_stats),
-    metaRating: numberOrNull(raw.meta_rating),
-    traits: list<PlayerRow["traits"][number]>(raw.traits),
-    playStyles: list<PlayerRow["playStyles"][number]>(raw.play_styles),
-    skills: list<PlayerRow["skills"][number]>(raw.skills),
-    relatedCardIds: list<string>(raw.related_card_ids),
-    starSigningsBuy: numberOrNull(raw.star_signings_buy),
-    starSigningsSell: numberOrNull(raw.star_signings_sell),
-    availableImageKinds: list<PlayerRow["availableImageKinds"][number]>(
-      raw.available_image_kinds,
-    ),
-    nameColor: textOrNull(raw.name_color),
-    ratingColor: textOrNull(raw.rating_color),
-    positionColor: textOrNull(raw.position_color),
-    addedAt: numberOrNull(raw.added_at),
-    fetchedAt: Number(raw.fetched_at),
-    parseVersion: Number(raw.parse_version),
-    discoveredAt: Number(raw.discovered_at),
-    searchText: String(raw.search_text ?? ""),
-  };
-}
 
 function asPlayerId(id: string): PlayerId {
   return parsePlayerId(id);
@@ -228,6 +186,85 @@ function jobToDomain(row: typeof ingestJobs.$inferSelect): IngestJob {
   };
 }
 
+function facetCacheKey(query: PlayerListQuery): string {
+  return playerListQueryToSearchParams({
+    ...query,
+    page: 1,
+    pageSize: 24,
+    sort: "added_desc",
+    view: "list",
+  }).toString();
+}
+
+function summaryFromListRow(raw: Record<string, unknown>): PlayerSummary {
+  const text = (value: unknown): string | undefined => {
+    if (value == null) {
+      return undefined;
+    }
+    const trimmed = String(value).trim();
+    return trimmed ? trimmed : undefined;
+  };
+  const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+  const stats = list(raw.stats).flatMap((stat) => {
+    if (!stat || typeof stat !== "object") {
+      return [];
+    }
+    const record = stat as { key?: unknown; value?: unknown; label?: unknown };
+    if (typeof record.key !== "string" || typeof record.value !== "number") {
+      return [];
+    }
+    return [
+      {
+        key: record.key,
+        value: record.value,
+        label: typeof record.label === "string" ? record.label : undefined,
+      },
+    ];
+  });
+  const playStyles = list(raw.play_styles).flatMap((style) => {
+    if (!style || typeof style !== "object") {
+      return [];
+    }
+    const record = style as { id?: unknown; level?: unknown };
+    if (typeof record.id !== "string" || record.id.length === 0) {
+      return [];
+    }
+    return [
+      {
+        id: record.id,
+        level: typeof record.level === "number" ? record.level : undefined,
+      },
+    ];
+  });
+  return playerSummarySchema.parse({
+    id: String(raw.id),
+    slug: String(raw.slug ?? ""),
+    name: String(raw.name),
+    cardName: text(raw.card_name),
+    lastName: text(raw.last_name),
+    commonName: text(raw.common_name),
+    rating: Number(raw.rating),
+    position: text(raw.position),
+    programId: text(raw.program_id),
+    clubName: text(raw.club_name),
+    nationName: text(raw.nation_name),
+    leagueName: text(raw.league_name),
+    auctionable: raw.auctionable == null ? undefined : Boolean(raw.auctionable),
+    altPositions: list(raw.alt_positions).filter(
+      (value): value is string => typeof value === "string" && value.length > 0,
+    ),
+    avgStats: groupStatsFromPlayerStats(stats),
+    playStyles: sortPlayStylesByLevelDesc(playStyles),
+    availableImageKinds: list(raw.available_image_kinds),
+    nameColor: text(raw.name_color),
+    ratingColor: text(raw.rating_color),
+    positionColor: text(raw.position_color),
+    addedAt: raw.added_at == null ? undefined : Number(raw.added_at),
+    fetchedAt: Number(raw.fetched_at),
+    parseVersion: Number(raw.parse_version),
+  });
+}
+
 function sqlOrderBy(sort: PlayerListQuery["sort"]) {
   switch (sort) {
     case "rating_asc":
@@ -243,8 +280,9 @@ function sqlOrderBy(sort: PlayerListQuery["sort"]) {
     case "added_desc":
     default:
       return [
-        sql`${players.addedAt} is null`,
-        desc(sql`to_timestamp(${players.addedAt} / 1000.0)::date`),
+        sql.raw(
+          `(timezone('UTC', to_timestamp(added_at / 1000.0)))::date desc nulls last`,
+        ),
         desc(players.rating),
         asc(players.name),
         asc(players.id),
@@ -299,6 +337,7 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
 
   async deletePlayer(id: string): Promise<void> {
     await this.ready;
+    clearPlayerListCache();
     await this.db.delete(playerAssets).where(eq(playerAssets.playerId, id));
     await this.db
       .delete(ingestJobs)
@@ -369,114 +408,153 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
   async list(input: PlayerListQuery): Promise<PlayerListResult> {
     await this.ready;
     const query = normalizePlayerListQuery(playerListQuerySchema.parse(input));
-    await ensurePlayerSearchIndex(this.db);
-    const bundle = await this.loadListBundle(query);
-    const summaries = bundle.rows.map(rowToPlayer).map(toPlayerSummary);
-    return {
-      items: applyCardNameColors(summaries, bundle.backgrounds),
-      total: bundle.total,
-      page: bundle.page,
+    const cacheKey = playerListQueryToSearchParams(query).toString();
+    const cached = readPlayerListCache(cacheKey);
+    if (cached) {
+      return cached;
+    }
+    const page = await this.loadPage(query);
+    const facets = await this.loadFacets(query);
+    const result: PlayerListResult = {
+      items: applyCardNameColors(page.rows.map(summaryFromListRow), page.backgrounds),
+      total: page.total,
+      page: page.page,
       pageSize: query.pageSize,
-      facets: bundle.facets,
+      facets,
     };
+    writePlayerListCache(cacheKey, result);
+    return result;
   }
 
   /**
-   * One round trip: page rows, total, background URLs, and facet counts.
-   * Program options stay catalog-wide; other facets drop only their own filter.
+   * Page rows use the UTC-day index and return summary columns only.
+   * Facets come from a cached narrow snapshot, not five grouped scans.
    */
-  private async loadListBundle(query: PlayerListQuery): Promise<{
-    rows: PlayerRow[];
+  private async loadPage(query: PlayerListQuery): Promise<{
+    rows: Array<Record<string, unknown>>;
     total: number;
     page: number;
     backgrounds: Map<string, string>;
-    facets: PlayerListFacets;
   }> {
     const where = this.buildWhere(query) ?? sql`true`;
     const order = sql.join(sqlOrderBy(query.sort), sql`, `);
-    const facetBranch = (facet: keyof PlayerListFacets, column: SQL, filter: SQL) => sql`
-      select ${facet} as facet, ${column} as value, count(*)::int as n
+    const counted = await this.db.execute<{ total: number }>(sql`
+      select count(*)::int as total
       from ${players}
-      where ${column} is not null and ${column} <> '' and (${filter})
-      group by ${column}
-    `;
-    const result = await this.db.execute<{
-      total: number;
-      page: number;
-      items: Array<Record<string, unknown>> | null;
-      backgrounds: Record<string, string> | null;
-      facets: Array<{ facet: keyof PlayerListFacets; value: string | null; n: number }>;
-    }>(sql`
-      with bounds as (
-        select
-          count(*)::int as total,
-          case
-            when count(*) = 0 then 1
-            else least(
-              ${query.page}::int,
-              greatest(1, ceil(count(*)::numeric / ${query.pageSize})::int)
-            )
-          end as page
-        from ${players}
-        where ${where}
-      ),
-      page_ids as (
-        select ${players.id} as id, row_number() over (order by ${order}) as ord
-        from ${players}
-        where ${where}
-        order by ord
-        limit ${query.pageSize}
-        offset (((select page from bounds) - 1) * ${query.pageSize})
-      )
-      select
-        (select total from bounds) as total,
-        (select page from bounds) as page,
-        (
-          select coalesce(json_agg(row_to_json(p) order by page_ids.ord), '[]'::json)
-          from page_ids
-          join ${players} p on p.id = page_ids.id
-        ) as items,
-        (
-          select coalesce(json_object_agg(a.player_id, a.upstream_url), '{}'::json)
-          from ${playerAssets} a
-          where a.kind = 'background'
-            and a.player_id in (select id from page_ids)
-        ) as backgrounds,
-        (
-          select coalesce(json_agg(json_build_object('facet', facet, 'value', value, 'n', n)), '[]'::json)
-          from (
-            ${facetBranch("programs", sql`${players.programId}`, sql`true`)}
-            union all
-            ${facetBranch(
-              "positions",
-              sql`${players.position}`,
-              this.buildWhere(query, new Set(["positions"])) ?? sql`true`,
-            )}
-            union all
-            ${facetBranch(
-              "nations",
-              sql`${players.nationName}`,
-              this.buildWhere(query, new Set(["nations"])) ?? sql`true`,
-            )}
-            union all
-            ${facetBranch(
-              "clubs",
-              sql`${players.clubName}`,
-              this.buildWhere(query, new Set(["clubs"])) ?? sql`true`,
-            )}
-            union all
-            ${facetBranch(
-              "leagues",
-              sql`${players.leagueName}`,
-              this.buildWhere(query, new Set(["leagues"])) ?? sql`true`,
-            )}
-          ) facet_rows
-        ) as facets
+      where ${where}
     `);
-    const row = result.rows[0];
-    if (!row) {
-      throw new Error("Player list query returned no row");
+    const total = Number(counted.rows[0]?.total ?? 0);
+    const pageCount = Math.max(1, Math.ceil(total / query.pageSize) || 1);
+    const page = total === 0 ? 1 : Math.min(query.page, pageCount);
+    const offset = (page - 1) * query.pageSize;
+    const selected = await this.db.execute<Record<string, unknown>>(sql`
+      select
+        ${players.id} as id,
+        ${players.slug} as slug,
+        ${players.name} as name,
+        ${players.rating} as rating,
+        ${players.cardName} as card_name,
+        ${players.lastName} as last_name,
+        ${players.commonName} as common_name,
+        ${players.position} as position,
+        ${players.programId} as program_id,
+        ${players.clubName} as club_name,
+        ${players.nationName} as nation_name,
+        ${players.leagueName} as league_name,
+        ${players.auctionable} as auctionable,
+        ${players.altPositions} as alt_positions,
+        ${players.playStyles} as play_styles,
+        ${players.availableImageKinds} as available_image_kinds,
+        ${players.nameColor} as name_color,
+        ${players.ratingColor} as rating_color,
+        ${players.positionColor} as position_color,
+        ${players.addedAt} as added_at,
+        ${players.fetchedAt} as fetched_at,
+        ${players.parseVersion} as parse_version,
+        coalesce((
+          select jsonb_agg(elem)
+          from jsonb_array_elements(${players.stats}) elem
+          where elem->>'key' in ('avg1', 'avg2', 'avg3', 'avg4', 'avg5', 'avg6')
+        ), '[]'::jsonb) as stats
+      from ${players}
+      where ${where}
+      order by ${order}
+      limit ${query.pageSize}
+      offset ${offset}
+    `);
+    const ids = selected.rows.map((row) => String(row.id));
+    return {
+      rows: selected.rows,
+      total,
+      page,
+      backgrounds: await this.backgroundUrlByPlayerId(ids),
+    };
+  }
+
+  private async loadFacets(query: PlayerListQuery): Promise<PlayerListFacets> {
+    const key = facetCacheKey(query);
+    const cached = readFacetResult(key);
+    if (cached) {
+      return cached;
     }
+    const facets = this.facetsAreCatalogWide(query)
+      ? await this.queryCatalogFacets()
+      : await this.queryFilteredFacets(query);
+    writeFacetResult(key, facets);
+    return facets;
+  }
+
+  private facetsAreCatalogWide(query: PlayerListQuery): boolean {
+    const { filters } = query;
+    return (
+      playerSearchNeedle(query.q).length === 0 &&
+      filters.positions.length === 0 &&
+      filters.programIds.length === 0 &&
+      filters.nations.length === 0 &&
+      filters.clubs.length === 0 &&
+      filters.leagues.length === 0 &&
+      filters.ratingMin === undefined &&
+      filters.ratingMax === undefined &&
+      filters.auctionable === undefined
+    );
+  }
+
+  /** One sequential scan. Used for the default listing, where every facet is unfiltered. */
+  private async queryCatalogFacets(): Promise<PlayerListFacets> {
+    const result = await this.db.execute<{
+      g_program: number;
+      g_position: number;
+      g_nation: number;
+      g_club: number;
+      g_league: number;
+      program_id: string | null;
+      position: string | null;
+      nation_name: string | null;
+      club_name: string | null;
+      league_name: string | null;
+      n: number;
+    }>(sql`
+      select
+        grouping(${players.programId}) as g_program,
+        grouping(${players.position}) as g_position,
+        grouping(${players.nationName}) as g_nation,
+        grouping(${players.clubName}) as g_club,
+        grouping(${players.leagueName}) as g_league,
+        ${players.programId} as program_id,
+        ${players.position} as position,
+        ${players.nationName} as nation_name,
+        ${players.clubName} as club_name,
+        ${players.leagueName} as league_name,
+        count(*)::int as n
+      from ${players}
+      group by grouping sets (
+        (${players.programId}),
+        (${players.position}),
+        (${players.nationName}),
+        (${players.clubName}),
+        (${players.leagueName})
+      )
+    `);
     const grouped: Record<keyof PlayerListFacets, Array<[string, number]>> = {
       programs: [],
       positions: [],
@@ -484,24 +562,90 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
       clubs: [],
       leagues: [],
     };
-    for (const facetRow of row.facets ?? []) {
-      if (!grouped[facetRow.facet] || facetRow.value == null) {
-        continue;
+    for (const row of result.rows) {
+      const count = Number(row.n);
+      if (Number(row.g_program) === 0 && row.program_id) {
+        grouped.programs.push([row.program_id, count]);
+      } else if (Number(row.g_position) === 0 && row.position) {
+        grouped.positions.push([row.position, count]);
+      } else if (Number(row.g_nation) === 0 && row.nation_name) {
+        grouped.nations.push([row.nation_name, count]);
+      } else if (Number(row.g_club) === 0 && row.club_name) {
+        grouped.clubs.push([row.club_name, count]);
+      } else if (Number(row.g_league) === 0 && row.league_name) {
+        grouped.leagues.push([row.league_name, count]);
       }
-      grouped[facetRow.facet].push([facetRow.value, Number(facetRow.n)]);
     }
     return {
-      rows: (row.items ?? []).map(jsonPlayerRow),
-      total: Number(row.total),
-      page: Number(row.page),
-      backgrounds: new Map(Object.entries(row.backgrounds ?? {})),
-      facets: {
-        programs: facetValuesFromCounts(grouped.programs, query.filters.programIds),
-        positions: facetValuesFromCounts(grouped.positions, query.filters.positions),
-        nations: facetValuesFromCounts(grouped.nations, query.filters.nations),
-        clubs: facetValuesFromCounts(grouped.clubs, query.filters.clubs),
-        leagues: facetValuesFromCounts(grouped.leagues, query.filters.leagues),
-      },
+      programs: facetValuesFromCounts(grouped.programs),
+      positions: facetValuesFromCounts(grouped.positions),
+      nations: facetValuesFromCounts(grouped.nations),
+      clubs: facetValuesFromCounts(grouped.clubs),
+      leagues: facetValuesFromCounts(grouped.leagues),
+    };
+  }
+
+  private async queryFilteredFacets(query: PlayerListQuery): Promise<PlayerListFacets> {
+    const branch = (
+      facet: keyof PlayerListFacets,
+      column: SQL,
+      filter: SQL,
+    ) => sql`
+      select ${facet} as facet, ${column} as value, count(*)::int as n
+      from ${players}
+      where ${column} is not null and ${column} <> '' and (${filter})
+      group by ${column}
+    `;
+    const result = await this.db.execute<{
+      facet: keyof PlayerListFacets;
+      value: string | null;
+      n: number;
+    }>(sql`
+      ${branch("programs", sql`${players.programId}`, sql`true`)}
+      union all
+      ${branch(
+        "positions",
+        sql`${players.position}`,
+        this.buildWhere(query, new Set(["positions"])) ?? sql`true`,
+      )}
+      union all
+      ${branch(
+        "nations",
+        sql`${players.nationName}`,
+        this.buildWhere(query, new Set(["nations"])) ?? sql`true`,
+      )}
+      union all
+      ${branch(
+        "clubs",
+        sql`${players.clubName}`,
+        this.buildWhere(query, new Set(["clubs"])) ?? sql`true`,
+      )}
+      union all
+      ${branch(
+        "leagues",
+        sql`${players.leagueName}`,
+        this.buildWhere(query, new Set(["leagues"])) ?? sql`true`,
+      )}
+    `);
+    const grouped: Record<keyof PlayerListFacets, Array<[string, number]>> = {
+      programs: [],
+      positions: [],
+      nations: [],
+      clubs: [],
+      leagues: [],
+    };
+    for (const row of result.rows) {
+      if (!grouped[row.facet] || row.value == null) {
+        continue;
+      }
+      grouped[row.facet].push([row.value, Number(row.n)]);
+    }
+    return {
+      programs: facetValuesFromCounts(grouped.programs, query.filters.programIds),
+      positions: facetValuesFromCounts(grouped.positions, query.filters.positions),
+      nations: facetValuesFromCounts(grouped.nations, query.filters.nations),
+      clubs: facetValuesFromCounts(grouped.clubs, query.filters.clubs),
+      leagues: facetValuesFromCounts(grouped.leagues, query.filters.leagues),
     };
   }
 
@@ -531,7 +675,7 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
     omit: ReadonlySet<PlayerListFacetFilterKey> = new Set(),
   ): SQL | undefined {
     const parts: SQL[] = [];
-    const q = foldSearchText(query.q.trim().replaceAll(/[%_\\]/g, " "));
+    const q = playerSearchNeedle(query.q);
     if (q) {
       const pattern = `%${escapeLike(q)}%`;
       parts.push(sql`${players.searchText} like ${pattern}`);
@@ -582,6 +726,7 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
 
   async upsertDiscovered(seed: PlayerSeed): Promise<void> {
     await this.ready;
+    clearPlayerListCache();
     const now = seed.discoveredAt ?? Date.now();
     const existing = await this.getById(seed.id);
     if (existing) {
@@ -601,6 +746,7 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
 
   async upsertPlayer(player: Player, assets: PlayerAssetRow[]): Promise<void> {
     await this.ready;
+    clearPlayerListCache();
     const parsed = playerSchema.parse(player);
     const existing = await this.db
       .select({ discoveredAt: players.discoveredAt })

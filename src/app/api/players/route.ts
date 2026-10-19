@@ -1,5 +1,8 @@
-import { getPlayerCatalog } from "@/lib/catalog/runtime";
-import { playerListQueryFromSearchParams } from "@/lib/domain/query";
+import { getCachedPlayerList } from "@/lib/catalog/cached-list";
+import {
+  playerListQueryFromSearchParams,
+  playerListQueryToSearchParams,
+} from "@/lib/domain/query";
 import { isAppError, publicErrorMessage } from "@/lib/http/errors";
 import { ZodError } from "zod";
 
@@ -10,7 +13,9 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const query = playerListQueryFromSearchParams(url.searchParams);
-    const result = await getPlayerCatalog().list(query);
+    const result = await getCachedPlayerList(
+      playerListQueryToSearchParams(query).toString(),
+    );
     return Response.json(result);
   } catch (error) {
     if (error instanceof ZodError) {

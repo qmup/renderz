@@ -256,6 +256,17 @@ describe("parsePlayerPage", () => {
     expect(JSON.stringify(player)).not.toContain("images-v2.renderz.app");
     expect(JSON.stringify(player)).not.toContain("ICON_LOOP");
   });
+
+  it("parses FM23 chrome sheets that omit _LOOP in the filename", () => {
+    const html = `<h1>Rijkaard</h1>
+<script>kit.start(app, element, {data:[null,{type:"data",data:{player:{id:30905005,cardName:"Rijkaard",firstName:"Frank",lastName:"Rijkaard",rating:115,position:"CDM",images:{playerCardImage:"https://images-v2.renderz.app/player_25_x?verify=1-abc",playerCardBackground:"https://images-v2.renderz.app/bg_23_B_STORY26_NETHERLANDS_ICON_STATIC?verify=1-abc"},animation:{cardData:["background","player"],animations:[{animations:[{id:"zeoSes",image:"https://images-v2.renderz.app/sprite_23_nation_s_story26_japan_B_STORY26_NETHERLANDS_ICON?verify=1-abc",imageName:"nation_s_story26_japan_B_STORY26_NETHERLANDS_ICON",imageHeight:0,imageWidth:0,maxFrames:45}],when:"(#cardSize == big)"}]}}}}]});</script>`;
+    const { player, assets } = parsePlayerPage({ html });
+    expect(assets.some((asset) => asset.kind === "loop-f45")).toBe(true);
+    expect(
+      assets.find((asset) => asset.kind === "loop-f45")?.upstreamUrl,
+    ).toContain("B_STORY26_NETHERLANDS_ICON");
+    expect(player.availableImageKinds).toContain("loop-f45");
+  });
 });
 
 describe("sitemap parsers", () => {

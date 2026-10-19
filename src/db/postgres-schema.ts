@@ -76,7 +76,13 @@ export const players = pgTable(
     index("idx_players_name").on(table.name),
     index("idx_players_rating").on(table.rating),
     index("idx_players_position").on(table.position),
+    index("idx_players_program_id").on(table.programId),
+    index("idx_players_club_name").on(table.clubName),
+    index("idx_players_nation_name").on(table.nationName),
+    index("idx_players_league_name").on(table.leagueName),
+    index("idx_players_auctionable").on(table.auctionable),
     index("idx_players_added_at").on(table.addedAt),
+    index("idx_players_fetched_at").on(table.fetchedAt),
     index("idx_players_rating_name").on(table.rating, table.name),
     index("idx_players_search_trgm").using(
       "gin",

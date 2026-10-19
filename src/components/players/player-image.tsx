@@ -59,8 +59,9 @@ export function PlayerImage({
       height={height}
       className={cn("object-contain", className)}
       style={style}
+      decoding="async"
       loading={priority ? "eager" : "lazy"}
-      fetchPriority={priority ? "high" : undefined}
+      fetchPriority={priority ? "high" : "low"}
       onError={() => {
         if (src === staticSrc) {
           setSrc(playerImageApiSrc(id, kind));

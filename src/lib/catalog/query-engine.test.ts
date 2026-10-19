@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildFacetsFromSource,
   buildPlayerListFacets,
   comparePlayers,
   matchesPlayerFilters,
   normalizePlayerListQuery,
   paginateItems,
+  type PlayerFacetSource,
 } from "@/lib/catalog/query-engine";
 import { playerListQueryFromSearchParams } from "@/lib/domain/query";
 import type { PlayerSummary } from "@/lib/domain/player";
@@ -370,6 +372,55 @@ describe("comparePlayers", () => {
       comparePlayers(left, right, "added_desc"),
     );
     expect(sorted.map((row) => row.name)).toEqual(["NewerLow", "OlderHigh"]);
+  });
+});
+
+describe("buildFacetsFromSource", () => {
+  it("keeps every program and drops the facet's own filter", () => {
+    const players = [
+      summary({
+        id: "1",
+        name: "Alpha",
+        rating: 90,
+        position: "ST",
+        programId: "PROG_A",
+        nationName: "Argentina",
+        clubName: "Miami",
+        leagueName: "MLS",
+      }),
+      summary({
+        id: "2",
+        name: "Beta",
+        rating: 80,
+        position: "CB",
+        programId: "PROG_B",
+        nationName: "Brazil",
+        clubName: "Madrid",
+        leagueName: "LaLiga",
+      }),
+    ];
+    const source: PlayerFacetSource[] = players.map((player) => ({
+      programId: player.programId,
+      position: player.position,
+      nationName: player.nationName,
+      clubName: player.clubName,
+      leagueName: player.leagueName,
+      rating: player.rating,
+      auctionable: player.auctionable,
+      searchText: player.name.toLowerCase(),
+      altPositions: player.altPositions,
+    }));
+    const query = normalizePlayerListQuery({
+      filters: { positions: ["ST"] },
+    });
+    const fromRows = buildPlayerListFacets(players, query);
+    const fromSource = buildFacetsFromSource(source, query);
+    expect(fromSource.programs.map((option) => option.value)).toEqual(
+      fromRows.programs.map((option) => option.value),
+    );
+    expect(fromSource.positions.map((option) => option.value)).toEqual(["CB", "ST"]);
+    expect(fromSource.clubs.map((option) => option.value)).toEqual(["Miami"]);
+    expect(fromSource.nations).toEqual(fromRows.nations);
   });
 });
 
