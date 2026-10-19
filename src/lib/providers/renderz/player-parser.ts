@@ -241,10 +241,16 @@ function assetFromCardLoopAnimation(
       const url = asHttpsUrl(clip.image);
       const maxFrames = asNumber(clip.maxFrames);
       const imageName = asString(clip.imageName) ?? '';
-      if (!url || maxFrames === undefined || maxFrames < 1) {
+      if (!url || maxFrames === undefined || maxFrames < 2) {
         continue;
       }
-      if (!/_LOOP(?:\?|$)/i.test(url) && !/LOOP/i.test(imageName)) {
+      // Nation Story NL and a few other FM23 sheets omit `_LOOP` in the
+      // filename (e.g. B_STORY26_NETHERLANDS_ICON, maxFrames 45).
+      const looksLikeSheet =
+        /sprite_23_/i.test(url) ||
+        /_LOOP(?:\?|$)/i.test(url) ||
+        /LOOP/i.test(imageName);
+      if (!looksLikeSheet) {
         continue;
       }
       const kind = cardLoopImageKind(maxFrames);

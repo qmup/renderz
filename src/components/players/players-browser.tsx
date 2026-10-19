@@ -229,6 +229,8 @@ function PlayerGridLink({
         displayName={cardDisplayName(player)}
         playStyles={player.playStyles}
         nameColor={player.nameColor}
+        ratingColor={player.ratingColor}
+        positionColor={player.positionColor}
         size={171}
       />
     </Link>

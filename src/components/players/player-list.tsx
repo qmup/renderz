@@ -112,6 +112,8 @@ function PlayerListLink({ player }: { player: PlayerSummary }) {
           displayName={displayName}
           playStyles={player.playStyles}
           nameColor={player.nameColor}
+          ratingColor={player.ratingColor}
+          positionColor={player.positionColor}
           size={85}
         />
         <FollowHeartButton playerId={player.id} />
