@@ -327,18 +327,22 @@ function PositionFacet({
 }
 
 function FacetOptionIcon({ src }: { src?: string }) {
-  if (!src) {
-    return null;
-  }
   return (
-    <img
-      src={src}
-      alt=""
-      className="size-6 shrink-0 object-contain"
-      onError={(event) => {
-        event.currentTarget.style.display = 'none';
-      }}
-    />
+    <span
+      className="inline-flex size-6 shrink-0 items-center justify-center"
+      aria-hidden
+    >
+      {src ? (
+        <img
+          src={src}
+          alt=""
+          className="size-6 object-contain"
+          onError={(event) => {
+            event.currentTarget.style.visibility = 'hidden';
+          }}
+        />
+      ) : null}
+    </span>
   );
 }
 

@@ -31,8 +31,9 @@ import {
 } from "../src/lib/domain/player";
 import type { IngestJobKind } from "../src/lib/catalog/repository";
 import {
+  catalogProgramLogoSlugs,
+  programLogoSlug,
   programLogoUpstreamUrl,
-  unknownProgramLogoSlug,
 } from "../src/lib/catalog/programs";
 import {
   programIdsToSync,
@@ -63,7 +64,7 @@ const DB_ATTEMPTS = 3;
 const DEFAULT_SYNC_BUDGET_MS = 165 * 60 * 1000;
 const INGEST_SLICE = 15;
 const IMAGE_HEAL_MS = 3 * 24 * 60 * 60 * 1000;
-const PROGRAM_LOGO_LIMIT = 15;
+const PROGRAM_LOGO_LIMIT = 20;
 
 function describeError(error: unknown): string {
   if (!(error instanceof Error)) {
@@ -318,20 +319,32 @@ async function refreshRecentPlayers(
   });
 }
 
+function programLogoSlugsToUpload(programIds: readonly string[]): string[] {
+  const slugs = new Set(catalogProgramLogoSlugs());
+  for (const id of programIds) {
+    const slug = programLogoSlug(id);
+    if (slug) {
+      slugs.add(slug);
+    }
+  }
+  return [...slugs];
+}
+
 async function uploadMissingProgramLogos(
   programIds: readonly string[],
   bucket: string,
   region: string,
 ): Promise<void> {
-  const slugs = programIds
-    .map((id) => unknownProgramLogoSlug(id))
-    .filter((slug): slug is string => slug !== undefined)
-    .slice(0, PROGRAM_LOGO_LIMIT);
+  const slugs = programLogoSlugsToUpload(programIds);
   if (slugs.length === 0) {
     return;
   }
   const client = new S3Client({ region });
+  let uploaded = 0;
   for (const slug of slugs) {
+    if (uploaded >= PROGRAM_LOGO_LIMIT) {
+      break;
+    }
     const key = `program-logos/${slug}.png`;
     try {
       if (await objectExists(client, bucket, key)) {
@@ -347,6 +360,7 @@ async function uploadMissingProgramLogos(
           CacheControl: CACHE_CONTROL,
         }),
       );
+      uploaded += 1;
       console.log(`uploaded ${key}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
