@@ -52,13 +52,17 @@ export function PlayersBrowser({
   const query = useMemo(() => queryFromSearch(search), [search]);
   const fetchSearch = useMemo(() => listingSearch(search), [search]);
   const [, startTransition] = useTransition();
-  const listQuery = usePlayerList(fetchSearch);
+  const listQuery = usePlayerList(
+    fetchSearch,
+    fetchSearch === listingSearch(initialSearch) ? initial : undefined,
+  );
   const matchesInitial = fetchSearch === listingSearch(initialSearch);
   const freshList = listQuery.isPlaceholderData ? undefined : listQuery.data;
   const data = freshList ?? (matchesInitial ? initial : undefined);
   const showListSkeleton =
     !listQuery.isError && (listQuery.isPlaceholderData || !data);
   const [searchDraft, setSearchDraft] = useState(query.q);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const queryRef = useRef(query);
   queryRef.current = query;
 
@@ -115,7 +119,7 @@ export function PlayersBrowser({
             className="h-10"
           />
         </div>
-        <Sheet>
+        <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
           <SheetTrigger asChild>
             <Button
               type="button"
@@ -138,9 +142,11 @@ export function PlayersBrowser({
             <SheetHeader>
               <SheetTitle>Filters</SheetTitle>
             </SheetHeader>
-            <div className="px-4 pb-6">
-              <PlayerFilters idPrefix="sheet" {...filterProps} />
-            </div>
+            {mobileFiltersOpen ? (
+              <div className="px-4 pb-6">
+                <PlayerFilters idPrefix="sheet" {...filterProps} />
+              </div>
+            ) : null}
           </SheetContent>
         </Sheet>
       </div>
@@ -179,9 +185,9 @@ export function PlayersBrowser({
               <>
                 {query.view === 'grid' ? (
                   <ul className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                    {data.items.map((player) => (
+                    {data.items.map((player, index) => (
                       <li key={player.id}>
-                        <PlayerGridLink player={player} />
+                        <PlayerGridLink player={player} priority={index < 2} />
                       </li>
                     ))}
                   </ul>
@@ -211,8 +217,10 @@ export function PlayersBrowser({
 
 function PlayerGridLink({
   player,
+  priority = false,
 }: {
   player: PlayerListResult['items'][number];
+  priority?: boolean;
 }) {
   return (
     <Link
@@ -230,6 +238,7 @@ function PlayerGridLink({
         playStyles={player.playStyles}
         nameColor={player.nameColor}
         size={171}
+        priority={priority}
       />
     </Link>
   );

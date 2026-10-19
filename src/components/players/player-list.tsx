@@ -94,7 +94,13 @@ function MarketRefreshTime({
   );
 }
 
-function PlayerListLink({ player }: { player: PlayerSummary }) {
+function PlayerListLink({
+  player,
+  priority = false,
+}: {
+  player: PlayerSummary;
+  priority?: boolean;
+}) {
   const displayName = cardDisplayName(player);
   const refreshAt = nextMarketRefreshAt(player.id, player.auctionable);
   return (
@@ -113,6 +119,7 @@ function PlayerListLink({ player }: { player: PlayerSummary }) {
           playStyles={player.playStyles}
           nameColor={player.nameColor}
           size={85}
+          priority={priority}
         />
         <FollowHeartButton playerId={player.id} />
       </div>
@@ -173,9 +180,9 @@ export function PlayerList({ players }: { players: PlayerSummary[] }) {
     <div className="overflow-hidden rounded-xl border">
       <PlayerListHeader />
       <ul className="divide-border divide-y">
-        {players.map((player) => (
+        {players.map((player, index) => (
           <li key={player.id}>
-            <PlayerListLink player={player} />
+            <PlayerListLink player={player} priority={index < 2} />
           </li>
         ))}
       </ul>

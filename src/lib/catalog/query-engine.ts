@@ -63,6 +63,123 @@ export function foldSearchText(value: string): string {
   return value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 }
 
+/** Needle stored in `players.search_text` and matched with a substring LIKE. */
+export function playerSearchNeedle(value: string): string {
+  return foldSearchText(value.trim().replaceAll(/[%_\\]/g, " "));
+}
+
+export type PlayerFacetSource = {
+  programId?: string;
+  position?: string;
+  nationName?: string;
+  clubName?: string;
+  leagueName?: string;
+  rating: number;
+  auctionable?: boolean;
+  searchText?: string;
+  altPositions: readonly string[];
+};
+
+export function matchesFacetSource(
+  row: PlayerFacetSource,
+  query: PlayerListQuery,
+  omit?: PlayerListFacetFilterKey,
+): boolean {
+  const needle = playerSearchNeedle(query.q);
+  if (needle && !(row.searchText ?? "").includes(needle)) {
+    return false;
+  }
+
+  const { filters } = query;
+  if (
+    omit !== "positions" &&
+    filters.positions.length > 0 &&
+    !playerMatchesSelectedPositions(
+      { position: row.position, altPositions: [...row.altPositions] },
+      filters,
+    )
+  ) {
+    return false;
+  }
+  if (
+    omit !== "programIds" &&
+    filters.programIds.length > 0 &&
+    (!row.programId || !filters.programIds.includes(row.programId))
+  ) {
+    return false;
+  }
+  if (
+    omit !== "nations" &&
+    filters.nations.length > 0 &&
+    (!row.nationName || !filters.nations.includes(row.nationName))
+  ) {
+    return false;
+  }
+  if (
+    omit !== "clubs" &&
+    filters.clubs.length > 0 &&
+    (!row.clubName || !filters.clubs.includes(row.clubName))
+  ) {
+    return false;
+  }
+  if (
+    omit !== "leagues" &&
+    filters.leagues.length > 0 &&
+    (!row.leagueName || !filters.leagues.includes(row.leagueName))
+  ) {
+    return false;
+  }
+  if (filters.ratingMin !== undefined && row.rating < filters.ratingMin) {
+    return false;
+  }
+  if (filters.ratingMax !== undefined && row.rating > filters.ratingMax) {
+    return false;
+  }
+  if (
+    filters.auctionable !== undefined &&
+    row.auctionable !== filters.auctionable
+  ) {
+    return false;
+  }
+  return true;
+}
+
+/** Facet counts from a narrow catalog snapshot. Programs stay catalog-wide. */
+export function buildFacetsFromSource(
+  rows: readonly PlayerFacetSource[],
+  query: PlayerListQuery,
+): PlayerListFacets {
+  const programs: Array<[string, number]> = [];
+  const positions: Array<[string, number]> = [];
+  const nations: Array<[string, number]> = [];
+  const clubs: Array<[string, number]> = [];
+  const leagues: Array<[string, number]> = [];
+  for (const row of rows) {
+    if (row.programId) {
+      programs.push([row.programId, 1]);
+    }
+    if (row.position && matchesFacetSource(row, query, "positions")) {
+      positions.push([row.position, 1]);
+    }
+    if (row.nationName && matchesFacetSource(row, query, "nations")) {
+      nations.push([row.nationName, 1]);
+    }
+    if (row.clubName && matchesFacetSource(row, query, "clubs")) {
+      clubs.push([row.clubName, 1]);
+    }
+    if (row.leagueName && matchesFacetSource(row, query, "leagues")) {
+      leagues.push([row.leagueName, 1]);
+    }
+  }
+  return {
+    programs: facetValuesFromCounts(programs, query.filters.programIds),
+    positions: facetValuesFromCounts(positions, query.filters.positions),
+    nations: facetValuesFromCounts(nations, query.filters.nations),
+    clubs: facetValuesFromCounts(clubs, query.filters.clubs),
+    leagues: facetValuesFromCounts(leagues, query.filters.leagues),
+  };
+}
+
 export function matchesPlayerFilters(
   player: PlayerSummary,
   query: PlayerListQuery,

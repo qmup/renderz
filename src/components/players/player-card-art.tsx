@@ -314,7 +314,6 @@ function UntradeableMark({
         alt="Untradeable"
         width={iconPx}
         height={iconPx}
-        priority
         className="absolute inset-0 h-full w-full object-contain"
       />
     </span>

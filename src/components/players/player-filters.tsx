@@ -22,6 +22,8 @@ import {
 } from '@/lib/domain/query';
 import { cn } from '@/lib/utils';
 
+const FACET_OPTION_WINDOW = 40;
+
 export function PlayerFilters({
   query,
   searchDraft,
@@ -351,8 +353,13 @@ function FacetAccordion({
   selectedCount: number;
   children: ReactNode;
 }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <details open={defaultOpen} className="group border-b border-border py-1">
+    <details
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+      className="group border-b border-border py-1"
+    >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 py-2.5 text-sm font-medium [&::-webkit-details-marker]:hidden">
         <span>{title}</span>
         <span className="text-muted-foreground flex items-center gap-2 text-xs tabular-nums">
@@ -365,7 +372,7 @@ function FacetAccordion({
           </span>
         </span>
       </summary>
-      <div className="pb-3">{children}</div>
+      {open ? <div className="pb-3">{children}</div> : null}
     </details>
   );
 }
@@ -388,6 +395,7 @@ function SearchableFacetList({
   onToggle: (value: string) => void;
 }) {
   const [needle, setNeedle] = useState('');
+  const [shown, setShown] = useState(FACET_OPTION_WINDOW);
   const filtered = useMemo(() => {
     const q = needle.trim().toLowerCase();
     if (!q) {
@@ -401,6 +409,7 @@ function SearchableFacetList({
       );
     });
   }, [labelFor, needle, options]);
+  const visible = filtered.slice(0, shown);
 
   if (options.length === 0) {
     return (
@@ -416,14 +425,17 @@ function SearchableFacetList({
         <Input
           id={`${idPrefix}-search`}
           value={needle}
-          onChange={(event) => setNeedle(event.target.value)}
+          onChange={(event) => {
+            setNeedle(event.target.value);
+            setShown(FACET_OPTION_WINDOW);
+          }}
           placeholder="Search options…"
           autoComplete="off"
           className="h-8"
         />
       ) : null}
       <ul className="flex max-h-56 flex-col gap-0.5 overflow-y-auto pr-0.5">
-        {filtered.map((option) => {
+        {visible.map((option) => {
           const label = labelFor?.(option.value) ?? option.value;
           const checked = selected.includes(option.value);
           const inputId = `${idPrefix}-${option.value}`;
@@ -462,6 +474,16 @@ function SearchableFacetList({
           </li>
         ) : null}
       </ul>
+      {filtered.length > shown ? (
+        <Button
+          type="button"
+          variant="ghost"
+          className="h-8 justify-start px-1.5"
+          onClick={() => setShown((current) => current + FACET_OPTION_WINDOW)}
+        >
+          Show {Math.min(FACET_OPTION_WINDOW, filtered.length - shown)} more
+        </Button>
+      ) : null}
     </div>
   );
 }
