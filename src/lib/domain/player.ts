@@ -277,6 +277,14 @@ export const playerSummarySchema = playerIdentitySchema.extend({
     .string()
     .regex(/^#[0-9A-Fa-f]{6}$/)
     .optional(),
+  ratingColor: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/)
+    .optional(),
+  positionColor: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/)
+    .optional(),
   addedAt: z.number().int().optional(),
   fetchedAt: z.number().int(),
   parseVersion: z.number().int().nonnegative(),
