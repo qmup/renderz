@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { applyCardNameColors, cardNameColor } from "@/lib/catalog/card-name-color";
+import {
+  applyCardNameColors,
+  cardNameColor,
+  cardOvrColors,
+  cardTextColors,
+} from "@/lib/catalog/card-name-color";
 
 const bg = (name: string) =>
   `https://images-v2.renderz.app/${name}?verify=1`;
@@ -78,6 +83,17 @@ describe("cardNameColor", () => {
     expect(cardNameColor(bg("bg_23_B_GE26_ICON_REALMADRID_STATIC"))).toBe(
       "#513D03",
     );
+    expect(
+      cardTextColors(bg("bg_23_B_GE26_ICON_REALMADRID_STATIC")),
+    ).toEqual({
+      name: "#513D03",
+      rating: "#FFEAB7",
+      position: "#FFEAB7",
+    });
+    expect(cardOvrColors("#513D03")).toEqual({
+      rating: "#FFEAB7",
+      position: "#FFEAB7",
+    });
     expect(cardNameColor(bg("bg_23_B_WELCOMETOFC_BASE_STATIC"))).toBe(
       "#272827",
     );

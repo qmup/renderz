@@ -341,8 +341,8 @@ export function cardDisplayName(player: {
   name?: string;
 }): string | undefined {
   return (
-    nonEmptyName(player.commonName) ??
     nonEmptyName(player.cardName) ??
+    nonEmptyName(player.commonName) ??
     nonEmptyName(player.lastName) ??
     nonEmptyName(player.name)
   );

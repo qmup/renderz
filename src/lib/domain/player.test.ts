@@ -297,6 +297,13 @@ describe("cardDisplayName", () => {
         cardName: "Cesc Fàbregas",
       }),
     ).toBe("Cesc Fàbregas");
+    expect(
+      cardDisplayName({
+        name: "David Beckham",
+        commonName: "Beckham",
+        cardName: "Becks",
+      }),
+    ).toBe("Becks");
   });
 
   it("uses commonName for Fàbregas-like rows when cardName is missing", () => {

@@ -1,7 +1,16 @@
 'use client';
 
+import { useLayoutEffect, useRef } from 'react';
 import { CardLoopCanvas } from '@/components/players/card-loop-canvas';
 import { PlayerImage } from '@/components/players/player-image';
+import {
+  FM23_CARD_SIZE,
+  FM23_LAYOUT,
+  fm23BoxStyle,
+  fm23Cqw,
+  fm23Pct,
+} from '@/lib/catalog/card-layout';
+import { cardOvrColors } from '@/lib/catalog/card-name-color';
 import {
   cardLoopMaxFramesFromKind,
   findCardLoopKind,
@@ -23,6 +32,8 @@ export function PlayerCardArt({
   playStyles,
   price,
   nameColor = '#FFFFFF',
+  ratingColor,
+  positionColor,
   className,
   size = 96,
   priority = false,
@@ -40,6 +51,10 @@ export function PlayerCardArt({
   price?: number;
   /** RenderZ `animation.colors.name`, derived from the background template. */
   nameColor?: string;
+  /** RenderZ `animation.colors.rating`. Defaults from the name color. */
+  ratingColor?: string;
+  /** RenderZ `animation.colors.position`. Defaults from the name color. */
+  positionColor?: string;
   className?: string;
   size?: number;
   priority?: boolean;
@@ -55,8 +70,11 @@ export function PlayerCardArt({
     loopKind !== undefined && loopFrames !== undefined && loopFrames > 0;
   const showStack = has('background') || has('card') || showLoop;
   const showBackground = has('background');
-  const badge = Math.round(size * 0.135);
+  const badge = Math.round((size * FM23_LAYOUT.nation.width) / FM23_CARD_SIZE);
   const cardName = displayName?.trim();
+  const ovr = cardOvrColors(nameColor);
+  const ratingFill = ratingColor ?? ovr.rating;
+  const positionFill = positionColor ?? ovr.position;
   const overlayStyles = sortPlayStylesByLevelDesc(playStyles ?? []).flatMap(
     (style) => {
       const kind = playStyleImageKind(style.id, style.level);
@@ -76,7 +94,7 @@ export function PlayerCardArt({
   return (
     <div
       className={cn(
-        'relative @container aspect-square w-full shrink-0',
+        'relative @container aspect-square w-full shrink-0 antialiased [line-height:1.2]',
         price === undefined ? 'overflow-hidden' : 'mb-[9%] overflow-visible',
         className,
       )}
@@ -114,43 +132,31 @@ export function PlayerCardArt({
         />
       ) : null}
 
-      <div
-        className="pointer-events-none absolute top-[9%] left-[22.5%] z-10 flex flex-col items-center leading-none text-white"
-        style={{ textShadow: '0 1px 1px rgba(0,0,0,0.85)' }}
-      >
-        {rating !== undefined ? (
-          <span className="font-card text-[clamp(10px,12.4cqw,36px)] leading-none font-bold tracking-tight tabular-nums">
-            {rating}
-          </span>
-        ) : null}
-        {position ? (
-          <span className="font-card -mt-px text-[clamp(7px,7.8cqw,22px)] font-semibold tracking-[0.02em]">
-            {position}
-          </span>
-        ) : null}
-      </div>
+      {rating !== undefined ? (
+        <div
+          className="font-card pointer-events-none absolute z-10 flex items-center justify-center leading-none font-bold"
+          style={{ ...fm23BoxStyle(FM23_LAYOUT.rating), color: ratingFill }}
+        >
+          {rating}
+        </div>
+      ) : null}
+      {position ? (
+        <div
+          className="font-card pointer-events-none absolute z-10 flex items-center justify-center text-center leading-none font-bold uppercase"
+          style={{ ...fm23BoxStyle(FM23_LAYOUT.position), color: positionFill }}
+        >
+          {position}
+        </div>
+      ) : null}
 
       {overlayStyles.length > 0 ? (
         <PlayStyleRail playerId={id} styles={overlayStyles} size={size} />
       ) : null}
 
-      {cardName ? (
-        <div
-          className="pointer-events-none absolute inset-x-[12%] top-[62%] z-10 flex h-[8%] items-center justify-center text-center leading-none"
-          style={{ color: nameColor }}
-          aria-hidden
-        >
-          <span
-            className="font-card w-full truncate leading-none font-bold tracking-[0.01em] uppercase"
-            style={{ fontSize: cardNameFillFont(cardName), lineHeight: 1 }}
-          >
-            {cardName}
-          </span>
-        </div>
-      ) : null}
+      {cardName ? <CardName name={cardName} color={nameColor} /> : null}
 
       {auctionable === false ? (
-        <UntradeableMark playerId={id} size={Math.max(16, Math.round(size * 0.2))} />
+        <UntradeableMark playerId={id} size={size} />
       ) : null}
 
       {has('flag') ? (
@@ -161,7 +167,8 @@ export function PlayerCardArt({
           width={badge}
           height={badge}
           hideOnError
-          className="absolute bottom-[17.2%] left-[32.3%] z-10 h-[9.4%] w-[9.4%]"
+          className="absolute z-10"
+          style={fm23BoxStyle(FM23_LAYOUT.nation)}
         />
       ) : null}
       {has('club') ? (
@@ -172,21 +179,28 @@ export function PlayerCardArt({
           width={badge}
           height={badge}
           hideOnError
-          className="absolute right-[33.4%] bottom-[17.2%] z-10 h-[9.4%] w-[9.4%]"
+          className="absolute z-10"
+          style={fm23BoxStyle(FM23_LAYOUT.club)}
         />
       ) : null}
       {price !== undefined ? (
-        <div className="pointer-events-none absolute top-[96%] left-1/2 z-20 flex h-[12.5%] -translate-x-1/2 items-center gap-[0.35em] rounded-md bg-[#12141c] px-[0.7em] text-white shadow-[0_2px_6px_rgba(0,0,0,0.45)]">
+        <div
+          className="pointer-events-none absolute top-[96%] left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-[3px] border border-[#3a3a4d] px-2 py-1 text-white"
+          style={{
+            background: 'linear-gradient(90deg, #112 0%, #212131 100%)',
+            fontSize: fm23Cqw(FM23_LAYOUT.price.fontSize),
+          }}
+        >
           <PlayerImage
             id={id}
             kind="star-shard"
             alt=""
-            width={16}
-            height={16}
+            width={FM23_LAYOUT.price.icon}
+            height={FM23_LAYOUT.price.icon}
             hideOnError
-            className="size-[1.05em] shrink-0"
+            className="size-[1em] shrink-0"
           />
-          <span className="font-card text-[clamp(8px,7cqw,20px)] leading-none font-semibold tracking-tight tabular-nums">
+          <span className="font-card leading-none font-medium tracking-tight tabular-nums">
             {formatCoinAmount(price)}
           </span>
         </div>
@@ -195,11 +209,52 @@ export function PlayerCardArt({
   );
 }
 
-function cardNameFillFont(name?: string): string {
-  const len = name?.length ?? 0;
-  if (len > 16) return 'clamp(7px, 6.6cqw, 16px)';
-  if (len > 12) return 'clamp(8px, 7.4cqw, 20px)';
-  return 'clamp(9px, 8.6cqw, 24px)';
+function CardName({ name, color }: { name: string; color: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const parent = el?.offsetParent instanceof HTMLElement ? el.offsetParent : el?.parentElement;
+    if (!el || !parent) {
+      return;
+    }
+
+    const fit = () => {
+      el.style.transform = 'translate(-50%, 0)';
+      const max = parent.clientWidth * (FM23_LAYOUT.name.maxWidth / FM23_CARD_SIZE);
+      const width = el.scrollWidth;
+      if (width > max && width > 0) {
+        el.style.transform = `translate(-50%, 0) scale(${max / width}, 1)`;
+      }
+    };
+
+    fit();
+    void document.fonts.ready.then(fit);
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    const observer = new ResizeObserver(fit);
+    observer.observe(parent);
+    return () => observer.disconnect();
+  }, [name]);
+
+  return (
+    <div
+      ref={ref}
+      className="font-card pointer-events-none absolute z-10 flex items-center justify-center leading-[1.2] font-bold whitespace-nowrap uppercase"
+      style={{
+        left: fm23Pct(FM23_LAYOUT.name.left),
+        top: fm23Pct(FM23_LAYOUT.name.top),
+        fontSize: fm23Cqw(FM23_LAYOUT.name.fontSize),
+        color,
+        transform: 'translate(-50%, 0)',
+        transformOrigin: 'center center',
+      }}
+      aria-hidden
+    >
+      {name}
+    </div>
+  );
 }
 
 function PlayStyleRail({
@@ -211,9 +266,19 @@ function PlayStyleRail({
   styles: Array<{ id: string; kind: PlayerImageKind }>;
   size: number;
 }) {
-  const iconPx = Math.max(11, Math.round(size * 0.11));
+  const iconPx = Math.max(
+    8,
+    Math.round((size * FM23_LAYOUT.playStyles.icon) / FM23_CARD_SIZE),
+  );
   return (
-    <div className="pointer-events-none absolute top-[9.4%] left-[3.1%] z-10 flex flex-col items-center gap-[1.2cqw] rounded border border-white/10 bg-[#111122]/60 px-[3.1cqw] pt-[1.6cqw] pb-[1.2cqw] [&_img]:size-[10.2cqw]">
+    <div
+      className="pointer-events-none absolute z-10 flex flex-col items-center rounded border border-white/15 bg-[#112]/60 backdrop-blur-[2px] [&_img]:size-[12.5cqw]"
+      style={{
+        top: fm23Pct(FM23_LAYOUT.playStyles.top),
+        left: fm23Pct(FM23_LAYOUT.playStyles.left),
+        padding: fm23Pct(FM23_LAYOUT.playStyles.padding),
+      }}
+    >
       {styles.map((style) => (
         <PlayerImage
           key={style.id}
@@ -236,21 +301,21 @@ function UntradeableMark({
   playerId: string;
   size: number;
 }) {
+  const iconPx = Math.min(32, Math.round((size * 40) / FM23_CARD_SIZE));
   return (
     <span
-      className="pointer-events-none absolute top-0 right-[6.2%] z-20 block h-[12.5%] w-[12.5%]"
+      className="pointer-events-none absolute top-0 right-2 z-20 block rounded-full bg-[#112] [@container(min-width:205px)]:right-4"
+      style={{ width: 'min(15.625cqw, 32px)', height: 'min(15.625cqw, 32px)' }}
       title="Untradeable"
     >
-      {/* Dark disc so the white RenderZ glyph stays visible on transparent card corners. */}
-      <span aria-hidden className="absolute inset-0 rounded-full bg-[#111122]" />
       <PlayerImage
         id={playerId}
         kind="untradeable"
         alt="Untradeable"
-        width={size}
-        height={size}
+        width={iconPx}
+        height={iconPx}
         priority
-        className="absolute inset-0 h-full w-full object-contain drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
+        className="absolute inset-0 h-full w-full object-contain"
       />
     </span>
   );
