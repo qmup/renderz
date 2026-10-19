@@ -6,10 +6,10 @@ import {
 } from "@/lib/theme";
 
 describe("theme preference", () => {
-  it("defaults to the system theme", () => {
-    expect(parseThemePreference(undefined)).toBe("system");
-    expect(parseThemePreference("")).toBe("system");
-    expect(parseThemePreference("sepia")).toBe("system");
+  it("defaults to dark when no preference is stored", () => {
+    expect(parseThemePreference(undefined)).toBe("dark");
+    expect(parseThemePreference("")).toBe("dark");
+    expect(parseThemePreference("sepia")).toBe("dark");
   });
 
   it("keeps an explicit light or dark choice", () => {
@@ -31,5 +31,6 @@ describe("theme preference", () => {
     expect(themeInitScript.indexOf("localStorage")).toBeLessThan(
       themeInitScript.indexOf("document.cookie"),
     );
+    expect(themeInitScript).toContain('pref="dark"');
   });
 });

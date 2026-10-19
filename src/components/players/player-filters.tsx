@@ -12,6 +12,7 @@ import { usePreferences } from '@/components/providers/preferences-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ThemedSelect } from '@/components/ui/themed-select';
 import type {
   FacetValue,
   PlayerListFacets,
@@ -87,26 +88,26 @@ export function PlayerFilters({
         </div>
       ) : null}
       <div className="flex flex-col gap-1.5 border-b border-border pb-3">
-        <Label htmlFor={`${idPrefix}-sort`}>{m.sort}</Label>
-        <select
+        <Label id={`${idPrefix}-sort-label`} htmlFor={`${idPrefix}-sort`}>
+          {m.sort}
+        </Label>
+        <ThemedSelect
           id={`${idPrefix}-sort`}
-          className="border-input h-8 w-full rounded-lg border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          aria-labelledby={`${idPrefix}-sort-label`}
           value={query.sort}
-          onChange={(event) =>
+          options={PLAYER_SORT_OPTIONS.map((option) => ({
+            value: option.value,
+            label: sortLabels[option.value],
+          }))}
+          onChange={(sort) =>
             onReplaceQuery({
               ...query,
               q: searchDraft,
-              sort: event.target.value as PlayerListQuery['sort'],
+              sort,
               page: 1,
             })
           }
-        >
-          {PLAYER_SORT_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {sortLabels[option.value]}
-            </option>
-          ))}
-        </select>
+        />
       </div>
       <FacetAccordion
         title={m.programEvent}
@@ -346,7 +347,7 @@ function PositionFacet({
 function FacetOptionIcon({ src }: { src?: string }) {
   return (
     <span
-      className="inline-flex size-6 shrink-0 items-center justify-center"
+      className="inline-flex size-6 shrink-0 items-center justify-center rounded-sm dark:bg-white/15"
       aria-hidden
     >
       {src ? (
