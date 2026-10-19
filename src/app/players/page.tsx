@@ -1,13 +1,12 @@
 import { MadeByCredit } from '@/components/made-by-credit';
 import { PlayersBrowser } from "@/components/players/players-browser";
-import { getPlayerCatalog } from "@/lib/catalog/runtime";
+import { getCachedPlayerList } from "@/lib/catalog/cached-list";
 import { isDev } from "@/lib/dev";
 import {
   playerListQueryFromSearchParams,
   playerListQueryToSearchParams,
 } from "@/lib/domain/query";
 
-export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 export const metadata = {
   title: "Players",
@@ -16,7 +15,9 @@ export const metadata = {
 export default async function PlayersPage({ searchParams }: PageProps<"/players">) {
   const raw = await searchParams;
   const query = playerListQueryFromSearchParams(raw);
-  const initial = await getPlayerCatalog().list(query);
+  const initial = await getCachedPlayerList(
+    playerListQueryToSearchParams(query).toString(),
+  );
   const initialSearch = playerListQueryToSearchParams(query).toString();
 
   return (

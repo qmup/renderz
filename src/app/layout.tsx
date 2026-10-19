@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
-import { Geist, Geist_Mono, Oswald } from "next/font/google";
+import { Geist, Oswald } from "next/font/google";
+import localFont from "next/font/local";
 import { QueryProvider } from "@/components/providers/query-provider";
 import "./globals.css";
 
@@ -9,15 +10,19 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 const cardDisplay = Oswald({
   variable: "--font-oswald",
   subsets: ["latin"],
-  weight: ["500", "600", "700"],
+  weight: "700",
+});
+
+const cruyff = localFont({
+  src: "../fonts/CruyffSansCondensed-Bold.woff2",
+  weight: "700",
+  style: "normal",
+  variable: "--font-cruyff",
+  display: "swap",
+  fallback: ["Arial Narrow", "Impact", "sans-serif"],
 });
 
 export const metadata: Metadata = {
@@ -33,7 +38,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${cardDisplay.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${cardDisplay.variable} ${cruyff.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
         <QueryProvider>{children}</QueryProvider>
