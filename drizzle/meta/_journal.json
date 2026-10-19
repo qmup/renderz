@@ -22,6 +22,13 @@
       "when": 1788427047403,
       "tag": "0002_neat_namora",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1788500000000,
+      "tag": "0003_card_text_colors",
+      "breakpoints": true
     }
   ]
 }

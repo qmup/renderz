@@ -12,7 +12,7 @@ This is not a RenderZ client, not a private-API wrapper, and not a UI clone.
 - On-demand enrichment is **catalog-only**: unknown ids 404.
 - Public sitemaps list **10,000** player URLs. RenderZ marketing copy claims 30,000+; treat the sitemap as the discovery set.
 - The catalog is Aurora PostgreSQL. Card art and LOOP sheets are on S3, served through CloudFront.
-- The catalog keeps players it has already stored. Sync only adds cards that are missing. Programs 39–106 on renderz.app/programs are skipped; newer events and programs 1–38, Icons, and Heroes are kept.
+- The catalog keeps players it has already stored. Sync adds missing cards and refreshes promo cards from the last 14 days. Programs 39–106 on renderz.app/programs are skipped; newer events and programs 1–38, Icons, and Heroes are kept.
 
 ## Setup
 
@@ -28,7 +28,7 @@ Open [http://localhost:3000/players](http://localhost:3000/players). Listing def
 
 ## Daily production catalog
 
-GitHub Actions workflow `.github/workflows/daily-catalog.yml` runs at **07:00 and 23:00 Asia/Ho_Chi_Minh**, on GitHub's runners, so the laptop can be off. Each run adds missing cards and uploads their art, then stops before the job timeout. The next run continues. Players already in Aurora are left in place. The browser loads card art from CloudFront.
+GitHub Actions workflow `.github/workflows/daily-catalog.yml` runs at **07:00 and 23:00 Asia/Ho_Chi_Minh**, on GitHub's runners, so the laptop can be off. Each run reads the sitemap head, refreshes promo cards added in the last 14 days, backfills kept programs (including a new event once one of its cards is stored), then missing base gold/silver. It stops before the job timeout. The next run continues. Cards older than that window stay as stored. The browser loads card art from CloudFront.
 
 ## Catalog check
 

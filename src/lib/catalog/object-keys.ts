@@ -36,12 +36,15 @@ export type CatalogUploadCandidate = {
   fetchedAt: number;
   /** A player ingested in this run. A failed upload should fail the job. */
   required: boolean;
+  /** Overwrite an existing S3 object. Used when a recent card is refreshed. */
+  replace?: boolean;
 };
 
 export type CatalogUploadJob = {
   key: string;
   upstreamUrl: string;
   required: boolean;
+  replace: boolean;
 };
 
 /**
@@ -53,7 +56,7 @@ export function planCatalogUploads(
 ): CatalogUploadJob[] {
   const byKey = new Map<
     string,
-    { upstreamUrl: string; fetchedAt: number; required: boolean }
+    { upstreamUrl: string; fetchedAt: number; required: boolean; replace: boolean }
   >();
   for (const candidate of candidates) {
     const key = catalogObjectKey(
@@ -70,16 +73,21 @@ export function planCatalogUploads(
         upstreamUrl: candidate.upstreamUrl,
         fetchedAt: candidate.fetchedAt,
         required: candidate.required || existing?.required === true,
+        replace: candidate.replace === true || existing?.replace === true,
       });
       continue;
     }
     if (candidate.required) {
       existing.required = true;
     }
+    if (candidate.replace) {
+      existing.replace = true;
+    }
   }
   return [...byKey.entries()].map(([key, job]) => ({
     key,
     upstreamUrl: job.upstreamUrl,
     required: job.required,
+    replace: job.replace,
   }));
 }

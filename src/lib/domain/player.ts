@@ -272,8 +272,21 @@ export const playerSummarySchema = playerIdentitySchema.extend({
   avgStats: z.array(playerStatSchema).default([]),
   playStyles: z.array(cardPlayStyleSchema).default([]),
   availableImageKinds: z.array(availableImageKindSchema),
-  /** From the background asset filename. Absent on rows that were not listed. */
+  /**
+   * RenderZ `animation.colors.name` when the row was ingested with it.
+   * Listing fills a measured background fallback when this is absent.
+   */
   nameColor: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/)
+    .optional(),
+  /** RenderZ `animation.colors.rating`. */
+  ratingColor: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/)
+    .optional(),
+  /** RenderZ `animation.colors.position`. */
+  positionColor: z
     .string()
     .regex(/^#[0-9A-Fa-f]{6}$/)
     .optional(),
@@ -372,6 +385,9 @@ export function toPlayerSummary(player: Player): PlayerSummary {
       })),
     ),
     availableImageKinds: player.availableImageKinds,
+    nameColor: player.nameColor,
+    ratingColor: player.ratingColor,
+    positionColor: player.positionColor,
     addedAt: player.addedAt,
     fetchedAt: player.fetchedAt,
     parseVersion: player.parseVersion,

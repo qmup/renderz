@@ -3,7 +3,9 @@ import {
   programEventLabel,
   programEventOrder,
   programLogoSrc,
+  programLogoUpstreamUrl,
   sortProgramFacets,
+  unknownProgramLogoSlug,
 } from "@/lib/catalog/programs";
 
 describe("programEventLabel", () => {
@@ -58,12 +60,23 @@ describe("programLogoSrc", () => {
     expect(programLogoSrc("SONGKRAN")).toBe("/program-logos/SONGKRAN26.png");
   });
 
+  it("puts an unknown event ahead of the hardcoded list", () => {
+    expect(programEventOrder("PROGRAM_NEWPROMO28")).toBeLessThan(
+      programEventOrder("PROGRAM_TOTW27"),
+    );
+  });
+
   it("falls back to an allowlisted PROGRAM_ slug when unknown", () => {
     expect(programLogoSrc("PROGRAM_NEWPROMO26")).toBe(
       "/program-logos/NEWPROMO26.png",
     );
     expect(programLogoSrc("PROGRAM_bad-slug")).toBeUndefined();
     expect(programLogoSrc("../etc/passwd")).toBeUndefined();
+    expect(unknownProgramLogoSlug("PROGRAM_NEWPROMO26")).toBe("NEWPROMO26");
+    expect(unknownProgramLogoSlug("PROGRAM_TOTW27")).toBeUndefined();
+    expect(programLogoUpstreamUrl("NEWPROMO26")).toBe(
+      "https://images-v2-unsigned.renderz.app/programlogos_23_NEWPROMO26",
+    );
   });
 });
 

@@ -1,24 +1,45 @@
 /**
- * Discover new players into Aurora, then upload missing card art, LOOP sheets,
- * playstyles, and traits to S3.
+ * Keep the Aurora catalog aligned with RenderZ, then upload card art to S3.
  *
  *   npx tsx scripts/scheduled-catalog-sync.ts
  *
- * Requires AURORA_HOST and AWS credentials that can connect to Aurora and write
- * s3://$S3_BUCKET (default renderz-bucket). Adds missing cards from the selected
- * programs and new sitemap ids. Older cards stay. One run stops at
- * CATALOG_SYNC_BUDGET_MS so the next GitHub Actions schedule can continue.
+ * Order, so a new event is not stuck behind the base-card backlog:
+ *   1. Sitemap head (brand-new ids, including a new event).
+ *   2. Refresh promo cards added in the last 14 days (OVR, price, traits,
+ *      playstyles, colors, art). Base gold/silver are not in this slice.
+ *   3. Search every kept program, plus any new program id already stored.
+ *   4. Missing base gold/silver, 1,500 per run.
+ *
+ * One run stops at CATALOG_SYNC_BUDGET_MS so the next schedule can continue.
+ * Requires AURORA_HOST and AWS credentials that can write s3://$S3_BUCKET.
  */
 import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lt, notInArray, or, sql } from "drizzle-orm";
 import { auroraConfigFromEnv } from "../src/db/aurora-config";
+import { ensurePlayerColorColumns } from "../src/db/player-columns";
 import { getPostgresDb } from "../src/db/postgres";
 import { ingestJobs, playerAssets, players } from "../src/db/postgres-schema";
 import {
   BASE_CARD_SYNC_LIMIT,
+  BASE_PROGRAM_GOLD,
+  BASE_PROGRAM_SILVER,
   enqueueBaseCardDiscoveries,
 } from "../src/lib/catalog/base-cards";
-import { SYNC_KEEP_PROGRAM_IDS } from "../src/lib/catalog/sync-programs";
+import {
+  isPlayerCardImageKind,
+  isPlayerLoopImageKind,
+} from "../src/lib/domain/player";
+import type { IngestJobKind } from "../src/lib/catalog/repository";
+import {
+  programLogoUpstreamUrl,
+  unknownProgramLogoSlug,
+} from "../src/lib/catalog/programs";
+import {
+  programIdsToSync,
+  RECENT_REFRESH_LIMIT,
+  RECENT_REFRESH_MS,
+  selectRecentRefreshIds,
+} from "../src/lib/catalog/sync-plan";
 import { takeSitemapHead } from "../src/lib/ingest/sitemap-head";
 import {
   planCatalogUploads,
@@ -42,6 +63,7 @@ const DB_ATTEMPTS = 3;
 const DEFAULT_SYNC_BUDGET_MS = 165 * 60 * 1000;
 const INGEST_SLICE = 15;
 const IMAGE_HEAL_MS = 3 * 24 * 60 * 60 * 1000;
+const PROGRAM_LOGO_LIMIT = 15;
 
 function describeError(error: unknown): string {
   if (!(error instanceof Error)) {
@@ -85,6 +107,7 @@ async function ingestQueuedPlayers(
   deadline: number,
   label: string,
   afterSlice?: (since: number) => Promise<void>,
+  kind: IngestJobKind = "discovery",
 ): Promise<{ succeeded: number; failed: number; idle: boolean }> {
   const catalog = getPlayerCatalog();
   const source = getRenderzSource();
@@ -95,7 +118,7 @@ async function ingestQueuedPlayers(
     const batch = await runIngestBatch(catalog, source, {
       limit: 1,
       consecutiveOldStop: 0,
-      kind: "discovery",
+      kind,
       onProgress: (message) => console.log(message),
     });
     if (batch.processed === 0) {
@@ -120,6 +143,31 @@ async function ingestQueuedPlayers(
   return totals;
 }
 
+async function clearOpenJobs(kind: IngestJobKind): Promise<number> {
+  const db = getPostgresDb();
+  const cleared = await db
+    .delete(ingestJobs)
+    .where(
+      and(
+        eq(ingestJobs.kind, kind),
+        inArray(ingestJobs.status, ["pending", "in_progress"]),
+      ),
+    );
+  return cleared.rowCount ?? 0;
+}
+
+async function storedProgramIds(): Promise<string[]> {
+  const db = getPostgresDb();
+  const rows = await db.execute<{ programId: string }>(sql`
+    SELECT program_id AS "programId"
+    FROM players
+    WHERE program_id IS NOT NULL AND program_id <> ''
+    GROUP BY program_id
+    ORDER BY max(added_at) DESC NULLS LAST
+  `);
+  return rows.rows.map((row) => row.programId);
+}
+
 async function discoverSelectedPrograms(
   startedAt: number,
   deadline: number,
@@ -129,21 +177,14 @@ async function discoverSelectedPrograms(
   const client = new RenderzClient();
   return withDbRetry("selected programs", async () => {
     const db = getPostgresDb();
-    const cleared = await db
-      .delete(ingestJobs)
-      .where(
-        and(
-          eq(ingestJobs.kind, "discovery"),
-          inArray(ingestJobs.status, ["pending", "in_progress"]),
-        ),
-      );
+    const programIds = programIdsToSync(await storedProgramIds());
+    const extras = programIds.length - programIdsToSync([]).length;
+    console.log(`programs=${programIds.length} newEvents=${extras}`);
     const existingRows = await db.select({ id: players.id }).from(players);
     const existing = new Set(existingRows.map((row) => row.id));
-    console.log(
-      `known players=${existing.size} clearedPending=${cleared.rowCount ?? 0}`,
-    );
+    console.log(`known players=${existing.size}`);
     const pending: Array<{ id: string; slug: string }> = [];
-    for (const programId of SYNC_KEEP_PROGRAM_IDS) {
+    for (const programId of programIds) {
       if (Date.now() >= deadline) {
         break;
       }
@@ -221,7 +262,103 @@ async function discoverBaseCards(
   });
 }
 
-async function loadUploadCandidates(startedAt: number): Promise<CatalogUploadCandidate[]> {
+async function refreshRecentPlayers(
+  startedAt: number,
+  deadline: number,
+  afterSlice?: (since: number) => Promise<void>,
+): Promise<{ succeeded: number; failed: number; idle: boolean }> {
+  if (Date.now() >= deadline) {
+    return { succeeded: 0, failed: 0, idle: false };
+  }
+  const catalog = getPlayerCatalog();
+  return withDbRetry("recent refresh", async () => {
+    const db = getPostgresDb();
+    const cutoff = startedAt - RECENT_REFRESH_MS;
+    const rows = await db
+      .select({
+        id: players.id,
+        slug: players.slug,
+        addedAt: players.addedAt,
+        fetchedAt: players.fetchedAt,
+        programId: players.programId,
+      })
+      .from(players)
+      .where(
+        and(
+          gte(players.addedAt, cutoff),
+          lt(players.fetchedAt, startedAt),
+          or(
+            isNull(players.programId),
+            notInArray(players.programId, [BASE_PROGRAM_GOLD, BASE_PROGRAM_SILVER]),
+          ),
+        ),
+      );
+    const pending = selectRecentRefreshIds(
+      rows.map((row) => ({
+        id: row.id,
+        slug: row.slug,
+        addedAt: row.addedAt ?? undefined,
+        fetchedAt: row.fetchedAt,
+        programId: row.programId ?? undefined,
+      })),
+      startedAt,
+    );
+    console.log(
+      `recent refresh candidates=${rows.length} queued=${pending.length} limit=${RECENT_REFRESH_LIMIT}`,
+    );
+    if (pending.length === 0) {
+      return { succeeded: 0, failed: 0, idle: true };
+    }
+    const cleared = await clearOpenJobs("refresh");
+    console.log(`recent refresh clearedPending=${cleared}`);
+    for (const [index, entry] of pending.entries()) {
+      await catalog.enqueueRefresh(entry.id, entry.slug, startedAt + index);
+    }
+    return ingestQueuedPlayers(deadline, "recent refresh", afterSlice, "refresh");
+  });
+}
+
+async function uploadMissingProgramLogos(
+  programIds: readonly string[],
+  bucket: string,
+  region: string,
+): Promise<void> {
+  const slugs = programIds
+    .map((id) => unknownProgramLogoSlug(id))
+    .filter((slug): slug is string => slug !== undefined)
+    .slice(0, PROGRAM_LOGO_LIMIT);
+  if (slugs.length === 0) {
+    return;
+  }
+  const client = new S3Client({ region });
+  for (const slug of slugs) {
+    const key = `program-logos/${slug}.png`;
+    try {
+      if (await objectExists(client, bucket, key)) {
+        continue;
+      }
+      const image = await fetchAllowlistedImage(programLogoUpstreamUrl(slug));
+      await client.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: key,
+          Body: image.bytes,
+          ContentType: image.contentType || "image/png",
+          CacheControl: CACHE_CONTROL,
+        }),
+      );
+      console.log(`uploaded ${key}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`program logo failed ${key} ${message}`);
+    }
+  }
+}
+
+async function loadUploadCandidates(
+  startedAt: number,
+  replacePlayerArt: boolean,
+): Promise<CatalogUploadCandidate[]> {
   const db = getPostgresDb();
   const fresh = await db
     .select({
@@ -248,7 +385,13 @@ async function loadUploadCandidates(startedAt: number): Promise<CatalogUploadCan
   `);
 
   return [
-    ...fresh.map((row) => ({ ...row, required: true })),
+    ...fresh.map((row) => ({
+      ...row,
+      required: true,
+      replace:
+        replacePlayerArt &&
+        (isPlayerCardImageKind(row.kind) || isPlayerLoopImageKind(row.kind)),
+    })),
     ...icons.rows.map((row) => ({
       playerId: row.playerId,
       kind: row.kind,
@@ -299,7 +442,7 @@ async function uploadMissing(
         continue;
       }
       try {
-        if (await objectExists(client, bucket, job.key)) {
+        if (!job.replace && (await objectExists(client, bucket, job.key))) {
           present += 1;
         } else {
           const image = await fetchAllowlistedImage(job.upstreamUrl);
@@ -343,8 +486,9 @@ async function uploadFetchedSince(
   since: number,
   bucket: string,
   region: string,
+  replacePlayerArt = false,
 ): Promise<{ uploaded: number; requiredFailed: number }> {
-  const candidates = await loadUploadCandidates(since);
+  const candidates = await loadUploadCandidates(since, replacePlayerArt);
   const jobs = planCatalogUploads(candidates);
   console.log(`upload candidates=${candidates.length} objects=${jobs.length}`);
   if (jobs.length === 0) {
@@ -363,10 +507,13 @@ async function main() {
   const startedAt = Date.now();
   const deadline = syncDeadline(startedAt);
   console.log(`catalog sync start bucket=${bucket} budgetMs=${deadline - startedAt}`);
+  await ensurePlayerColorColumns(getPostgresDb());
+  const cleared = await clearOpenJobs("discovery");
+  console.log(`clearedPendingDiscovery=${cleared}`);
 
   const uploadTotals = { uploaded: 0, requiredFailed: 0 };
-  const uploadSlice = async (since: number) => {
-    const images = await uploadFetchedSince(since, bucket, region);
+  const uploadSlice = (replacePlayerArt: boolean) => async (since: number) => {
+    const images = await uploadFetchedSince(since, bucket, region, replacePlayerArt);
     uploadTotals.uploaded += images.uploaded;
     uploadTotals.requiredFailed += images.requiredFailed;
   };
@@ -375,17 +522,28 @@ async function main() {
   uploadTotals.uploaded += healed.uploaded;
   uploadTotals.requiredFailed += healed.requiredFailed;
 
-  const selected = await discoverSelectedPrograms(startedAt, deadline, uploadSlice);
-  const head = selected.idle
-    ? await discoverSitemapHead(startedAt, deadline, uploadSlice)
+  const head = await discoverSitemapHead(startedAt, deadline, uploadSlice(false));
+  const refreshed = head.idle
+    ? await refreshRecentPlayers(startedAt, deadline, uploadSlice(true))
     : { succeeded: 0, failed: 0, idle: false };
+  const selected =
+    head.idle && refreshed.idle
+      ? await discoverSelectedPrograms(startedAt, deadline, uploadSlice(false))
+      : { succeeded: 0, failed: 0, idle: false };
+  if (head.idle && refreshed.idle) {
+    await uploadMissingProgramLogos(
+      programIdsToSync(await storedProgramIds()),
+      bucket,
+      region,
+    );
+  }
   const baseCards =
-    selected.idle && head.idle
-      ? await discoverBaseCards(startedAt, deadline, uploadSlice)
+    head.idle && refreshed.idle && selected.idle
+      ? await discoverBaseCards(startedAt, deadline, uploadSlice(false))
       : { succeeded: 0, failed: 0, idle: false };
 
-  const playersAdded = selected.succeeded + head.succeeded + baseCards.succeeded;
-  const playerFailures = selected.failed + head.failed + baseCards.failed;
+  const playersAdded = head.succeeded + refreshed.succeeded + selected.succeeded + baseCards.succeeded;
+  const playerFailures = head.failed + refreshed.failed + selected.failed + baseCards.failed;
   console.log(
     `catalog sync done players=${playersAdded} playerFailures=${playerFailures} uploaded=${uploadTotals.uploaded} imageFailures=${uploadTotals.requiredFailed}`,
   );

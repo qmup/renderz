@@ -82,6 +82,9 @@ export const players = sqliteTable(
       .$type<AvailableImageKind[]>()
       .notNull()
       .default([]),
+    nameColor: text("name_color"),
+    ratingColor: text("rating_color"),
+    positionColor: text("position_color"),
     addedAt: integer("added_at"),
     fetchedAt: integer("fetched_at").notNull(),
     parseVersion: integer("parse_version").notNull(),

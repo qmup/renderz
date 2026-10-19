@@ -1,6 +1,8 @@
 # 07:00 and 23:00 Asia/Ho_Chi_Minh.
 # GitHub runners can reach RenderZ. Fargate in ap-southeast-1 gets HTTP 403.
 # The sync script stops itself after ~340 minutes. A queued schedule run continues the rest.
+# Each run: sitemap head, then a slice of recent promo refreshes, then program
+# backfill (including a new event id already stored), then base gold/silver.
 name: Catalog sync
 
 on:

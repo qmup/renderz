@@ -3,6 +3,7 @@ import {
   assignBaseCardIdentity,
   baseCardTier,
 } from '@/lib/catalog/base-cards';
+import { cardColorsFromAnimation } from '@/lib/catalog/card-name-color';
 import { CURRENT_PARSE_VERSION } from '@/lib/catalog/parse-version';
 import {
   cardLoopImageKind,
@@ -816,6 +817,7 @@ function playerFromRaw(
     throw new ParseError('Player payload missing id, name, or rating');
   }
 
+  const textColors = cardColorsFromAnimation(raw.animation);
   const assets = [
     ...assetsFromImages(playerId, raw.images, fetchedAt),
     ...iconAssetsFromCollections(
@@ -897,6 +899,9 @@ function playerFromRaw(
     starSigningsBuy: prices.buy,
     starSigningsSell: prices.sell,
     availableImageKinds,
+    nameColor: textColors.name,
+    ratingColor: textColors.rating,
+    positionColor: textColors.position,
     addedAt: parseAddedAt(raw.added),
     fetchedAt,
     parseVersion: CURRENT_PARSE_VERSION,
