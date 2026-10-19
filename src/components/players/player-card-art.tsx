@@ -6,6 +6,7 @@ import { PlayerImage } from '@/components/players/player-image';
 import {
   FM23_CARD_SIZE,
   FM23_LAYOUT,
+  FM23_NAME_TRANSFORM,
   fm23BadgeLayout,
   fm23BoxStyle,
   fm23Cqw,
@@ -170,7 +171,7 @@ export function PlayerCardArt({
           width={badge}
           height={badge}
           hideOnError
-          className="absolute z-10"
+          className="absolute z-[11]"
           style={fm23BoxStyle(badges.nation)}
         />
       ) : null}
@@ -182,7 +183,7 @@ export function PlayerCardArt({
           width={badge}
           height={badge}
           hideOnError
-          className="absolute z-10"
+          className="absolute z-[11]"
           style={fm23BoxStyle(badges.league)}
         />
       ) : null}
@@ -194,7 +195,7 @@ export function PlayerCardArt({
           width={badge}
           height={badge}
           hideOnError
-          className="absolute z-10"
+          className="absolute z-[11]"
           style={fm23BoxStyle(badges.club)}
         />
       ) : null}
@@ -235,11 +236,11 @@ function CardName({ name, color }: { name: string; color: string }) {
     }
 
     const fit = () => {
-      el.style.transform = '';
+      el.style.transform = FM23_NAME_TRANSFORM;
       const max = parent.clientWidth * (FM23_LAYOUT.name.maxWidth / FM23_CARD_SIZE);
       const width = el.scrollWidth;
       if (width > max && width > 0) {
-        el.style.transform = `scale(${max / width}, 1)`;
+        el.style.transform = `${FM23_NAME_TRANSFORM} scale(${max / width}, 1)`;
       }
     };
 
@@ -256,15 +257,14 @@ function CardName({ name, color }: { name: string; color: string }) {
   return (
     <div
       ref={ref}
-      className="font-card pointer-events-none absolute z-10 flex items-center justify-center leading-[1.2] font-bold whitespace-nowrap uppercase"
+      className="font-card pointer-events-none absolute z-10 leading-none font-bold whitespace-nowrap uppercase"
       style={{
         left: fm23Pct(FM23_LAYOUT.name.left),
         top: fm23Pct(FM23_LAYOUT.name.top),
-        width: 0,
-        height: 0,
         fontSize: fm23Cqw(FM23_LAYOUT.name.fontSize),
         color,
-        transformOrigin: 'center center',
+        transform: FM23_NAME_TRANSFORM,
+        transformOrigin: 'center bottom',
       }}
       aria-hidden
     >

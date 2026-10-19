@@ -17,7 +17,13 @@ const BADGE = { top: 188, width: 24, height: 24 } as const;
 export const FM23_LAYOUT = {
   rating: { left: 36.167, top: 4.083, width: 80, height: 80, fontSize: 36 },
   position: { left: 56, top: 64, width: 40, height: 20, fontSize: 24 },
-  name: { left: 128, top: 178, fontSize: 22, maxWidth: 140 },
+  /**
+   * Bottom-center of the name, 2px above the badge row. RenderZ centers a 0×0
+   * flex box at y=178 with inherited `line-height: 1.2`, which still paints
+   * into y=188. Anchoring the baseline above the badges keeps "BELLINGHAM"
+   * (and other long names) off the flag / league / club.
+   */
+  name: { left: 128, top: 186, fontSize: 22, maxWidth: 140 },
   /** Icon / Heroes frames: flag + club only, inset toward the name. */
   nation: { left: 82.7, ...BADGE },
   club: { left: 146.6, ...BADGE },
@@ -28,6 +34,20 @@ export const FM23_LAYOUT = {
   playStyles: { top: 24, left: 8, padding: 4, icon: 32 },
   price: { top: 96, fontSize: 18, icon: 18 },
 } as const;
+
+/** Tight line box so uppercase names do not grow into the badge row. */
+export const FM23_NAME_LINE_HEIGHT = 1;
+
+/** Bottom-center the name on `FM23_LAYOUT.name` so scale stays on the baseline. */
+export const FM23_NAME_TRANSFORM = "translate(-50%, -100%)";
+
+export function fm23NameLineBox(
+  top = FM23_LAYOUT.name.top,
+  fontSize = FM23_LAYOUT.name.fontSize,
+  lineHeight = FM23_NAME_LINE_HEIGHT,
+): { top: number; bottom: number } {
+  return { top: top - fontSize * lineHeight, bottom: top };
+}
 
 export function fm23BadgeLayout(hasLeague: boolean): {
   nation: { left: number; top: number; width: number; height: number };
