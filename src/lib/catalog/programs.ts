@@ -187,13 +187,36 @@ export function isCatalogProgram(programId: string): boolean {
   return lookup(programId) !== undefined;
 }
 
-/** Logo file slug for an event that is not already shipped in public/program-logos. */
+/** RenderZ `programlogos_23` slug when this event has a logo (catalog or new id). */
+export function programLogoSlug(programId: string): string | undefined {
+  const hit = lookup(programId);
+  if (hit) {
+    return hit.logo;
+  }
+  const slug = programId.replace(/^PROGRAM_/i, "").trim();
+  return LOGO_SLUG.test(slug) ? slug : undefined;
+}
+
+/** Logo file slug for an event that is not already in the hardcoded catalog. */
 export function unknownProgramLogoSlug(programId: string): string | undefined {
   if (isCatalogProgram(programId)) {
     return undefined;
   }
-  const slug = programId.replace(/^PROGRAM_/i, "").trim();
-  return LOGO_SLUG.test(slug) ? slug : undefined;
+  return programLogoSlug(programId);
+}
+
+/** Distinct catalog logo slugs, including events whose PNG is not in public yet. */
+export function catalogProgramLogoSlugs(): string[] {
+  const slugs: string[] = [];
+  const seen = new Set<string>();
+  for (const entry of RENDERZ_PROGRAM_CATALOG) {
+    if (!entry.logo || seen.has(entry.logo)) {
+      continue;
+    }
+    seen.add(entry.logo);
+    slugs.push(entry.logo);
+  }
+  return slugs;
 }
 
 /** Unsigned RenderZ program-logo sprite. Missing art is ignored by the sync. */

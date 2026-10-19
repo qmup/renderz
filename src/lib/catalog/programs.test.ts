@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  catalogProgramLogoSlugs,
   programEventLabel,
   programEventOrder,
+  programLogoSlug,
   programLogoSrc,
   programLogoUpstreamUrl,
   sortProgramFacets,
@@ -76,6 +78,30 @@ describe("programLogoSrc", () => {
     expect(unknownProgramLogoSlug("PROGRAM_TOTW27")).toBeUndefined();
     expect(programLogoUpstreamUrl("NEWPROMO26")).toBe(
       "https://images-v2-unsigned.renderz.app/programlogos_23_NEWPROMO26",
+    );
+  });
+
+  it("resolves catalog slugs for events whose PNG is not in public yet", () => {
+    expect(programLogoSlug("PROGRAM_TOTW26")).toBe("TOTW26");
+    expect(programLogoSlug("PROGRAM_ANS26")).toBe("ANS26");
+    expect(programLogoSlug("PROGRAM_GE26")).toBe("GE26");
+    expect(programLogoSlug("PROGRAM_BO26")).toBe("BO26");
+    expect(programLogoSlug("FC_BASE_GOLD")).toBeUndefined();
+    expect(programLogoSlug("FC_BASE_SILVER")).toBeUndefined();
+    expect(programLogoSrc("FC_BASE_GOLD")).toBeUndefined();
+    expect(catalogProgramLogoSlugs()).toEqual(
+      expect.arrayContaining([
+        "TOTW26",
+        "ANS26",
+        "ANN26",
+        "UCL26",
+        "FV26",
+        "GE26",
+        "SONGKRAN26",
+        "BO26",
+        "CL26",
+        "TOTW27",
+      ]),
     );
   });
 });
