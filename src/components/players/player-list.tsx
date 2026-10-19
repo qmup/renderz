@@ -17,8 +17,7 @@ const listUpdatedColumnClass =
   'hidden w-[6.75rem] shrink-0 text-right lg:block';
 const listRefreshColumnClass =
   'hidden w-[7.5rem] shrink-0 text-right lg:block';
-const listRefreshMobileClass =
-  'ml-auto w-[6.75rem] shrink-0 text-right lg:hidden';
+const listRefreshMobileClass = 'ml-auto shrink-0 text-right lg:hidden';
 
 function PlayerListHeader() {
   return (
@@ -53,9 +52,11 @@ function nextMarketRefreshAt(
 function MarketRefreshTime({
   at,
   className,
+  clockOnly = false,
 }: {
   at: Date | null;
   className: string;
+  clockOnly?: boolean;
 }) {
   if (!at) {
     return (
@@ -67,18 +68,28 @@ function MarketRefreshTime({
       </span>
     );
   }
+  const clock = formatRefreshClock(at);
+  const label = clockOnly
+    ? `Next market refresh, ${clock}`
+    : `Next market refresh, ${formatRefreshDate(at)} ${clock}`;
   return (
     <time
       dateTime={at.toISOString()}
       suppressHydrationWarning
-      aria-label={`Next market refresh, ${formatRefreshDate(at)} ${formatRefreshClock(at)}`}
+      aria-label={label}
       className={cn(
         'text-muted-foreground text-xs leading-tight whitespace-nowrap tabular-nums',
         className,
       )}
     >
-      <span className="block">{formatRefreshDate(at)}</span>
-      <span className="block">{formatRefreshClock(at)}</span>
+      {clockOnly ? (
+        clock
+      ) : (
+        <>
+          <span className="block">{formatRefreshDate(at)}</span>
+          <span className="block">{clock}</span>
+        </>
+      )}
     </time>
   );
 }
@@ -123,7 +134,11 @@ function PlayerListLink({ player }: { player: PlayerSummary }) {
             ) : null}
           </div>
         </div>
-        <MarketRefreshTime at={refreshAt} className={listRefreshMobileClass} />
+        <MarketRefreshTime
+          at={refreshAt}
+          className={listRefreshMobileClass}
+          clockOnly
+        />
         <PlayerGroupedStats
           stats={player.avgStats}
           compact
