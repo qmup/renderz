@@ -11,11 +11,14 @@ import {
 } from '@/lib/display';
 import { cardDisplayName, type PlayerSummary } from '@/lib/domain/player';
 import { marketRefreshAtDate } from '@/lib/market-refresh';
+import { cn } from '@/lib/utils';
 
 const listUpdatedColumnClass =
   'hidden w-[6.75rem] shrink-0 text-right lg:block';
 const listRefreshColumnClass =
   'hidden w-[7.5rem] shrink-0 text-right lg:block';
+const listRefreshMobileClass =
+  'ml-auto w-[6.75rem] shrink-0 text-right lg:hidden';
 
 function PlayerListHeader() {
   return (
@@ -45,6 +48,39 @@ function nextMarketRefreshAt(
     return null;
   }
   return marketRefreshAtDate(id);
+}
+
+function MarketRefreshTime({
+  at,
+  className,
+}: {
+  at: Date | null;
+  className: string;
+}) {
+  if (!at) {
+    return (
+      <span
+        aria-label="No market refresh"
+        className={cn('text-muted-foreground text-xs', className)}
+      >
+        —
+      </span>
+    );
+  }
+  return (
+    <time
+      dateTime={at.toISOString()}
+      suppressHydrationWarning
+      aria-label={`Next market refresh, ${formatRefreshDate(at)} ${formatRefreshClock(at)}`}
+      className={cn(
+        'text-muted-foreground text-xs leading-tight whitespace-nowrap tabular-nums',
+        className,
+      )}
+    >
+      <span className="block">{formatRefreshDate(at)}</span>
+      <span className="block">{formatRefreshClock(at)}</span>
+    </time>
+  );
 }
 
 function PlayerListLink({ player }: { player: PlayerSummary }) {
@@ -87,10 +123,11 @@ function PlayerListLink({ player }: { player: PlayerSummary }) {
             ) : null}
           </div>
         </div>
+        <MarketRefreshTime at={refreshAt} className={listRefreshMobileClass} />
         <PlayerGroupedStats
           stats={player.avgStats}
           compact
-          className="ml-auto"
+          className="ml-auto hidden lg:flex"
         />
       </div>
       {player.addedAt != null ? (
@@ -107,22 +144,7 @@ function PlayerListLink({ player }: { player: PlayerSummary }) {
           —
         </span>
       )}
-      {refreshAt ? (
-        <time
-          dateTime={refreshAt.toISOString()}
-          suppressHydrationWarning
-          className={`text-muted-foreground text-xs leading-tight whitespace-nowrap tabular-nums ${listRefreshColumnClass}`}
-        >
-          <span className="block">{formatRefreshDate(refreshAt)}</span>
-          <span className="block">{formatRefreshClock(refreshAt)}</span>
-        </time>
-      ) : (
-        <span
-          className={`text-muted-foreground text-xs ${listRefreshColumnClass}`}
-        >
-          —
-        </span>
-      )}
+      <MarketRefreshTime at={refreshAt} className={listRefreshColumnClass} />
     </Link>
   );
 }

@@ -18,7 +18,7 @@ export function PlayerGroupedStats({
     <ul
       className={cn(
         compact
-          ? 'grid shrink-0 grid-cols-3 gap-x-1 gap-y-0.5 md:flex md:w-auto md:flex-none md:flex-nowrap md:items-stretch md:gap-1.5'
+          ? 'grid shrink-0 grid-cols-3 gap-x-1 gap-y-0.5 lg:flex lg:w-auto lg:flex-none lg:flex-nowrap lg:items-stretch lg:gap-1.5'
           : 'grid w-full min-w-0 grid-cols-3 gap-1 md:flex md:w-auto md:flex-wrap md:items-stretch md:gap-2',
         className,
       )}
