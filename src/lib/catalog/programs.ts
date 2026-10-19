@@ -179,7 +179,26 @@ export function programEventLabel(programId: string): string {
 }
 
 export function programEventOrder(programId: string): number {
-  return lookup(programId)?.order ?? RENDERZ_PROGRAM_CATALOG.length + 50;
+  // Unknown ids are events newer than the hardcoded list, so they sort first.
+  return lookup(programId)?.order ?? -1;
+}
+
+export function isCatalogProgram(programId: string): boolean {
+  return lookup(programId) !== undefined;
+}
+
+/** Logo file slug for an event that is not already shipped in public/program-logos. */
+export function unknownProgramLogoSlug(programId: string): string | undefined {
+  if (isCatalogProgram(programId)) {
+    return undefined;
+  }
+  const slug = programId.replace(/^PROGRAM_/i, "").trim();
+  return LOGO_SLUG.test(slug) ? slug : undefined;
+}
+
+/** Unsigned RenderZ program-logo sprite. Missing art is ignored by the sync. */
+export function programLogoUpstreamUrl(slug: string): string {
+  return `https://images-v2-unsigned.renderz.app/programlogos_23_${slug}`;
 }
 
 export function programLogoSrc(programId: string): string | undefined {

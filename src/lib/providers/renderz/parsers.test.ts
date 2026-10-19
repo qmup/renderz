@@ -60,6 +60,15 @@ describe("player field helpers", () => {
 });
 
 describe("parsePlayerPage", () => {
+  it("stores animation.colors on a new card", () => {
+    const html = `<script>player:{id:24000001,firstName:"New",lastName:"Event",rating:99,source:"PROGRAM_NEWPROMO28",animation:{colors:{name:"#112233",rating:"#FFEAB7",position:"#fff"}}}</script>`;
+    const { player } = parsePlayerPage({ html });
+    expect(player.programId).toBe("PROGRAM_NEWPROMO28");
+    expect(player.nameColor).toBe("#112233");
+    expect(player.ratingColor).toBe("#FFEAB7");
+    expect(player.positionColor).toBe("#FFFFFF");
+  });
+
   it("parses HTML-only player pages and prefers visible labels", () => {
     const { player, assets } = parsePlayerPage({ html: read("messi.html") });
     expect(player.id).toBe("24029971");

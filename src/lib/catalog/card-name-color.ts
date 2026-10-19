@@ -66,6 +66,101 @@ const WHITE_OVR = {
   position: CARD_NAME_WHITE,
 } as const;
 
+const NAMED_COLORS: Record<string, string> = {
+  white: CARD_NAME_WHITE,
+  black: "#000000",
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function channel(value: number): string | undefined {
+  if (!Number.isInteger(value) || value < 0 || value > 255) {
+    return undefined;
+  }
+  return value.toString(16).padStart(2, "0");
+}
+
+/** `#RGB`, `#RRGGBB`, `#RRGGBBAA`, `rgb()`, or a short color name. */
+export function normalizeHexColor(value: unknown): string | undefined {
+  if (isRecord(value)) {
+    const red = channel(Number(value.r));
+    const green = channel(Number(value.g));
+    const blue = channel(Number(value.b));
+    if (!red || !green || !blue) {
+      return undefined;
+    }
+    return `#${red}${green}${blue}`.toUpperCase();
+  }
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const text = value.trim();
+  const named = NAMED_COLORS[text.toLowerCase()];
+  if (named) {
+    return named;
+  }
+  const rgb = text.match(
+    /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*[\d.]+)?\s*\)$/i,
+  );
+  if (rgb) {
+    const red = channel(Number(rgb[1]));
+    const green = channel(Number(rgb[2]));
+    const blue = channel(Number(rgb[3]));
+    if (!red || !green || !blue) {
+      return undefined;
+    }
+    return `#${red}${green}${blue}`.toUpperCase();
+  }
+  const hex = text.startsWith("#") ? text.slice(1) : text;
+  if (/^[0-9A-Fa-f]{3}$/.test(hex)) {
+    return `#${hex
+      .split("")
+      .map((char) => `${char}${char}`)
+      .join("")}`.toUpperCase();
+  }
+  if (/^[0-9A-Fa-f]{6}$/.test(hex) || /^[0-9A-Fa-f]{8}$/.test(hex)) {
+    return `#${hex.slice(0, 6)}`.toUpperCase();
+  }
+  return undefined;
+}
+
+/** RenderZ `player.animation.colors` for `.name` / `.rating` / `.position`. */
+export function cardColorsFromAnimation(animation: unknown): {
+  name?: string;
+  rating?: string;
+  position?: string;
+} {
+  if (!isRecord(animation) || !isRecord(animation.colors)) {
+    return {};
+  }
+  const colors = animation.colors;
+  return {
+    name: normalizeHexColor(colors.name),
+    rating: normalizeHexColor(colors.rating),
+    position: normalizeHexColor(colors.position),
+  };
+}
+
+/**
+ * Stored `animation.colors` win. Rows ingested before that field existed
+ * fall back to the measured background-filename table.
+ */
+export function resolveCardTextColors(input: {
+  name?: string;
+  rating?: string;
+  position?: string;
+  backgroundAssetUrl?: string;
+}): CardTextColors {
+  const derived = cardTextColors(input.backgroundAssetUrl);
+  return {
+    name: input.name ?? derived.name,
+    rating: input.rating ?? derived.rating,
+    position: input.position ?? derived.position,
+  };
+}
+
 export function cardTextColors(
   backgroundAssetUrl: string | undefined,
 ): CardTextColors {
@@ -102,12 +197,24 @@ export function cardOvrColors(nameColor: string | undefined): {
   return WHITE_OVR;
 }
 
-export function applyCardNameColors<T extends { id: string }>(
+export function applyCardNameColors<
+  T extends {
+    id: string;
+    nameColor?: string;
+    ratingColor?: string;
+    positionColor?: string;
+  },
+>(
   items: readonly T[],
   backgroundUrlByPlayerId: ReadonlyMap<string, string>,
 ): Array<T & { nameColor: string; ratingColor: string; positionColor: string }> {
   return items.map((item) => {
-    const colors = cardTextColors(backgroundUrlByPlayerId.get(item.id));
+    const colors = resolveCardTextColors({
+      name: item.nameColor,
+      rating: item.ratingColor,
+      position: item.positionColor,
+      backgroundAssetUrl: backgroundUrlByPlayerId.get(item.id),
+    });
     return {
       ...item,
       nameColor: colors.name,

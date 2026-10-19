@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   applyCardNameColors,
+  cardColorsFromAnimation,
   cardNameColor,
   cardOvrColors,
   cardTextColors,
+  normalizeHexColor,
+  resolveCardTextColors,
 } from "@/lib/catalog/card-name-color";
 
 const bg = (name: string) =>
@@ -130,6 +133,36 @@ describe("cardNameColor", () => {
     expect(cardNameColor(bg("bg_23_backgrounds_27_B_STELLA_ICON_STATIC"))).toBe(
       "#493721",
     );
+  });
+});
+
+describe("cardColorsFromAnimation", () => {
+  it("reads RenderZ animation.colors and ignores an unknown background", () => {
+    expect(
+      cardColorsFromAnimation({
+        colors: {
+          name: "#554620",
+          rating: "rgb(255, 234, 183)",
+          position: "white",
+        },
+      }),
+    ).toEqual({
+      name: "#554620",
+      rating: "#FFEAB7",
+      position: "#FFFFFF",
+    });
+    expect(normalizeHexColor("#abc")).toBe("#AABBCC");
+    expect(normalizeHexColor({ r: 1, g: 2, b: 3 })).toBe("#010203");
+    expect(
+      resolveCardTextColors({
+        name: "#010203",
+        backgroundAssetUrl: bg("bg_23_backgrounds_26_B_TOTW27_LIVE_STATIC"),
+      }),
+    ).toEqual({
+      name: "#010203",
+      rating: "#FFFFFF",
+      position: "#FFFFFF",
+    });
   });
 });
 

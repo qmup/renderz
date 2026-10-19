@@ -63,6 +63,7 @@ describe("planCatalogUploads", () => {
         upstreamUrl: "https://images-v2.renderz.app/trait-new",
         fetchedAt: 5,
         required: false,
+        replace: true,
       },
     ]);
     expect(jobs).toEqual([
@@ -70,11 +71,13 @@ describe("planCatalogUploads", () => {
         key: "player-art/_shared/playstyle-1-l1.png",
         upstreamUrl: "https://images-v2.renderz.app/new",
         required: true,
+        replace: false,
       },
       {
         key: "player-art/_shared/trait-9.png",
         upstreamUrl: "https://images-v2.renderz.app/trait-new",
         required: true,
+        replace: true,
       },
     ]);
   });

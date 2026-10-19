@@ -13,7 +13,7 @@ import {
 import { StarSigningsPrice } from '@/components/players/star-signings-price';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { cardTextColors } from '@/lib/catalog/card-name-color';
+import { resolveCardTextColors } from '@/lib/catalog/card-name-color';
 import { enrichDiscoveredPlayer } from '@/lib/catalog/enrichment';
 import { getPlayerCatalog } from '@/lib/catalog/runtime';
 import { isDev } from '@/lib/dev';
@@ -118,7 +118,12 @@ export default async function PlayerDetailPage({
     loopKind ? catalog.getAsset(player.id, loopKind) : Promise.resolve(null),
     catalog.getAsset(player.id, 'background'),
   ]);
-  const overlayColors = cardTextColors(backgroundAsset?.upstreamUrl);
+  const overlayColors = resolveCardTextColors({
+    name: player.nameColor,
+    rating: player.ratingColor,
+    position: player.positionColor,
+    backgroundAssetUrl: backgroundAsset?.upstreamUrl,
+  });
   // Prefer static CDN /loops; when a brand-new sheet is not packed yet, warm
   // the serverless image cache so CardLoopCanvas can animate via the API.
   const packedLoop =

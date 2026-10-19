@@ -60,6 +60,9 @@ export const players = pgTable(
       .$type<AvailableImageKind[]>()
       .notNull()
       .default([]),
+    nameColor: text("name_color"),
+    ratingColor: text("rating_color"),
+    positionColor: text("position_color"),
     addedAt: bigint("added_at", { mode: "number" }),
     fetchedAt: bigint("fetched_at", { mode: "number" }).notNull(),
     parseVersion: integer("parse_version").notNull(),
