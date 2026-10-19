@@ -90,10 +90,16 @@ export function currentAlertRefreshAtMs(
 }
 
 /** Remaining time for a toast. Zero once the refresh instant has passed. */
-export function formatAlertRemaining(remainingMs: number): string {
+export function formatAlertRemaining(remainingMs: number, locale = 'en'): string {
   const sec = Math.max(0, Math.ceil(remainingMs / 1000));
   const minutes = Math.floor(sec / 60);
   const seconds = sec % 60;
+  if (locale === 'vi') {
+    if (minutes > 0) {
+      return `${minutes} phút ${seconds} giây`;
+    }
+    return `${seconds} giây`;
+  }
   if (minutes > 0) {
     return `${minutes}m ${seconds}s`;
   }
@@ -110,8 +116,21 @@ export function sortByNextMarketRefresh<
 }
 
 /** Countdown like RenderZ: `in 42m, 24s` or `in 1h, 46m`. */
-export function formatMarketRefreshCountdown(remainingSec: number): string {
+export function formatMarketRefreshCountdown(
+  remainingSec: number,
+  locale = 'en',
+): string {
   const sec = Math.max(0, Math.floor(remainingSec));
+  if (locale === 'vi') {
+    if (sec >= 3600) {
+      const hours = Math.floor(sec / 3600);
+      const minutes = Math.floor((sec % 3600) / 60);
+      return `còn ${hours} giờ ${minutes} phút`;
+    }
+    const minutes = Math.floor(sec / 60);
+    const seconds = sec % 60;
+    return `còn ${minutes} phút ${seconds} giây`;
+  }
   if (sec >= 3600) {
     const hours = Math.floor(sec / 3600);
     const minutes = Math.floor((sec % 3600) / 60);

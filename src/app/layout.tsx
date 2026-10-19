@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { Geist, Oswald } from "next/font/google";
 import localFont from "next/font/local";
+import { PreferencesProvider } from "@/components/providers/preferences-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { messages } from "@/lib/i18n/messages";
+import { getLocale, getThemePreference } from "@/lib/i18n/server";
+import { themeInitScript } from "@/lib/theme";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -25,23 +29,33 @@ const cruyff = localFont({
   fallback: ["Arial Narrow", "Impact", "sans-serif"],
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: "FC Mobile catalog",
-    template: "%s · FC Mobile catalog",
-  },
-  description:
-    "Personal read-only FC Mobile player catalog. The browser talks only to this origin.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const copy = messages[await getLocale()];
+  return {
+    title: {
+      default: copy.metaTitle,
+      template: `%s · ${copy.metaTitle}`,
+    },
+    description: copy.metaDescription,
+  };
+}
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const [locale, theme] = await Promise.all([getLocale(), getThemePreference()]);
+
   return (
     <html
-      lang="en"
-      className={`${geistSans.variable} ${cardDisplay.variable} ${cruyff.variable} h-full antialiased`}
+      lang={locale}
+      suppressHydrationWarning
+      className={`${geistSans.variable} ${cardDisplay.variable} ${cruyff.variable} h-full antialiased${theme === "dark" ? " dark" : ""}`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className="flex min-h-full flex-col">
-        <QueryProvider>{children}</QueryProvider>
+        <PreferencesProvider locale={locale} theme={theme}>
+          <QueryProvider>{children}</QueryProvider>
+        </PreferencesProvider>
         <Analytics />
       </body>
     </html>

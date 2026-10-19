@@ -3,6 +3,7 @@
 import { useLayoutEffect, useRef } from 'react';
 import { CardLoopCanvas } from '@/components/players/card-loop-canvas';
 import { PlayerImage } from '@/components/players/player-image';
+import { usePreferences } from '@/components/providers/preferences-provider';
 import {
   FM23_CARD_SIZE,
   FM23_LAYOUT,
@@ -65,6 +66,7 @@ export function PlayerCardArt({
   /** Same-origin static LOOP sheet URL from the catalog sprite name. */
   loopSrc?: string;
 }) {
+  const { locale, m } = usePreferences();
   const has = (kind: PlayerImageKind) => kinds.includes(kind);
   const loopKind = animate ? findCardLoopKind(kinds) : undefined;
   const loopFrames = loopKind ? cardLoopMaxFramesFromKind(loopKind) : undefined;
@@ -160,7 +162,7 @@ export function PlayerCardArt({
       {cardName ? <CardName name={cardName} color={nameColor} /> : null}
 
       {auctionable === false ? (
-        <UntradeableMark playerId={id} size={size} />
+        <UntradeableMark playerId={id} size={size} label={m.untradeable} />
       ) : null}
 
       {has('flag') ? (
@@ -217,7 +219,7 @@ export function PlayerCardArt({
             className="size-[1em] shrink-0"
           />
           <span className="font-card leading-none font-medium tracking-tight tabular-nums">
-            {formatCoinAmount(price)}
+            {formatCoinAmount(price, locale)}
           </span>
         </div>
       ) : null}
@@ -313,21 +315,23 @@ function PlayStyleRail({
 function UntradeableMark({
   playerId,
   size,
+  label,
 }: {
   playerId: string;
   size: number;
+  label: string;
 }) {
   const iconPx = Math.min(32, Math.round((size * 40) / FM23_CARD_SIZE));
   return (
     <span
       className="pointer-events-none absolute top-0 right-2 z-20 block rounded-full bg-[#112] [@container(min-width:205px)]:right-4"
       style={{ width: 'min(15.625cqw, 32px)', height: 'min(15.625cqw, 32px)' }}
-      title="Untradeable"
+      title={label}
     >
       <PlayerImage
         id={playerId}
         kind="untradeable"
-        alt="Untradeable"
+        alt={label}
         width={iconPx}
         height={iconPx}
         className="absolute inset-0 h-full w-full object-contain"

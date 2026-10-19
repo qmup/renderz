@@ -1,17 +1,19 @@
 import { MarketRefresh } from '@/components/players/market-refresh';
 import { displayLabel } from '@/lib/display';
 import type { Player } from '@/lib/domain/player';
+import { messages, type Messages } from '@/lib/i18n/messages';
+import { getLocale } from '@/lib/i18n/server';
 
 type BioItem = {
   label: string;
   value?: string;
 };
 
-function itemsFromPlayer(player: Player): BioItem[] {
+function itemsFromPlayer(player: Player, copy: Messages): BioItem[] {
   return [
-    { label: 'Birthday', value: player.birthday },
+    { label: copy.birthday, value: player.birthday },
     {
-      label: 'Height / Weight',
+      label: copy.heightWeight,
       value:
         player.heightCm && player.weightKg
           ? `${player.heightCm} cm / ${player.weightKg} kg`
@@ -22,12 +24,12 @@ function itemsFromPlayer(player: Player): BioItem[] {
               : undefined,
     },
     {
-      label: 'Strong / Weak foot',
+      label: copy.feet,
       value: displayLabel(player.foot) + ' / ' + displayLabel(player.weakFoot),
     },
-    { label: 'Skill moves', value: displayLabel(player.skillMovesLevel) },
+    { label: copy.skillMoves, value: displayLabel(player.skillMovesLevel) },
     {
-      label: 'Work rates',
+      label: copy.workRates,
       value:
         player.workRateAtt || player.workRateDef
           ? `${displayLabel(player.workRateAtt) ?? '—'} / ${displayLabel(player.workRateDef) ?? '—'}`
@@ -36,12 +38,13 @@ function itemsFromPlayer(player: Player): BioItem[] {
   ];
 }
 
-export function PlayerBio({ player }: { player: Player }) {
-  const items = itemsFromPlayer(player);
+export async function PlayerBio({ player }: { player: Player }) {
+  const copy = messages[await getLocale()];
+  const items = itemsFromPlayer(player, copy);
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="font-heading text-lg font-medium">Bio</h2>
+      <h2 className="font-heading text-lg font-medium">{copy.bio}</h2>
       <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {items.map((item) => (
           <div

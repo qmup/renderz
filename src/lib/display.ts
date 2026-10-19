@@ -85,8 +85,8 @@ export function formatFetchedAt(ms: number): string {
 }
 
 /** Compact date-only label for listing rows (UTC calendar date, matching added_desc). */
-export function formatAddedDate(ms: number): string {
-  return new Intl.DateTimeFormat('en', {
+export function formatAddedDate(ms: number, locale = 'en'): string {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeZone: 'UTC',
   }).format(ms);
@@ -95,16 +95,16 @@ export function formatAddedDate(ms: number): string {
 const INDOCHINA_TIME = 'Asia/Ho_Chi_Minh';
 
 /** Calendar date of a listing refresh, in UTC+7. */
-export function formatRefreshDate(at: Date): string {
-  return new Intl.DateTimeFormat('en', {
+export function formatRefreshDate(at: Date, locale = 'en'): string {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeZone: INDOCHINA_TIME,
   }).format(at);
 }
 
 /** Clock for a listing refresh instant, in UTC+7. */
-export function formatRefreshClock(at: Date): string {
-  return new Intl.DateTimeFormat('en', {
+export function formatRefreshClock(at: Date, locale = 'en'): string {
+  return new Intl.DateTimeFormat(locale, {
     hour: 'numeric',
     minute: '2-digit',
     second: '2-digit',
@@ -112,20 +112,22 @@ export function formatRefreshClock(at: Date): string {
   }).format(at);
 }
 
-export function formatFetchedRelative(ms: number, now = Date.now()): string {
-  const delta = Math.max(0, now - ms);
+export function formatFetchedRelative(ms: number, locale = 'en'): string {
+  const delta = Math.max(0, Date.now() - ms);
   const minutes = Math.floor(delta / 60_000);
+  const vi = locale === 'vi';
   if (minutes < 1) {
-    return 'just now';
+    return vi ? 'vừa xong' : 'just now';
   }
   if (minutes < 60) {
-    return `${minutes}m ago`;
+    return vi ? `${minutes} phút trước` : `${minutes}m ago`;
   }
   const hours = Math.floor(minutes / 60);
   if (hours < 48) {
-    return `${hours}h ago`;
+    return vi ? `${hours} giờ trước` : `${hours}h ago`;
   }
-  return `${Math.floor(hours / 24)}d ago`;
+  const days = Math.floor(hours / 24);
+  return vi ? `${days} ngày trước` : `${days}d ago`;
 }
 
 export function displayPlayStyleLabel(style: {
@@ -146,19 +148,21 @@ export function displayTraitLabel(trait: {
   );
 }
 
-export function formatCoinAmount(value: number): string {
-  return new Intl.NumberFormat('en-US').format(value);
+export function formatCoinAmount(value: number, locale = 'en'): string {
+  return new Intl.NumberFormat(locale === 'vi' ? 'vi-VN' : 'en-US').format(value);
 }
 
-export function formatRetryAfter(retryAfterMs?: number): string {
+export function formatRetryAfter(retryAfterMs?: number, locale = 'en'): string {
+  const vi = locale === 'vi';
   if (!retryAfterMs || retryAfterMs <= 0) {
-    return 'a moment';
+    return vi ? 'một lát' : 'a moment';
   }
   const seconds = Math.ceil(retryAfterMs / 1000);
   if (seconds < 60) {
-    return `${seconds}s`;
+    return vi ? `${seconds} giây` : `${seconds}s`;
   }
-  return `${Math.ceil(seconds / 60)}m`;
+  const minutes = Math.ceil(seconds / 60);
+  return vi ? `${minutes} phút` : `${minutes}m`;
 }
 
 function humanizePrefixedKey(

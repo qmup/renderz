@@ -1,16 +1,20 @@
+import { messages } from '@/lib/i18n/messages'
+import { getLocale } from '@/lib/i18n/server'
+
 const GITHUB_URL = 'https://github.com/qmup'
 const NAME = 'Quân Mụp'
 
-export function MadeByCredit() {
+export async function MadeByCredit() {
+  const copy = messages[await getLocale()]
   return (
     <p className="text-xs leading-relaxed text-neutral-500">
-      Made by{' '}
+      {copy.madeByBefore}{' '}
       <a
         href={GITHUB_URL}
         target="_blank"
         rel="noopener noreferrer"
         className="credit-name font-semibold"
-        aria-label="Quân Mụp on GitHub"
+        aria-label={copy.madeByLabel}
       >
         {Array.from(NAME).map((char, index) =>
           char === ' ' ? (
@@ -28,7 +32,7 @@ export function MadeByCredit() {
           ),
         )}
       </a>{' '}
-      for player tracking.
+      {copy.madeByAfter}
     </p>
   )
 }

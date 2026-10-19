@@ -1,18 +1,23 @@
+import type { Metadata } from "next";
 import { MadeByCredit } from '@/components/made-by-credit';
 import { PlayersBrowser } from "@/components/players/players-browser";
 import { getCachedPlayerList } from "@/lib/catalog/cached-list";
 import { isDev } from "@/lib/dev";
+import { messages } from "@/lib/i18n/messages";
+import { getLocale } from "@/lib/i18n/server";
 import {
   playerListQueryFromSearchParams,
   playerListQueryToSearchParams,
 } from "@/lib/domain/query";
 
 export const maxDuration = 60;
-export const metadata = {
-  title: "Players",
-};
+
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: messages[await getLocale()].playersTitle };
+}
 
 export default async function PlayersPage({ searchParams }: PageProps<"/players">) {
+  const copy = messages[await getLocale()];
   const raw = await searchParams;
   const query = playerListQueryFromSearchParams(raw);
   const initial = await getCachedPlayerList(
@@ -24,12 +29,12 @@ export default async function PlayersPage({ searchParams }: PageProps<"/players"
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-4 sm:gap-6 sm:py-8">
       {isDev ? (
         <p className="text-muted-foreground text-[10px] tracking-[0.18em] uppercase sm:text-xs">
-          Local catalog
+          {copy.localCatalog}
         </p>
       ) : null}
       <div className="flex flex-col gap-0.5 sm:gap-1">
         <h1 className="font-heading text-xl font-semibold tracking-tight sm:text-3xl">
-          Players
+          {copy.playersTitle}
         </h1>
         <MadeByCredit />
       </div>

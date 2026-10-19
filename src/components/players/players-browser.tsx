@@ -9,6 +9,7 @@ import { PlayerFilters } from '@/components/players/player-filters';
 import { PlayerCardArt } from '@/components/players/player-card-art';
 import { PlayerList } from '@/components/players/player-list';
 import { PlayerPagination } from '@/components/players/player-pagination';
+import { usePreferences } from '@/components/providers/preferences-provider';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,6 +49,7 @@ export function PlayersBrowser({
   initialSearch: string;
 }) {
   const router = useRouter();
+  const { m } = usePreferences();
   const [search, setSearch] = useState(initialSearch);
   const query = useMemo(() => queryFromSearch(search), [search]);
   const fetchSearch = useMemo(() => listingSearch(search), [search]);
@@ -108,13 +110,13 @@ export function PlayersBrowser({
       <div className="bg-background/95 sticky top-0 z-20 -mx-4 flex items-center gap-2 border-b border-border/70 px-4 py-2.5 backdrop-blur-sm lg:hidden">
         <div className="min-w-0 flex-1">
           <label className="sr-only" htmlFor="mobile-player-search">
-            Search
+            {m.search}
           </label>
           <Input
             id="mobile-player-search"
             value={searchDraft}
             onChange={(event) => setSearchDraft(event.target.value)}
-            placeholder="Search players…"
+            placeholder={m.searchPlayers}
             autoComplete="off"
             className="h-10"
           />
@@ -127,7 +129,7 @@ export function PlayersBrowser({
               className="h-10 shrink-0 gap-1.5 px-3"
             >
               <SlidersHorizontal />
-              <span>Filter</span>
+              <span>{m.filter}</span>
               {filterCount > 0 ? (
                 <Badge variant="secondary" className="ml-0.5 tabular-nums">
                   {filterCount}
@@ -140,7 +142,7 @@ export function PlayersBrowser({
             className="w-[min(100%,20rem)] overflow-y-auto"
           >
             <SheetHeader>
-              <SheetTitle>Filters</SheetTitle>
+              <SheetTitle>{m.filters}</SheetTitle>
             </SheetHeader>
             {mobileFiltersOpen ? (
               <div className="px-4 pb-6">
@@ -157,8 +159,8 @@ export function PlayersBrowser({
 
       <section className="min-w-0 flex-1">
         {listQuery.isError ? (
-          <CatalogNotice title="Could not load the catalog." tone="danger">
-            Retry the listing. The browser only talks to this origin.
+          <CatalogNotice title={m.catalogLoadError} tone="danger">
+            {m.catalogLoadErrorBody}
           </CatalogNotice>
         ) : null}
         {showListSkeleton ? (
@@ -167,8 +169,7 @@ export function PlayersBrowser({
           <>
             <div className="mb-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 sm:mb-3">
               <p className="text-muted-foreground text-sm tabular-nums">
-                {data.total.toLocaleString()} player
-                {data.total === 1 ? '' : 's'}
+                {m.playerCount(data.total)}
               </p>
               <div className="flex items-center gap-2">
                 <ViewSwitch
@@ -253,11 +254,12 @@ function ViewSwitch({
   view: PlayerListQuery['view'];
   onChange: (view: PlayerListQuery['view']) => void;
 }) {
+  const { m } = usePreferences();
   return (
     <div
       className="flex items-center rounded-lg border p-0.5"
       role="group"
-      aria-label="Listing view"
+      aria-label={m.listingView}
     >
       <Button
         type="button"
@@ -265,7 +267,7 @@ function ViewSwitch({
         className="size-9 sm:size-7"
         variant={view === 'list' ? 'secondary' : 'ghost'}
         aria-pressed={view === 'list'}
-        aria-label="List view"
+        aria-label={m.listView}
         onClick={() => onChange('list')}
       >
         <List />
@@ -276,7 +278,7 @@ function ViewSwitch({
         className="size-9 sm:size-7"
         variant={view === 'grid' ? 'secondary' : 'ghost'}
         aria-pressed={view === 'grid'}
-        aria-label="Grid view"
+        aria-label={m.gridView}
         onClick={() => onChange('grid')}
       >
         <LayoutGrid />
@@ -286,12 +288,13 @@ function ViewSwitch({
 }
 
 function ListingSkeleton({ view }: { view: PlayerListQuery['view'] }) {
+  const { m } = usePreferences();
   if (view === 'grid') {
     return (
       <div
         className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
         aria-busy="true"
-        aria-label="Loading players"
+        aria-label={m.loadingPlayers}
       >
         {Array.from({ length: 12 }, (_, index) => (
           <Skeleton key={index} className="aspect-square w-full" />
@@ -303,7 +306,7 @@ function ListingSkeleton({ view }: { view: PlayerListQuery['view'] }) {
     <div
       className="overflow-hidden rounded-xl border"
       aria-busy="true"
-      aria-label="Loading players"
+      aria-label={m.loadingPlayers}
     >
       {Array.from({ length: 8 }, (_, index) => (
         <div
@@ -322,19 +325,21 @@ function ListingSkeleton({ view }: { view: PlayerListQuery['view'] }) {
 }
 
 function EmptyCatalog({ filtered }: { filtered: boolean }) {
+  const { m } = usePreferences();
   return (
     <div className="rounded-xl border border-dashed px-6 py-12 text-center">
       <p className="font-medium">
-        {filtered ? 'No players match these filters' : 'Catalog is empty'}
+        {filtered ? m.emptyFiltered : m.emptyCatalog}
       </p>
       <p className="text-muted-foreground mt-1 text-sm">
         {filtered ? (
-          'Clear filters or try another search.'
+          m.emptyFilteredHint
         ) : (
           <>
-            Seed it with <code className="text-foreground">npm run seed</code>,
-            then optionally{' '}
-            <code className="text-foreground">npm run ingest sync</code>.
+            {m.emptySeedBefore} <code className="text-foreground">npm run seed</code>
+            {m.emptySeedMiddle}{' '}
+            <code className="text-foreground">npm run ingest sync</code>
+            {m.emptySeedAfter}
           </>
         )}
       </p>

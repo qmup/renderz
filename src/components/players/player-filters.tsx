@@ -8,6 +8,7 @@ import {
   toggleListValue,
 } from '@/components/players/player-filter-shared';
 import { programLogoSrc, sortProgramFacets } from '@/lib/catalog/programs';
+import { usePreferences } from '@/components/providers/preferences-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,7 +42,16 @@ export function PlayerFilters({
   onSearchDraft: (value: string) => void;
   onReplaceQuery: (next: PlayerListQuery) => void;
 }) {
+  const { m } = usePreferences();
   const filterCount = countPlayerListFilters(query);
+  const sortLabels: Record<PlayerListQuery['sort'], string> = {
+    added_desc: m.sortNewest,
+    rating_desc: m.sortRatingHigh,
+    rating_asc: m.sortRatingLow,
+    name_asc: m.sortNameAsc,
+    name_desc: m.sortNameDesc,
+    fetched_desc: m.sortFetched,
+  };
 
   function patchFilters(filters: PlayerListQuery['filters']) {
     onReplaceQuery({
@@ -66,18 +76,18 @@ export function PlayerFilters({
     <div className="flex flex-col">
       {includeSearch ? (
         <div className="flex flex-col gap-1.5 pb-3">
-          <Label htmlFor={`${idPrefix}-search`}>Search</Label>
+          <Label htmlFor={`${idPrefix}-search`}>{m.search}</Label>
           <Input
             id={`${idPrefix}-search`}
             value={searchDraft}
             onChange={(event) => onSearchDraft(event.target.value)}
-            placeholder="Search players…"
+            placeholder={m.searchPlayers}
             autoComplete="off"
           />
         </div>
       ) : null}
       <div className="flex flex-col gap-1.5 border-b border-border pb-3">
-        <Label htmlFor={`${idPrefix}-sort`}>Sort</Label>
+        <Label htmlFor={`${idPrefix}-sort`}>{m.sort}</Label>
         <select
           id={`${idPrefix}-sort`}
           className="border-input h-8 w-full rounded-lg border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -93,13 +103,13 @@ export function PlayerFilters({
         >
           {PLAYER_SORT_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
-              {option.label}
+              {sortLabels[option.value]}
             </option>
           ))}
         </select>
       </div>
       <FacetAccordion
-        title="Program / Event"
+        title={m.programEvent}
         defaultOpen
         selectedCount={query.filters.programIds.length}
       >
@@ -114,7 +124,7 @@ export function PlayerFilters({
         />
       </FacetAccordion>
       <FacetAccordion
-        title="Position"
+        title={m.position}
         selectedCount={query.filters.positions.length}
       >
         <PositionFacet
@@ -132,7 +142,7 @@ export function PlayerFilters({
         />
       </FacetAccordion>
       <FacetAccordion
-        title="OVR Rating"
+        title={m.ovrRating}
         selectedCount={
           (query.filters.ratingMin !== undefined ? 1 : 0) +
           (query.filters.ratingMax !== undefined ? 1 : 0)
@@ -140,7 +150,7 @@ export function PlayerFilters({
       >
         <div className="grid grid-cols-2 gap-2">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`${idPrefix}-rating-min`}>Minimum</Label>
+            <Label htmlFor={`${idPrefix}-rating-min`}>{m.minimum}</Label>
             <Input
               id={`${idPrefix}-rating-min`}
               inputMode="numeric"
@@ -157,7 +167,7 @@ export function PlayerFilters({
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`${idPrefix}-rating-max`}>Maximum</Label>
+            <Label htmlFor={`${idPrefix}-rating-max`}>{m.maximum}</Label>
             <Input
               id={`${idPrefix}-rating-max`}
               inputMode="numeric"
@@ -176,7 +186,7 @@ export function PlayerFilters({
         </div>
       </FacetAccordion>
       <FacetAccordion
-        title="Leagues"
+        title={m.leagues}
         selectedCount={query.filters.leagues.length}
       >
         <SearchableFacetList
@@ -187,7 +197,7 @@ export function PlayerFilters({
         />
       </FacetAccordion>
       <FacetAccordion
-        title="Nations"
+        title={m.nations}
         selectedCount={query.filters.nations.length}
       >
         <SearchableFacetList
@@ -197,7 +207,7 @@ export function PlayerFilters({
           onToggle={(value) => toggleFacet('nations', value)}
         />
       </FacetAccordion>
-      <FacetAccordion title="Clubs" selectedCount={query.filters.clubs.length}>
+      <FacetAccordion title={m.clubs} selectedCount={query.filters.clubs.length}>
         <SearchableFacetList
           idPrefix={`${idPrefix}-club`}
           options={facets?.clubs ?? []}
@@ -210,7 +220,7 @@ export function PlayerFilters({
         htmlFor={`${idPrefix}-auctionable`}
         className="flex cursor-pointer items-center justify-between gap-3 border-t border-border py-3 text-sm"
       >
-        <span>Auctionable only</span>
+        <span>{m.auctionableOnly}</span>
         <input
           id={`${idPrefix}-auctionable`}
           type="checkbox"
@@ -238,7 +248,7 @@ export function PlayerFilters({
             });
           }}
         >
-          Clear filters
+          {m.clearFilters}
         </Button>
       ) : null}
     </div>
@@ -260,8 +270,15 @@ function PositionFacet({
   onToggle: (value: string) => void;
   onIncludeAltChange: (value: boolean) => void;
 }) {
+  const { m } = usePreferences();
   const switchId = `${idPrefix}-include-alt`;
   const groups = positionFilterGroups(extraValues);
+  const groupLabels: Record<string, string> = {
+    ATTACK: m.positionAttack,
+    MIDFIELD: m.positionMidfield,
+    DEFENCE: m.positionDefence,
+    OTHER: m.positionOther,
+  };
 
   return (
     <div className="flex flex-col gap-3">
@@ -270,7 +287,7 @@ function PositionFacet({
           htmlFor={switchId}
           className="cursor-pointer text-sm font-normal"
         >
-          Include alternate positions
+          {m.includeAltPositions}
         </Label>
         <button
           id={switchId}
@@ -296,7 +313,7 @@ function PositionFacet({
       {groups.map((group) => (
         <div key={group.label} className="flex flex-col gap-1.5">
           <p className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
-            {group.label}
+            {groupLabels[group.label] ?? group.label}
           </p>
           <div className="grid grid-cols-3 gap-1.5">
             {group.positions.map((position) => {
@@ -398,6 +415,7 @@ function SearchableFacetList({
   hideCount?: boolean;
   onToggle: (value: string) => void;
 }) {
+  const { m } = usePreferences();
   const [needle, setNeedle] = useState('');
   const [shown, setShown] = useState(FACET_OPTION_WINDOW);
   const filtered = useMemo(() => {
@@ -417,9 +435,7 @@ function SearchableFacetList({
 
   if (options.length === 0) {
     return (
-      <p className="text-muted-foreground text-xs">
-        No options in this catalog.
-      </p>
+      <p className="text-muted-foreground text-xs">{m.noFacetOptions}</p>
     );
   }
 
@@ -433,7 +449,7 @@ function SearchableFacetList({
             setNeedle(event.target.value);
             setShown(FACET_OPTION_WINDOW);
           }}
-          placeholder="Search options…"
+          placeholder={m.searchOptions}
           autoComplete="off"
           className="h-8"
         />
@@ -474,7 +490,7 @@ function SearchableFacetList({
         })}
         {filtered.length === 0 ? (
           <li className="text-muted-foreground px-1.5 py-1 text-xs">
-            No matching options
+            {m.noMatchingOptions}
           </li>
         ) : null}
       </ul>

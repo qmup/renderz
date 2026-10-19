@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { MarketRefreshToasts } from "@/components/players/market-refresh-toasts";
+import { usePreferences } from "@/components/providers/preferences-provider";
 import { Button } from "@/components/ui/button";
 import {
   FOLLOWED_PLAYER_IDS_KEY,
@@ -83,12 +84,13 @@ export function useFollowedPlayerIds(): string[] {
 
 export function FollowHeartButton({ playerId }: { playerId: string }) {
   const ids = useFollowedPlayerIds();
+  const { m } = usePreferences();
   const followed = ids.includes(playerId);
   return (
     <button
       type="button"
       aria-pressed={followed}
-      aria-label={followed ? "Unfollow" : "Follow"}
+      aria-label={followed ? m.unfollow : m.follow}
       onClick={(event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -112,6 +114,7 @@ export function FollowHeartButton({ playerId }: { playerId: string }) {
 
 export function PlayerFollowButton({ playerId }: { playerId: string }) {
   const ids = useFollowedPlayerIds();
+  const { m } = usePreferences();
   const followed = ids.includes(playerId);
   return (
     <Button
@@ -125,19 +128,20 @@ export function PlayerFollowButton({ playerId }: { playerId: string }) {
         aria-hidden
         className={cn("size-3.5", followed && "fill-current text-rose-600")}
       />
-      {followed ? "Following" : "Follow"}
+      {followed ? m.following : m.follow}
     </Button>
   );
 }
 
 export function FollowNavLink() {
   const ids = useFollowedPlayerIds();
+  const { m } = usePreferences();
   return (
     <Link
       href="/players/following"
       className="text-foreground hover:text-foreground/80 inline-flex items-center gap-1.5 text-sm font-medium"
     >
-      Following
+      {m.followingNav}
       {ids.length > 0 ? (
         <span className="bg-muted text-muted-foreground rounded-full px-1.5 text-xs tabular-nums">
           {ids.length}
