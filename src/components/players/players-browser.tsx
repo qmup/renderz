@@ -239,6 +239,7 @@ function PlayerGridLink({
         nameColor={player.nameColor}
         size={171}
         priority={priority}
+        listThumb
       />
     </Link>
   );

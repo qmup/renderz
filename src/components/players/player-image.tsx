@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import type { PlayerImageKind } from "@/lib/domain/player";
-import { playerArtPublicSrc, playerImageApiSrc } from "@/lib/images";
+import { playerImageSources } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
 export function PlayerImage({
@@ -15,6 +15,7 @@ export function PlayerImage({
   height,
   hideOnError = false,
   priority = false,
+  listThumb = false,
 }: {
   id: string;
   kind: PlayerImageKind;
@@ -25,14 +26,18 @@ export function PlayerImage({
   height: number;
   hideOnError?: boolean;
   priority?: boolean;
+  /** List background/card: try the WebP thumb, then the full PNG, then the API. */
+  listThumb?: boolean;
 }) {
-  const staticSrc = playerArtPublicSrc(id, kind);
-  const [src, setSrc] = useState(staticSrc);
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    setSrc(staticSrc);
-    setFailed(false);
-  }, [staticSrc]);
+  const sources = playerImageSources(id, kind, listThumb);
+  const sourceKey = sources.join("\n");
+  const [cursor, setCursor] = useState({ sourceKey, index: 0, failed: false });
+  if (cursor.sourceKey !== sourceKey) {
+    setCursor({ sourceKey, index: 0, failed: false });
+  }
+  const index = cursor.sourceKey === sourceKey ? cursor.index : 0;
+  const failed = cursor.sourceKey === sourceKey ? cursor.failed : false;
+  const src = sources[index] ?? sources[0];
   if (failed) {
     if (hideOnError) {
       return null;
@@ -63,11 +68,11 @@ export function PlayerImage({
       loading={priority ? "eager" : "lazy"}
       fetchPriority={priority ? "high" : "low"}
       onError={() => {
-        if (src === staticSrc) {
-          setSrc(playerImageApiSrc(id, kind));
+        if (index + 1 < sources.length) {
+          setCursor({ sourceKey, index: index + 1, failed: false });
           return;
         }
-        setFailed(true);
+        setCursor({ sourceKey, index, failed: true });
       }}
     />
   );

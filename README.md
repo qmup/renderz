@@ -51,7 +51,9 @@ Parser v2 stops copying the whole player page into `programName`. Re-run seed or
 
 ## Images
 
-Listing card art is served from CloudFront (`/player-art/...`). The UI falls back to `GET /api/images/player/:id/:kind` (allowlisted CDN hosts, SSRF controls, placeholder on failure). Signed CDN URLs never reach the browser. Expired signatures trigger a catalog refresh for that id, then one retry.
+Listing card art is served from CloudFront (`/player-art/...`). The list and grid load a 128px WebP (`card.thumb.webp`, `background.thumb.webp`) and fall back to the full PNG, then `GET /api/images/player/:id/:kind` (allowlisted CDN hosts, SSRF controls, placeholder on failure). Detail keeps the PNG. Flags, clubs, and playstyles stay PNG. Signed CDN URLs never reach the browser. Expired signatures trigger a catalog refresh for that id, then one retry.
+
+Catalog sync writes the WebP when it uploads a card or background, and backfills any missing thumbs already in the bucket. `npm run images:backfill-thumbs` does that pass on its own. `npm run images:upload-s3` writes the same files under `public/player-art` before syncing. PNG keys are immutable, so thumbs use a new key.
 
 ## Fixtures
 

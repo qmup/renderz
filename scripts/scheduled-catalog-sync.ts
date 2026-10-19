@@ -10,6 +10,8 @@
  * CATALOG_SYNC_BUDGET_MS so the next GitHub Actions schedule can continue.
  */
 import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { listThumbObjectKey } from "../src/lib/images";
+import { backfillMissingListThumbs, ensureListThumb } from "./list-thumb-s3";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { auroraConfigFromEnv } from "../src/db/aurora-config";
 import { getPostgresDb } from "../src/db/postgres";
@@ -299,10 +301,12 @@ async function uploadMissing(
         continue;
       }
       try {
+        let pngBytes: Uint8Array | undefined;
         if (await objectExists(client, bucket, job.key)) {
           present += 1;
         } else {
           const image = await fetchAllowlistedImage(job.upstreamUrl);
+          pngBytes = image.bytes;
           await client.send(
             new PutObjectCommand({
               Bucket: bucket,
@@ -314,6 +318,22 @@ async function uploadMissing(
           );
           uploaded += 1;
           console.log(`uploaded ${job.key}`);
+        }
+        if (listThumbObjectKey(job.key)) {
+          try {
+            const thumb = await ensureListThumb(
+              client,
+              bucket,
+              job.key,
+              pngBytes,
+            );
+            if (thumb === "uploaded") {
+              console.log(`uploaded ${listThumbObjectKey(job.key)}`);
+            }
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            console.error(`thumb failed ${job.key} ${message}`);
+          }
         }
       } catch (error) {
         failed += 1;
@@ -363,6 +383,19 @@ async function main() {
   const startedAt = Date.now();
   const deadline = syncDeadline(startedAt);
   console.log(`catalog sync start bucket=${bucket} budgetMs=${deadline - startedAt}`);
+
+  try {
+    const thumbs = await backfillMissingListThumbs(
+      new S3Client({ region }),
+      bucket,
+    );
+    console.log(
+      `list thumb backfill uploaded=${thumbs.uploaded} present=${thumbs.present} failed=${thumbs.failed}`,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`list thumb backfill skipped ${message}`);
+  }
 
   const uploadTotals = { uploaded: 0, requiredFailed: 0 };
   const uploadSlice = async (since: number) => {

@@ -39,6 +39,7 @@ export function PlayerCardArt({
   priority = false,
   animate = false,
   loopSrc,
+  listThumb = false,
 }: {
   id: string;
   kinds: string[];
@@ -60,6 +61,8 @@ export function PlayerCardArt({
   priority?: boolean;
   /** Detail-only: play LOOP sprite when a loop kind is present. */
   animate?: boolean;
+  /** List/grid: background and card load the 128px WebP. Detail stays on the PNG. */
+  listThumb?: boolean;
   /** Same-origin static LOOP sheet URL from the catalog sprite name. */
   loopSrc?: string;
 }) {
@@ -108,6 +111,7 @@ export function PlayerCardArt({
           height={size}
           hideOnError
           priority={priority}
+          listThumb={listThumb}
           className="absolute inset-0 h-full w-full"
         />
       ) : null}
@@ -128,6 +132,7 @@ export function PlayerCardArt({
           height={size}
           hideOnError
           priority={priority}
+          listThumb={listThumb}
           className="absolute inset-0 h-full w-full"
         />
       ) : null}
