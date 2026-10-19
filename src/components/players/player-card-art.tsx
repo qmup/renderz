@@ -6,6 +6,8 @@ import { PlayerImage } from '@/components/players/player-image';
 import {
   FM23_CARD_SIZE,
   FM23_LAYOUT,
+  FM23_NAME_TRANSFORM,
+  fm23BadgeLayout,
   fm23BoxStyle,
   fm23Cqw,
   fm23Pct,
@@ -70,6 +72,8 @@ export function PlayerCardArt({
     loopKind !== undefined && loopFrames !== undefined && loopFrames > 0;
   const showStack = has('background') || has('card') || showLoop;
   const showBackground = has('background');
+  const showLeague = has('league');
+  const badges = fm23BadgeLayout(showLeague);
   const badge = Math.round((size * FM23_LAYOUT.nation.width) / FM23_CARD_SIZE);
   const cardName = displayName?.trim();
   const ovr = cardOvrColors(nameColor);
@@ -167,8 +171,20 @@ export function PlayerCardArt({
           width={badge}
           height={badge}
           hideOnError
-          className="absolute z-10"
-          style={fm23BoxStyle(FM23_LAYOUT.nation)}
+          className="absolute z-[11]"
+          style={fm23BoxStyle(badges.nation)}
+        />
+      ) : null}
+      {showLeague && badges.league ? (
+        <PlayerImage
+          id={id}
+          kind="league"
+          alt=""
+          width={badge}
+          height={badge}
+          hideOnError
+          className="absolute z-[11]"
+          style={fm23BoxStyle(badges.league)}
         />
       ) : null}
       {has('club') ? (
@@ -179,8 +195,8 @@ export function PlayerCardArt({
           width={badge}
           height={badge}
           hideOnError
-          className="absolute z-10"
-          style={fm23BoxStyle(FM23_LAYOUT.club)}
+          className="absolute z-[11]"
+          style={fm23BoxStyle(badges.club)}
         />
       ) : null}
       {price !== undefined ? (
@@ -220,11 +236,11 @@ function CardName({ name, color }: { name: string; color: string }) {
     }
 
     const fit = () => {
-      el.style.transform = 'translate(-50%, 0)';
+      el.style.transform = FM23_NAME_TRANSFORM;
       const max = parent.clientWidth * (FM23_LAYOUT.name.maxWidth / FM23_CARD_SIZE);
       const width = el.scrollWidth;
       if (width > max && width > 0) {
-        el.style.transform = `translate(-50%, 0) scale(${max / width}, 1)`;
+        el.style.transform = `${FM23_NAME_TRANSFORM} scale(${max / width}, 1)`;
       }
     };
 
@@ -241,14 +257,14 @@ function CardName({ name, color }: { name: string; color: string }) {
   return (
     <div
       ref={ref}
-      className="font-card pointer-events-none absolute z-10 flex items-center justify-center leading-[1.2] font-bold whitespace-nowrap uppercase"
+      className="font-card pointer-events-none absolute z-10 leading-none font-bold whitespace-nowrap uppercase"
       style={{
         left: fm23Pct(FM23_LAYOUT.name.left),
         top: fm23Pct(FM23_LAYOUT.name.top),
         fontSize: fm23Cqw(FM23_LAYOUT.name.fontSize),
         color,
-        transform: 'translate(-50%, 0)',
-        transformOrigin: 'center center',
+        transform: FM23_NAME_TRANSFORM,
+        transformOrigin: 'center bottom',
       }}
       aria-hidden
     >

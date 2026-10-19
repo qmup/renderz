@@ -46,7 +46,7 @@ export const PLAYER_CARD_IMAGE_KINDS = [
   'league',
 ] as const;
 
-/** Listing / card-art layers. League is stored but omitted from listing composition. */
+/** Listing / card-art layers, including the league crest on live frames. */
 export const PLAYER_IMAGE_KINDS = PLAYER_CARD_IMAGE_KINDS;
 
 export const playerCardImageKindSchema = z.enum(PLAYER_CARD_IMAGE_KINDS);
