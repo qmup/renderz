@@ -1,5 +1,7 @@
 import { PlayerImage } from '@/components/players/player-image';
 import { displayPlayStyleLabel, displayTraitLabel } from '@/lib/display';
+import { messages } from '@/lib/i18n/messages';
+import { getLocale } from '@/lib/i18n/server';
 import {
   playStyleImageKind,
   sortPlayStylesByLevelDesc,
@@ -8,7 +10,7 @@ import {
   type PlayerTrait,
 } from '@/lib/domain/player';
 
-export function PlayerPlayStyles({
+export async function PlayerPlayStyles({
   playerId,
   styles,
   compact = false,
@@ -17,6 +19,7 @@ export function PlayerPlayStyles({
   styles: PlayStyle[];
   compact?: boolean;
 }) {
+  const copy = messages[await getLocale()];
   const items = sortPlayStylesByLevelDesc(styles).flatMap((style) => {
     const label = displayPlayStyleLabel(style);
     if (!label) {
@@ -40,10 +43,10 @@ export function PlayerPlayStyles({
     <section className="flex flex-col gap-2">
       {compact ? (
         <h2 className="text-muted-foreground text-[10px] tracking-[0.14em] uppercase">
-          Play styles
+          {copy.playStyles}
         </h2>
       ) : (
-        <h2 className="font-heading text-lg font-medium">Play styles</h2>
+        <h2 className="font-heading text-lg font-medium">{copy.playStyles}</h2>
       )}
       <ul
         className={
@@ -75,7 +78,7 @@ export function PlayerPlayStyles({
                 </p>
                 {style.level !== undefined ? (
                   <span className="bg-primary/10 text-primary rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
-                    Level {style.level}
+                    {copy.level(style.level)}
                   </span>
                 ) : null}
               </div>
@@ -92,15 +95,16 @@ export function PlayerPlayStyles({
   );
 }
 
-export function PlayerHiddenStats({
+export async function PlayerHiddenStats({
   playerId,
   traits,
 }: {
   playerId: string;
   traits: PlayerTrait[];
 }) {
+  const copy = messages[await getLocale()];
   const items = traits.flatMap((trait) => {
-    const label = displayTraitLabel(trait) ?? `Trait ${trait.id}`;
+    const label = displayTraitLabel(trait) ?? copy.traitFallback(trait.id);
     return [
       {
         id: trait.id,
@@ -115,7 +119,7 @@ export function PlayerHiddenStats({
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="font-heading text-lg font-medium">Hidden stats</h2>
+      <h2 className="font-heading text-lg font-medium">{copy.hiddenStats}</h2>
       <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {items.map((trait) => (
           <li

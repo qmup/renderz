@@ -1,6 +1,18 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+import { DEFAULT_LOCALE, parseLocale } from "@/lib/i18n/locale";
+import { messages } from "@/lib/i18n/messages";
+import { themeInitScript } from "@/lib/theme";
+
+function subscribeLocale(): () => void {
+  return () => {};
+}
+
+function readLocaleFromCookie() {
+  const match = document.cookie.match(/(?:^|; )locale=([^;]*)/);
+  return parseLocale(match?.[1]);
+}
 
 export default function GlobalError({
   error,
@@ -9,12 +21,20 @@ export default function GlobalError({
   error: Error & { digest?: string };
   retry: () => void;
 }) {
+  const locale = useSyncExternalStore(
+    subscribeLocale,
+    readLocaleFromCookie,
+    () => DEFAULT_LOCALE,
+  );
+
   useEffect(() => {
     console.error(error);
   }, [error]);
 
+  const copy = messages[locale];
+
   return (
-    <html lang="en">
+    <html lang={locale}>
       <body
         style={{
           fontFamily: "system-ui, sans-serif",
@@ -23,14 +43,12 @@ export default function GlobalError({
           maxWidth: "40rem",
         }}
       >
-        <title>App failed to load</title>
-        <h1>App failed to load</h1>
-        <p>
-          The root layout crashed. Retry, and check that SQLite is migrated if this
-          is a fresh checkout.
-        </p>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <title>{copy.appFailed}</title>
+        <h1>{copy.appFailed}</h1>
+        <p>{copy.appFailedBody}</p>
         <button type="button" onClick={retry}>
-          Try again
+          {copy.tryAgain}
         </button>
       </body>
     </html>

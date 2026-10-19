@@ -36,6 +36,8 @@ import {
 } from '@/lib/catalog/image-cache';
 import { imageCdnBase } from '@/lib/images';
 import { warmLoopSheet } from '@/lib/catalog/warm-loop';
+import { messages } from '@/lib/i18n/messages';
+import { getLocale } from '@/lib/i18n/server';
 import { RateLimitedError } from '@/lib/http/errors';
 import { getRenderzSource } from '@/lib/providers/renderz/renderz-source';
 import { groupDetailStats } from '@/lib/stats';
@@ -88,16 +90,19 @@ export async function generateMetadata({
 }: PageProps<'/players/[id]'>): Promise<Metadata> {
   const { id: rawId } = await params;
   const parsed = playerIdSchema.safeParse(rawId);
+  const copy = messages[await getLocale()];
   if (!parsed.success) {
-    return { title: 'Player' };
+    return { title: copy.playerFallback };
   }
   const player = await getPlayerCatalog().getById(parsed.data);
-  return { title: player?.name ?? 'Player' };
+  return { title: player?.name ?? copy.playerFallback };
 }
 
 export default async function PlayerDetailPage({
   params,
 }: PageProps<'/players/[id]'>) {
+  const locale = await getLocale();
+  const copy = messages[locale];
   const { id: rawId } = await params;
   const parsed = playerIdSchema.safeParse(rawId);
   if (!parsed.success) {
@@ -140,26 +145,24 @@ export default async function PlayerDetailPage({
       <PlayerDetailBack />
 
       {notice === 'rate_limited' ? (
-        <CatalogNotice
-          title="Refresh paused by the upstream rate limit"
-          tone="warning"
-        >
-          Showing the last catalog copy. Try again in{' '}
-          {formatRetryAfter(retryAfterMs)}. Ingest uses about one request per
-          second.
+        <CatalogNotice title={copy.rateLimitedTitle} tone="warning">
+          {copy.rateLimitedBefore} {formatRetryAfter(retryAfterMs, locale)}.{" "}
+          {copy.rateLimitedAfter}
         </CatalogNotice>
       ) : null}
       {notice === 'enrich_failed' ? (
-        <CatalogNotice title="Could not refresh this player" tone="warning">
-          Showing the last catalog copy. Parser or upstream fetch failed; retry
-          later or run{' '}
-          <code className="text-foreground">npm run ingest run</code>.
+        <CatalogNotice title={copy.enrichFailedTitle} tone="warning">
+          {copy.enrichFailedBefore}{" "}
+          <code className="text-foreground">npm run ingest run</code>
+          {copy.enrichFailedAfter}
         </CatalogNotice>
       ) : null}
       {notice === undefined && stale ? (
-        <CatalogNotice title="This row looks stale" tone="info">
-          Fetched {formatFetchedRelative(player.fetchedAt)} · parser v
-          {player.parseVersion}. Refresh with ingest when the queue is free.
+        <CatalogNotice title={copy.staleTitle} tone="info">
+          {copy.staleBody(
+            formatFetchedRelative(player.fetchedAt, locale),
+            player.parseVersion,
+          )}
         </CatalogNotice>
       ) : null}
 
@@ -208,9 +211,9 @@ export default async function PlayerDetailPage({
               </Badge>
             ))}
             {player.auctionable === true ? (
-              <Badge variant="outline">Auctionable</Badge>
+              <Badge variant="outline">{copy.auctionable}</Badge>
             ) : player.auctionable === false ? (
-              <Badge variant="outline">Untradeable</Badge>
+              <Badge variant="outline">{copy.untradeable}</Badge>
             ) : null}
           </div>
           <PlayerPlayStyles
@@ -227,18 +230,14 @@ export default async function PlayerDetailPage({
       {groupedStats.length > 0 ? (
         <PlayerDetailStats stats={player.stats} />
       ) : (
-        <p className="text-muted-foreground text-sm">
-          Detailed stats are not in the catalog yet for this player.
-        </p>
+        <p className="text-muted-foreground text-sm">{copy.statsMissing}</p>
       )}
 
       {isDev ? (
         <>
           <Separator />
           <p className="text-muted-foreground text-xs">
-            Parser v{player.parseVersion}. Detail stats use full group names
-            (Pace, Shooting, …). Playstyle and hidden-stat labels come from the
-            public RenderZ player page.
+            {copy.devParserNote(player.parseVersion)}
           </p>
         </>
       ) : null}

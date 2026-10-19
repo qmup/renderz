@@ -7,7 +7,9 @@ import {
   ChevronsRightIcon,
 } from "lucide-react";
 import { useId, type FormEvent } from "react";
+import { usePreferences } from "@/components/providers/preferences-provider";
 import { Button } from "@/components/ui/button";
+import { formatNumber } from "@/lib/i18n/locale";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -41,6 +43,7 @@ export function PlayerPagination({
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number, page: number) => void;
 }) {
+  const { locale, m } = usePreferences();
   const jumpId = useId();
   const sizeId = useId();
 
@@ -82,14 +85,16 @@ export function PlayerPagination({
       <div className="flex items-center justify-between gap-3">
         <p className="text-muted-foreground text-xs sm:text-sm" aria-live="polite">
           <span className="text-foreground font-medium tabular-nums">
-            {start.toLocaleString()}–{end.toLocaleString()}
+            {formatNumber(start, locale)}–{formatNumber(end, locale)}
           </span>
-          <span className="hidden sm:inline"> of {total.toLocaleString()}</span>
-          <span className="sm:hidden"> / {total.toLocaleString()}</span>
+          <span className="hidden sm:inline">
+            {m.rangeOf(formatNumber(total, locale))}
+          </span>
+          <span className="sm:hidden"> / {formatNumber(total, locale)}</span>
         </p>
         <div className="flex items-center gap-2">
           <Label htmlFor={sizeId} className="text-muted-foreground text-xs font-normal">
-            Per page
+            {m.perPage}
           </Label>
           <select
             id={sizeId}
@@ -118,7 +123,7 @@ export function PlayerPagination({
                 variant="ghost"
                 size="icon"
                 disabled={atStart}
-                aria-label="Go to first page"
+                aria-label={m.firstPage}
                 onClick={() => goTo(1)}
               >
                 <ChevronsLeftIcon />
@@ -131,7 +136,7 @@ export function PlayerPagination({
                 size="icon"
                 className="size-10 sm:size-8"
                 disabled={atStart}
-                aria-label="Go to previous page"
+                aria-label={m.previousPage}
                 onClick={() => goTo(page - 1)}
               >
                 <ChevronLeftIcon />
@@ -152,7 +157,7 @@ export function PlayerPagination({
                     size="icon"
                     className={item.page === page ? "size-10 sm:size-8" : undefined}
                     variant={item.page === page ? "outline" : "ghost"}
-                    aria-label={`Go to page ${item.page}`}
+                    aria-label={m.goToPage(item.page)}
                     aria-current={item.page === page ? "page" : undefined}
                     onClick={() => goTo(item.page)}
                   >
@@ -168,7 +173,7 @@ export function PlayerPagination({
                 size="icon"
                 className="size-10 sm:size-8"
                 disabled={atEnd}
-                aria-label="Go to next page"
+                aria-label={m.nextPage}
                 onClick={() => goTo(page + 1)}
               >
                 <ChevronRightIcon />
@@ -180,7 +185,7 @@ export function PlayerPagination({
                 variant="ghost"
                 size="icon"
                 disabled={atEnd}
-                aria-label="Go to last page"
+                aria-label={m.lastPage}
                 onClick={() => goTo(totalPages)}
               >
                 <ChevronsRightIcon />
@@ -194,7 +199,7 @@ export function PlayerPagination({
           onSubmit={submitJump}
         >
           <Label htmlFor={jumpId} className="text-muted-foreground text-xs font-normal">
-            Go to
+            {m.goTo}
           </Label>
           <Input
             key={page}
@@ -206,13 +211,13 @@ export function PlayerPagination({
             inputMode="numeric"
             className="h-10 w-16 text-center sm:h-8"
             defaultValue={page}
-            aria-label="Page number"
+            aria-label={m.pageNumber}
           />
           <span className="text-muted-foreground text-xs tabular-nums">
-            / {totalPages.toLocaleString()}
+            / {formatNumber(totalPages, locale)}
           </span>
           <Button type="submit" size="sm" variant="outline" className="h-10 sm:h-7">
-            Go
+            {m.go}
           </Button>
         </form>
       </div>

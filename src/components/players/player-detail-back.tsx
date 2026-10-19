@@ -2,10 +2,12 @@
 
 import { ChevronLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { usePreferences } from '@/components/providers/preferences-provider';
 import { Button } from '@/components/ui/button';
 
 export function PlayerDetailBack({ href = '/players' }: { href?: string }) {
   const router = useRouter();
+  const { m } = usePreferences();
 
   function goBack() {
     try {
@@ -29,7 +31,7 @@ export function PlayerDetailBack({ href = '/players' }: { href?: string }) {
       onClick={goBack}
     >
       <ChevronLeft data-icon="inline-start" />
-      Back
+      {m.back}
     </Button>
   );
 }

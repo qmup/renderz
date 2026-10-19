@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PlayerList } from "@/components/players/player-list";
 import { useFollowedPlayerIds } from "@/components/players/followed-players";
+import { usePreferences } from "@/components/providers/preferences-provider";
 import type { PlayerSummary } from "@/lib/domain/player";
 import { sortByNextMarketRefresh } from "@/lib/market-refresh";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function FollowingBrowser() {
+  const { m } = usePreferences();
   const ids = useFollowedPlayerIds();
   const [items, setItems] = useState<PlayerSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +38,7 @@ export function FollowingBrowser() {
         if (cause instanceof DOMException && cause.name === "AbortError") {
           return;
         }
-        setError("Could not load followed players.");
+        setError(m.followedLoadError);
       })
       .finally(() => {
         if (!controller.signal.aborted) {
@@ -44,7 +46,7 @@ export function FollowingBrowser() {
         }
       });
     return () => controller.abort();
-  }, [idsKey]);
+  }, [idsKey, m.followedLoadError]);
 
   const visible = sortByNextMarketRefresh(
     ids.flatMap((id) => {
@@ -57,10 +59,10 @@ export function FollowingBrowser() {
     return (
       <div className="flex flex-col items-start gap-3 py-8">
         <p className="text-muted-foreground text-sm">
-          No followed players yet.
+          {m.noFollowed}
         </p>
         <Link href="/players" className="text-sm font-medium underline-offset-4 hover:underline">
-          Browse players
+          {m.browsePlayers}
         </Link>
       </div>
     );

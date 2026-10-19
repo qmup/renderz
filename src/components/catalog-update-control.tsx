@@ -3,11 +3,13 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { usePreferences } from "@/components/providers/preferences-provider";
 import {
   catalogUpdateStatusSchema,
   idleCatalogUpdateStatus,
   type CatalogUpdateStatus,
 } from "@/lib/catalog/update-status";
+import type { Messages } from "@/lib/i18n/messages";
 import { catalogQueryKeys, playerQueryKeys } from "@/lib/query/keys";
 
 const DAILY_KEY = "catalog-silent-discovery-day";
@@ -20,21 +22,22 @@ function localDayKey(): string {
   return `${y}-${m}-${d}`;
 }
 
-function progressLabel(status: CatalogUpdateStatus): string {
+function progressLabel(status: CatalogUpdateStatus, copy: Messages): string {
   if (status.phase === "syncing") {
-    return status.message ?? "Checking for new players…";
+    return status.message ?? copy.checkingPlayers;
   }
   if (status.phase === "ingesting") {
     const total = Math.max(status.total, status.processed + status.remaining);
-    return `Adding ${status.succeeded}/${total}`;
+    return copy.addingPlayers(status.succeeded, total);
   }
   if (status.phase === "error") {
-    return status.error ?? status.message ?? "Update failed";
+    return status.error ?? status.message ?? copy.updateFailed;
   }
   return "";
 }
 
 export function CatalogUpdateControl() {
+  const { m } = usePreferences();
   const queryClient = useQueryClient();
   const router = useRouter();
   const wasRunning = useRef(false);
@@ -98,7 +101,7 @@ export function CatalogUpdateControl() {
     router.refresh();
   }
 
-  const label = status.running || status.phase === "error" ? progressLabel(status) : "";
+  const label = status.running || status.phase === "error" ? progressLabel(status, m) : "";
 
   return (
     <>
@@ -118,7 +121,7 @@ export function CatalogUpdateControl() {
             className="border-border bg-background text-foreground shadow-sm hover:bg-muted max-w-sm rounded-md border px-4 py-2.5 text-sm"
             onClick={refreshListing}
           >
-            Added {toastCount} player{toastCount === 1 ? "" : "s"} — tap to refresh
+            {m.addedToast(toastCount)}
           </button>
         </div>
       ) : null}

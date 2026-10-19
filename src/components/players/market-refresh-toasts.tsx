@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePreferences } from "@/components/providers/preferences-provider";
 import {
   formatRefreshClock,
   formatRefreshDate,
 } from "@/lib/display";
+import { dateLocale } from "@/lib/i18n/locale";
 import {
   cardDisplayName,
   type PlayerId,
@@ -132,6 +134,7 @@ function countdownToasts(
 }
 
 export function MarketRefreshToasts({ ids }: { ids: readonly string[] }) {
+  const { locale } = usePreferences();
   const idsKey = ids.join(",");
   const [players, setPlayers] = useState<PlayerSummary[]>([]);
   const [now, setNow] = useState(() => Date.now());
@@ -227,9 +230,12 @@ export function MarketRefreshToasts({ ids }: { ids: readonly string[] }) {
               </span>
             </p>
             <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
-              {formatRefreshDate(refreshAt)} {formatRefreshClock(refreshAt)}
+              {formatRefreshDate(refreshAt, dateLocale(locale))}{" "}
+              {formatRefreshClock(refreshAt, dateLocale(locale))}
             </p>
-            <p className="mt-1 text-sm tabular-nums">{item.remainingLabel}</p>
+            <p className="mt-1 text-sm tabular-nums">
+              {formatAlertRemaining(item.refreshAtMs - now, locale)}
+            </p>
           </div>
         );
       })}

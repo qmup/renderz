@@ -1,15 +1,21 @@
+import { messages } from "@/lib/i18n/messages";
+import { getLocale } from "@/lib/i18n/server";
 import { isDev } from "@/lib/dev";
 
-export function SiteFooter() {
+export async function SiteFooter() {
+  const copy = messages[await getLocale()];
   return (
     <footer className="border-t border-border">
       <div className="text-muted-foreground mx-auto flex w-full max-w-6xl flex-col items-start gap-3 px-4 py-6 text-xs">
         {isDev ? (
           <>
-            <p>Personal read-only catalog. This browser never requests RenderZ.</p>
+            <p>{copy.footerReadOnly}</p>
             <p>
-              Seed with <code className="text-foreground">npm run seed</code>. Refresh
-              stale rows with <code className="text-foreground">npm run ingest run</code>.
+              {copy.footerSeedBefore}{" "}
+              <code className="text-foreground">npm run seed</code>
+              {copy.footerSeedMiddle}{" "}
+              <code className="text-foreground">npm run ingest run</code>
+              {copy.footerSeedAfter}
             </p>
           </>
         ) : null}

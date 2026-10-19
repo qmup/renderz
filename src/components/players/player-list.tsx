@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { FollowHeartButton } from '@/components/players/followed-players';
 import { PlayerCardArt } from '@/components/players/player-card-art';
 import { PlayerGroupedStats } from '@/components/players/player-grouped-stats';
+import { usePreferences } from '@/components/providers/preferences-provider';
+import { dateLocale } from '@/lib/i18n/locale';
 import {
   formatAddedDate,
   formatRefreshClock,
@@ -20,12 +22,13 @@ const listRefreshColumnClass =
 const listRefreshMobileClass = 'ml-auto shrink-0 text-right lg:hidden';
 
 function PlayerListHeader() {
+  const { m } = usePreferences();
   return (
     <div className="text-muted-foreground hidden items-center gap-3 border-b px-3 py-2 text-[10px] font-medium tracking-[0.14em] uppercase lg:flex">
-      <span className="min-w-0 flex-1">Player</span>
-      <span className="w-[6.75rem] shrink-0 text-right">Updated</span>
+      <span className="min-w-0 flex-1">{m.columnPlayer}</span>
+      <span className="w-[6.75rem] shrink-0 text-right">{m.columnUpdated}</span>
       <span className="w-[7.5rem] shrink-0 text-right leading-tight">
-        Market refresh
+        {m.columnMarketRefresh}
       </span>
     </div>
   );
@@ -58,20 +61,21 @@ function MarketRefreshTime({
   className: string;
   clockOnly?: boolean;
 }) {
+  const { locale, m } = usePreferences();
+  const dateTag = dateLocale(locale);
   if (!at) {
     return (
       <span
-        aria-label="No market refresh"
+        aria-label={m.noMarketRefresh}
         className={cn('text-muted-foreground text-xs', className)}
       >
         —
       </span>
     );
   }
-  const clock = formatRefreshClock(at);
-  const label = clockOnly
-    ? `Next market refresh, ${clock}`
-    : `Next market refresh, ${formatRefreshDate(at)} ${clock}`;
+  const clock = formatRefreshClock(at, dateTag);
+  const when = clockOnly ? clock : `${formatRefreshDate(at, dateTag)} ${clock}`;
+  const label = m.nextMarketRefresh(when);
   return (
     <time
       dateTime={at.toISOString()}
@@ -86,7 +90,7 @@ function MarketRefreshTime({
         clock
       ) : (
         <>
-          <span className="block">{formatRefreshDate(at)}</span>
+          <span className="block">{formatRefreshDate(at, dateTag)}</span>
           <span className="block">{clock}</span>
         </>
       )}
@@ -101,6 +105,7 @@ function PlayerListLink({
   player: PlayerSummary;
   priority?: boolean;
 }) {
+  const { locale, m } = usePreferences();
   const displayName = cardDisplayName(player);
   const refreshAt = nextMarketRefreshAt(player.id, player.auctionable);
   return (
@@ -141,7 +146,7 @@ function PlayerListLink({
           {player.altPositions.length > 0 ? (
             <span
               className="text-muted-foreground text-[10px] leading-tight"
-              title="Alternate positions"
+              title={m.altPositions}
             >
               {player.altPositions.join(', ')}
             </span>
@@ -163,7 +168,7 @@ function PlayerListLink({
           dateTime={new Date(player.addedAt).toISOString()}
           className={`text-muted-foreground text-xs whitespace-nowrap tabular-nums ${listUpdatedColumnClass}`}
         >
-          {formatAddedDate(player.addedAt)}
+          {formatAddedDate(player.addedAt, dateLocale(locale))}
         </time>
       ) : (
         <span

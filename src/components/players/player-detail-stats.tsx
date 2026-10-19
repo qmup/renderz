@@ -1,3 +1,5 @@
+import { messages } from '@/lib/i18n/messages';
+import { getLocale } from '@/lib/i18n/server';
 import { groupDetailStats } from '@/lib/stats';
 import { cn } from '@/lib/utils';
 
@@ -7,25 +9,22 @@ function meterWidth(value: number): string {
   return `${Math.min(100, Math.max(0, Math.round((value / STAT_METER_MAX) * 100)))}%`;
 }
 
-export function PlayerDetailStats({
+export async function PlayerDetailStats({
   stats,
   className,
 }: {
   stats: Array<{ key: string; value: number; label?: string }>;
   className?: string;
 }) {
+  const copy = messages[await getLocale()];
   const groups = groupDetailStats(stats);
   if (groups.length === 0) {
-    return (
-      <p className="text-muted-foreground text-sm">
-        Detailed stats are not in the catalog yet for this player.
-      </p>
-    );
+    return <p className="text-muted-foreground text-sm">{copy.statsMissing}</p>;
   }
 
   return (
     <section className={cn('flex flex-col gap-3', className)}>
-      <h2 className="font-heading text-lg font-medium">Stats</h2>
+      <h2 className="font-heading text-lg font-medium">{copy.stats}</h2>
       <ul className="grid gap-3 sm:grid-cols-2">
         {groups.map((group) => (
           <li
