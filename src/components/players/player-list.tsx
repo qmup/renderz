@@ -120,6 +120,7 @@ function PlayerListLink({
           nameColor={player.nameColor}
           size={85}
           priority={priority}
+          listThumb
         />
         <FollowHeartButton playerId={player.id} />
       </div>
