@@ -311,49 +311,70 @@ describe("comparePlayers", () => {
     expect(sorted.map((row) => row.name)).toEqual(["A", "B"]);
   });
 
-  it("added_desc: same UTC day, higher rating first", () => {
-    const morning = Date.parse("2026-09-01T01:00:00.000Z");
-    const evening = Date.parse("2026-09-01T23:00:00.000Z");
-    const low = summary({
-      id: "1",
-      name: "Low",
-      rating: 90,
-      addedAt: evening,
+  it("added_desc: later addedAt first even when rating is lower", () => {
+    const romero = summary({
+      id: "24054602",
+      name: "Romero",
+      rating: 118,
+      addedAt: Date.parse("2026-10-15T14:20:46.127Z"),
     });
-    const high = summary({
-      id: "2",
-      name: "High",
-      rating: 110,
-      addedAt: morning,
+    const sever = summary({
+      id: "24054618",
+      name: "Sever",
+      rating: 114,
+      addedAt: Date.parse("2026-10-15T14:20:46.128Z"),
     });
-    const sorted = [low, high].sort((left, right) =>
+    const sorted = [romero, sever].sort((left, right) =>
       comparePlayers(left, right, "added_desc"),
     );
-    expect(sorted.map((row) => row.name)).toEqual(["High", "Low"]);
+    expect(sorted.map((row) => row.name)).toEqual(["Sever", "Romero"]);
   });
 
-  it("added_desc: same UTC day and rating, name A–Z", () => {
-    const morning = Date.parse("2026-09-01T01:00:00.000Z");
-    const evening = Date.parse("2026-09-01T23:00:00.000Z");
+  it("added_desc: equal addedAt, higher rating then name", () => {
+    const same = Date.parse("2026-09-01T12:00:00.000Z");
     const beta = summary({
       id: "1",
       name: "Beta",
       rating: 110,
-      addedAt: evening,
+      addedAt: same,
+    });
+    const low = summary({
+      id: "3",
+      name: "Low",
+      rating: 90,
+      addedAt: same,
     });
     const alpha = summary({
       id: "2",
       name: "Alpha",
       rating: 110,
-      addedAt: morning,
+      addedAt: same,
     });
-    const sorted = [beta, alpha].sort((left, right) =>
+    const sorted = [beta, low, alpha].sort((left, right) =>
       comparePlayers(left, right, "added_desc"),
     );
-    expect(sorted.map((row) => row.name)).toEqual(["Alpha", "Beta"]);
+    expect(sorted.map((row) => row.name)).toEqual(["Alpha", "Beta", "Low"]);
   });
 
-  it("added_desc: newer UTC day first even if rating is lower", () => {
+  it("added_desc: missing addedAt sorts last", () => {
+    const known = summary({
+      id: "1",
+      name: "Known",
+      rating: 80,
+      addedAt: Date.parse("2020-01-01T00:00:00.000Z"),
+    });
+    const missing = summary({
+      id: "2",
+      name: "Missing",
+      rating: 120,
+    });
+    const sorted = [missing, known].sort((left, right) =>
+      comparePlayers(left, right, "added_desc"),
+    );
+    expect(sorted.map((row) => row.name)).toEqual(["Known", "Missing"]);
+  });
+
+  it("added_desc: newer instant first even if rating is lower", () => {
     const olderDay = Date.parse("2026-09-01T23:00:00.000Z");
     const newerDay = Date.parse("2026-09-02T00:30:00.000Z");
     const olderHigh = summary({

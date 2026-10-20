@@ -535,13 +535,22 @@ describe("DrizzlePlayerCatalog", () => {
       }),
       [],
     );
+    await catalog.upsertPlayer(
+      fakePlayer({
+        id: "6",
+        name: "MissingAdded",
+        rating: 130,
+      }),
+      [],
+    );
     const listed = await catalog.list(normalizePlayerListQuery({}));
     expect(listed.items.map((row) => row.name)).toEqual([
       "NewerLow",
-      "OlderHigh",
       "SameDayA",
-      "SameDayB",
       "SameDayLow",
+      "OlderHigh",
+      "SameDayB",
+      "MissingAdded",
     ]);
   });
 

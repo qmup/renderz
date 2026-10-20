@@ -6,10 +6,12 @@ import type { AuroraDatabase } from "@/db/postgres";
  * CREATE INDEX CONCURRENTLY stays out of the request path; instrumentation
  * calls this once per server boot.
  */
+const RETIRED_INDEXES = ["idx_players_added_utc_day"] as const;
+
 const LIST_INDEXES: ReadonlyArray<{ name: string; ddl: string }> = [
   {
-    name: "idx_players_added_utc_day",
-    ddl: `create index concurrently if not exists idx_players_added_utc_day on players (((timezone('UTC', to_timestamp(added_at / 1000.0)))::date) desc nulls last, rating desc, name asc, id asc)`,
+    name: "idx_players_added_desc",
+    ddl: `create index concurrently if not exists idx_players_added_desc on players (added_at desc nulls last, rating desc, name asc, id asc)`,
   },
   {
     name: "idx_players_program_id",
@@ -50,6 +52,9 @@ export function ensurePlayerListIndexes(db: AuroraDatabase): Promise<void> {
 }
 
 async function applyPlayerListIndexes(db: AuroraDatabase): Promise<void> {
+  for (const name of RETIRED_INDEXES) {
+    await db.execute(sql.raw(`drop index concurrently if exists ${name}`));
+  }
   const existing = await db.execute<{ indexname: string }>(sql`
     select indexname
     from pg_indexes
