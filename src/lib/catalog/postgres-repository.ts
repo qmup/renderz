@@ -280,9 +280,7 @@ function sqlOrderBy(sort: PlayerListQuery["sort"]) {
     case "added_desc":
     default:
       return [
-        sql.raw(
-          `(timezone('UTC', to_timestamp(added_at / 1000.0)))::date desc nulls last`,
-        ),
+        sql`${players.addedAt} desc nulls last`,
         desc(players.rating),
         asc(players.name),
         asc(players.id),
@@ -427,7 +425,7 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
   }
 
   /**
-   * Page rows use the UTC-day index and return summary columns only.
+   * Page rows use the added-at index and return summary columns only.
    * Facets come from a cached narrow snapshot, not five grouped scans.
    */
   private async loadPage(query: PlayerListQuery): Promise<{

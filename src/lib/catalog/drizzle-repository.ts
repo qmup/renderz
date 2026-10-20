@@ -872,8 +872,7 @@ function sqlOrderBy(sort: PlayerListQuery['sort']) {
       return [desc(players.name), asc(players.id)];
     case 'added_desc':
       return [
-        sql`${players.addedAt} is null`,
-        desc(sql`date(${players.addedAt} / 1000, 'unixepoch')`),
+        sql`${players.addedAt} desc nulls last`,
         desc(players.rating),
         asc(players.name),
         asc(players.id),
@@ -884,8 +883,7 @@ function sqlOrderBy(sort: PlayerListQuery['sort']) {
       return [desc(players.rating), asc(players.name), asc(players.id)];
     default:
       return [
-        sql`${players.addedAt} is null`,
-        desc(sql`date(${players.addedAt} / 1000, 'unixepoch')`),
+        sql`${players.addedAt} desc nulls last`,
         desc(players.rating),
         asc(players.name),
         asc(players.id),

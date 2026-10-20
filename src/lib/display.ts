@@ -84,7 +84,7 @@ export function formatFetchedAt(ms: number): string {
   }).format(ms);
 }
 
-/** Compact date-only label for listing rows (UTC calendar date, matching added_desc). */
+/** Compact UTC calendar date shown on listing rows. Sort uses the full addedAt instant. */
 export function formatAddedDate(ms: number, locale = 'en'): string {
   return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',

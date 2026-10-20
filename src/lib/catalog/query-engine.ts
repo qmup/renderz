@@ -358,11 +358,9 @@ export function buildPlayerListFacets(
   };
 }
 
-const MS_PER_UTC_DAY = 86_400_000;
-
-/** UTC calendar day of epoch-ms `addedAt` (not millisecond equality). Missing → 0. */
-function utcAddedDay(ms: number | undefined): number {
-  return Math.floor((ms ?? 0) / MS_PER_UTC_DAY);
+/** Missing `addedAt` sorts last, matching SQL `nulls last`. */
+function addedSortKey(ms: number | undefined): number {
+  return ms ?? Number.NEGATIVE_INFINITY;
 }
 
 export function comparePlayers(
@@ -384,7 +382,7 @@ export function comparePlayers(
     case "added_desc":
     default:
       return (
-        utcAddedDay(b.addedAt) - utcAddedDay(a.addedAt) ||
+        addedSortKey(b.addedAt) - addedSortKey(a.addedAt) ||
         b.rating - a.rating ||
         a.name.localeCompare(b.name) ||
         a.id.localeCompare(b.id)
