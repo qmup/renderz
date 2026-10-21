@@ -28,7 +28,7 @@ Open [http://localhost:3000/players](http://localhost:3000/players). Listing def
 
 ## Daily production catalog
 
-GitHub Actions workflow `.github/workflows/daily-catalog.yml` runs at **21:30 and 23:30 Asia/Ho_Chi_Minh**, on GitHub's runners, so the laptop can be off. Each run reads the sitemap head, refreshes promo cards added in the last 14 days, backfills kept programs (including a new event once one of its cards is stored), then missing base gold/silver. It stops before the job timeout. The next run continues. Cards older than that window stay as stored. The browser loads card art from CloudFront.
+GitHub Actions workflow `.github/workflows/daily-catalog.yml` runs at **21:30 and 23:30 Asia/Ho_Chi_Minh**, on GitHub's runners, so the laptop can be off. Each run reads the sitemap head, refreshes promo cards added in the last 14 days, backfills kept programs (including a new event once one of its cards is stored), then missing base gold/silver. Images still missing for players fetched in the last 3 days are uploaded after that. A Cloudflare HTTP 403 (`Unauthorised`) on the sitemap stops the run before that upload. The job stops before its timeout. The next run continues. Cards older than that window stay as stored. The browser loads card art from CloudFront.
 
 ## Catalog check
 

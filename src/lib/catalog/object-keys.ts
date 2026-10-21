@@ -42,6 +42,8 @@ export type CatalogUploadCandidate = {
 
 export type CatalogUploadJob = {
   key: string;
+  playerId: string;
+  kind: string;
   upstreamUrl: string;
   required: boolean;
   replace: boolean;
@@ -56,7 +58,14 @@ export function planCatalogUploads(
 ): CatalogUploadJob[] {
   const byKey = new Map<
     string,
-    { upstreamUrl: string; fetchedAt: number; required: boolean; replace: boolean }
+    {
+      playerId: string;
+      kind: string;
+      upstreamUrl: string;
+      fetchedAt: number;
+      required: boolean;
+      replace: boolean;
+    }
   >();
   for (const candidate of candidates) {
     const key = catalogObjectKey(
@@ -70,6 +79,8 @@ export function planCatalogUploads(
     const existing = byKey.get(key);
     if (!existing || candidate.fetchedAt >= existing.fetchedAt) {
       byKey.set(key, {
+        playerId: candidate.playerId,
+        kind: candidate.kind,
         upstreamUrl: candidate.upstreamUrl,
         fetchedAt: candidate.fetchedAt,
         required: candidate.required || existing?.required === true,
@@ -86,6 +97,8 @@ export function planCatalogUploads(
   }
   return [...byKey.entries()].map(([key, job]) => ({
     key,
+    playerId: job.playerId,
+    kind: job.kind,
     upstreamUrl: job.upstreamUrl,
     required: job.required,
     replace: job.replace,

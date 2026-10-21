@@ -1,8 +1,11 @@
 # 21:30 and 23:30 Asia/Ho_Chi_Minh.
-# GitHub runners can reach RenderZ. Fargate in ap-southeast-1 gets HTTP 403.
+# GitHub-hosted runners and Fargate in ap-southeast-1 currently get Cloudflare
+# HTTP 403 with the body "Unauthorised" on renderz.app. The sync reads the
+# sitemap first and stops on that response, instead of scanning S3 first.
 # The sync script stops itself after ~340 minutes. A queued schedule run continues the rest.
 # Each run: sitemap head, then a slice of recent promo refreshes, then program
-# backfill (including a new event id already stored), then base gold/silver.
+# backfill (including a new event id already stored), then base gold/silver,
+# then missing images for players fetched in the last 3 days.
 name: Catalog sync
 
 on:
