@@ -48,7 +48,7 @@ export class RenderzClient {
       throw new UpstreamHttpError(404, "Upstream page not found");
     }
     if (!response.ok) {
-      throw new UpstreamHttpError(response.status);
+      throw await upstreamHttpError(response);
     }
 
     const length = Number(response.headers.get("content-length") ?? "0");
@@ -84,12 +84,42 @@ export class RenderzClient {
       },
     );
     if (!response.ok) {
-      throw new UpstreamHttpError(response.status);
+      throw await upstreamHttpError(response);
     }
     const buffer = Buffer.from(await response.arrayBuffer());
     if (buffer.byteLength > MAX_SEARCH_BYTES) {
       throw new UpstreamHttpError(502, "Upstream search page exceeded size limit");
     }
     return JSON.parse(buffer.toString("utf8")) as unknown;
+  }
+}
+
+async function upstreamHttpError(response: Response): Promise<UpstreamHttpError> {
+  const detail = await upstreamStatusDetail(response);
+  const message = detail
+    ? `Upstream HTTP ${response.status} ${detail}`
+    : `Upstream HTTP ${response.status}`;
+  return new UpstreamHttpError(response.status, message);
+}
+
+/** Short printable body, so a Cloudflare block is visible in the job log. */
+async function upstreamStatusDetail(response: Response): Promise<string> {
+  try {
+    const declared = Number(response.headers.get("content-length") ?? "0");
+    if (Number.isFinite(declared) && declared > 200) {
+      return "";
+    }
+    const buffer = Buffer.from(await response.arrayBuffer()).subarray(0, 80);
+    const text = buffer
+      .toString("utf8")
+      .replace(/[^\x20-\x7E]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!text || /https?:\/\//i.test(text)) {
+      return "";
+    }
+    return text.slice(0, 40);
+  } catch {
+    return "";
   }
 }

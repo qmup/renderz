@@ -69,12 +69,16 @@ describe("planCatalogUploads", () => {
     expect(jobs).toEqual([
       {
         key: "player-art/_shared/playstyle-1-l1.png",
+        playerId: "2",
+        kind: "playstyle-1-l1",
         upstreamUrl: "https://images-v2.renderz.app/new",
         required: true,
         replace: false,
       },
       {
         key: "player-art/_shared/trait-9.png",
+        playerId: "3",
+        kind: "trait-9",
         upstreamUrl: "https://images-v2.renderz.app/trait-new",
         required: true,
         replace: true,

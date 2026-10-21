@@ -3,12 +3,16 @@
  *
  *   npx tsx scripts/scheduled-catalog-sync.ts
  *
- * Order, so a new event is not stuck behind the base-card backlog:
+ * Order, so a new event is not stuck behind the image heal or the base-card backlog:
  *   1. Sitemap head (brand-new ids, including a new event).
  *   2. Refresh promo cards added in the last 14 days (OVR, price, traits,
  *      playstyles, colors, art). Base gold/silver are not in this slice.
  *   3. Search every kept program, plus any new program id already stored.
  *   4. Missing base gold/silver, 1,500 per run.
+ *   5. Upload images still missing for players fetched in the last 3 days.
+ *
+ * A Cloudflare 403 on the sitemap stops the run immediately. That block is
+ * the plaintext body "Unauthorised", not an expired image signature.
  *
  * One run stops at CATALOG_SYNC_BUDGET_MS so the next schedule can continue.
  * Requires AURORA_HOST and AWS credentials that can write s3://$S3_BUCKET.
@@ -28,7 +32,9 @@ import {
 import {
   isPlayerCardImageKind,
   isPlayerLoopImageKind,
+  playerImageKindSchema,
 } from "../src/lib/domain/player";
+import { enrichDiscoveredPlayer } from "../src/lib/catalog/enrichment";
 import type { IngestJobKind } from "../src/lib/catalog/repository";
 import {
   catalogProgramLogoSlugs,
@@ -54,7 +60,10 @@ import {
   listSourceCardEntries,
 } from "../src/lib/providers/renderz/base-card-search";
 import { RenderzClient } from "../src/lib/providers/renderz/client";
-import { isExpiredImageError } from "../src/lib/providers/renderz/image-errors";
+import {
+  isExpiredImageError,
+  isUpstreamBlockedError,
+} from "../src/lib/providers/renderz/image-errors";
 import { fetchAllowlistedImage } from "../src/lib/providers/renderz/image-proxy";
 import { getRenderzSource } from "../src/lib/providers/renderz/renderz-source";
 
@@ -435,6 +444,51 @@ async function objectExists(
   }
 }
 
+const refreshedPlayers = new Map<string, Promise<void>>();
+
+function refreshPlayerAssets(playerId: string): Promise<void> {
+  const existing = refreshedPlayers.get(playerId);
+  if (existing) {
+    return existing;
+  }
+  const pending = enrichDiscoveredPlayer(
+    getPlayerCatalog(),
+    getRenderzSource(),
+    playerId,
+  ).then(() => undefined);
+  refreshedPlayers.set(playerId, pending);
+  return pending;
+}
+
+async function fetchJobImage(
+  job: CatalogUploadJob,
+): Promise<{ bytes: Uint8Array; contentType: string }> {
+  try {
+    return await fetchAllowlistedImage(job.upstreamUrl);
+  } catch (error) {
+    if (!isExpiredImageError(error)) {
+      throw error;
+    }
+    const kind = playerImageKindSchema.safeParse(job.kind);
+    if (!kind.success) {
+      throw error;
+    }
+    try {
+      await refreshPlayerAssets(job.playerId);
+    } catch (refreshError) {
+      console.error(
+        `image refresh failed ${job.playerId} ${describeError(refreshError)}`,
+      );
+      throw error;
+    }
+    const asset = await getPlayerCatalog().getAsset(job.playerId, kind.data);
+    if (!asset || asset.upstreamUrl === job.upstreamUrl) {
+      throw error;
+    }
+    return fetchAllowlistedImage(asset.upstreamUrl);
+  }
+}
+
 async function uploadMissing(
   client: S3Client,
   bucket: string,
@@ -443,6 +497,7 @@ async function uploadMissing(
   let uploaded = 0;
   let present = 0;
   let failed = 0;
+  let blocked = 0;
   let requiredFailed = 0;
   let cursor = 0;
   let done = 0;
@@ -459,7 +514,7 @@ async function uploadMissing(
         if (!job.replace && (await objectExists(client, bucket, job.key))) {
           present += 1;
         } else {
-          const image = await fetchAllowlistedImage(job.upstreamUrl);
+          const image = await fetchJobImage(job);
           await client.send(
             new PutObjectCommand({
               Bucket: bucket,
@@ -473,18 +528,23 @@ async function uploadMissing(
           console.log(`uploaded ${job.key}`);
         }
       } catch (error) {
-        failed += 1;
-        if (job.required) {
-          requiredFailed += 1;
-        }
         const message = error instanceof Error ? error.message : String(error);
-        const expired = isExpiredImageError(error) ? " expired-signature" : "";
-        console.error(`image failed${expired} required=${job.required} ${job.key} ${message}`);
+        if (isUpstreamBlockedError(error)) {
+          blocked += 1;
+          console.error(`image blocked required=${job.required} ${job.key} ${message}`);
+        } else {
+          failed += 1;
+          if (job.required) {
+            requiredFailed += 1;
+          }
+          const expired = isExpiredImageError(error) ? " expired-signature" : "";
+          console.error(`image failed${expired} required=${job.required} ${job.key} ${message}`);
+        }
       }
       done += 1;
       if (done % 50 === 0 || done === jobs.length) {
         console.log(
-          `images ${done}/${jobs.length} uploaded=${uploaded} present=${present} failed=${failed}`,
+          `images ${done}/${jobs.length} uploaded=${uploaded} present=${present} failed=${failed} blocked=${blocked}`,
         );
       }
     }
@@ -532,10 +592,6 @@ async function main() {
     uploadTotals.requiredFailed += images.requiredFailed;
   };
 
-  const healed = await uploadFetchedSince(startedAt - IMAGE_HEAL_MS, bucket, region);
-  uploadTotals.uploaded += healed.uploaded;
-  uploadTotals.requiredFailed += healed.requiredFailed;
-
   const head = await discoverSitemapHead(startedAt, deadline, uploadSlice(false));
   const refreshed = head.idle
     ? await refreshRecentPlayers(startedAt, deadline, uploadSlice(true))
@@ -555,6 +611,12 @@ async function main() {
     head.idle && refreshed.idle && selected.idle
       ? await discoverBaseCards(startedAt, deadline, uploadSlice(false))
       : { succeeded: 0, failed: 0, idle: false };
+
+  if (Date.now() < deadline) {
+    const healed = await uploadFetchedSince(startedAt - IMAGE_HEAL_MS, bucket, region);
+    uploadTotals.uploaded += healed.uploaded;
+    uploadTotals.requiredFailed += healed.requiredFailed;
+  }
 
   const playersAdded = head.succeeded + refreshed.succeeded + selected.succeeded + baseCards.succeeded;
   const playerFailures = head.failed + refreshed.failed + selected.failed + baseCards.failed;
