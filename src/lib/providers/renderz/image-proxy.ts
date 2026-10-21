@@ -1,5 +1,4 @@
 import { ImageProxyRejectedError } from "@/lib/http/errors";
-import { imageHttpRejectionMessage } from "@/lib/providers/renderz/image-errors";
 import {
   IMAGE_FETCH_HEADERS,
   IMAGE_FETCH_TIMEOUT_MS,
@@ -50,27 +49,6 @@ async function readLimited(response: Response, maxBytes: number): Promise<Uint8A
   return out;
 }
 
-async function peekResponseText(response: Response): Promise<string> {
-  const declared = Number(response.headers.get("content-length") ?? "0");
-  if (Number.isFinite(declared) && declared > 512) {
-    return "";
-  }
-  if (!response.body) {
-    const buffer = Buffer.from(await response.arrayBuffer());
-    return buffer.subarray(0, 120).toString("utf8");
-  }
-  const reader = response.body.getReader();
-  try {
-    const { value } = await reader.read();
-    if (!value) {
-      return "";
-    }
-    return Buffer.from(value.subarray(0, 120)).toString("utf8");
-  } finally {
-    await reader.cancel().catch(() => undefined);
-  }
-}
-
 export async function fetchAllowlistedImage(
   url: string,
   options: {
@@ -119,11 +97,11 @@ export async function fetchAllowlistedImage(
       return requestOnce(next.toString(), redirectsLeft - 1);
     }
 
+    if (response.status === 403) {
+      throw new ImageProxyRejectedError("Image signature expired");
+    }
     if (!response.ok) {
-      const bodyText = await peekResponseText(response);
-      throw new ImageProxyRejectedError(
-        imageHttpRejectionMessage(response.status, bodyText),
-      );
+      throw new ImageProxyRejectedError("Image fetch failed");
     }
 
     const bytes = await readLimited(response, maxBytes);

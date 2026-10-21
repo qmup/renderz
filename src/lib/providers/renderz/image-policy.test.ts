@@ -141,28 +141,6 @@ describe("fetchAllowlistedImage", () => {
     ).rejects.toBeInstanceOf(ImageProxyRejectedError);
   });
 
-  it("does not treat a Cloudflare Unauthorised 403 as an expired signature", async () => {
-    await expect(
-      fetchAllowlistedImage("https://images-v2.renderz.app/card", {
-        lookupFn: publicLookup,
-        fetchImpl: async () =>
-          new Response("Unauthorised", {
-            status: 403,
-            headers: { "Content-Type": "text/plain", "Content-Length": "12" },
-          }),
-      }),
-    ).rejects.toThrow("Upstream blocked");
-  });
-
-  it("keeps a bare image 403 as an expired signature", async () => {
-    await expect(
-      fetchAllowlistedImage("https://images-v2.renderz.app/card", {
-        lookupFn: publicLookup,
-        fetchImpl: async () => new Response(null, { status: 403 }),
-      }),
-    ).rejects.toThrow("Image signature expired");
-  });
-
   it("rejects oversized payloads", async () => {
     await expect(
       fetchAllowlistedImage("https://images-v2.renderz.app/big", {

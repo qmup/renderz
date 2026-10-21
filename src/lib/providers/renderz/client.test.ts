@@ -54,18 +54,6 @@ describe("RenderzClient", () => {
     );
   });
 
-  it("includes a short Cloudflare block body on HTTP 403", async () => {
-    const client = clientWithFetch(async () => {
-      return new Response("Unauthorised", {
-        status: 403,
-        headers: { "Content-Type": "text/plain", "Content-Length": "12" },
-      });
-    });
-    await expect(client.getText("https://renderz.app/sitemap.xml")).rejects.toThrow(
-      "Upstream HTTP 403 Unauthorised",
-    );
-  });
-
   it("rejects oversized pages", async () => {
     const client = clientWithFetch(async () => {
       return new Response("x".repeat(2_000_001), { status: 200 });

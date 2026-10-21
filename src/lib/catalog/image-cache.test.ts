@@ -9,11 +9,7 @@ import {
   writeCachedImage,
 } from "@/lib/catalog/image-cache";
 import { ImageProxyRejectedError } from "@/lib/http/errors";
-import {
-  imageHttpRejectionMessage,
-  isExpiredImageError,
-  isUpstreamBlockedError,
-} from "@/lib/providers/renderz/image-errors";
+import { isExpiredImageError } from "@/lib/providers/renderz/image-errors";
 
 const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
@@ -67,24 +63,6 @@ describe("isExpiredImageError", () => {
       false,
     );
     expect(isExpiredImageError(new Error("Image signature expired"))).toBe(false);
-    expect(isExpiredImageError(new ImageProxyRejectedError("Upstream blocked"))).toBe(
-      false,
-    );
-  });
-});
-
-describe("image HTTP 403 classification", () => {
-  it("treats Cloudflare's Unauthorised body as a block, not an expired signature", () => {
-    expect(imageHttpRejectionMessage(403, "Unauthorised")).toBe("Upstream blocked");
-    expect(imageHttpRejectionMessage(403, "Unauthorized")).toBe("Upstream blocked");
-    expect(imageHttpRejectionMessage(403, "")).toBe("Image signature expired");
-    expect(imageHttpRejectionMessage(403, "<Error>AccessDenied</Error>")).toBe(
-      "Image signature expired",
-    );
-    expect(imageHttpRejectionMessage(404, "Unauthorised")).toBe("Image fetch failed");
-    expect(isUpstreamBlockedError(new ImageProxyRejectedError("Upstream blocked"))).toBe(
-      true,
-    );
   });
 });
 
