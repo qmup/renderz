@@ -1,9 +1,11 @@
 /**
  * Programs the catalog keeps. Indexes match renderz.app/programs, newest
- * event first: 1–38, plus Icons (107) and Heroes (108). Programs 39–106 are
- * declined when a card is fetched. Any other program id (a newer event) is kept.
+ * event first: 1–39 (Ballon d'Or through Anniversary 26), plus Icons and
+ * Heroes. Older seasons are declined when a card is fetched. Any other program
+ * id (a newer event) is kept.
  */
 export const SYNC_KEEP_PROGRAM_IDS = [
+  "PROGRAM_BD27",
   "PROGRAM_TOTW27",
   "PROGRAM_UB27",
   "PROGRAM_HOFS",

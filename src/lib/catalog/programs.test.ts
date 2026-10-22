@@ -12,6 +12,7 @@ import {
 
 describe("programEventLabel", () => {
   it("uses RenderZ event names for known PROGRAM_* ids", () => {
+    expect(programEventLabel("PROGRAM_BD27")).toBe("Ballon d'Or");
     expect(programEventLabel("PROGRAM_TOTW27")).toBe("Team of the Week");
     expect(programEventLabel("PROGRAM_UB27")).toBe("Unbreakable");
     expect(programEventLabel("PROGRAM_HOFS")).toBe("Classics");
@@ -36,6 +37,7 @@ describe("programEventLabel", () => {
 
 describe("programLogoSrc", () => {
   it("maps catalog aliases to origin-served logo paths", () => {
+    expect(programLogoSrc("PROGRAM_BD27")).toBe("/program-logos/BD27.png");
     expect(programLogoSrc("PROGRAM_TOTW27")).toBe("/program-logos/TOTW27.png");
     expect(programLogoSrc("PROGRAM_UB27")).toBe("/program-logos/UB27.png");
     expect(programLogoSrc("PROGRAM_HOFS")).toBe("/program-logos/HOFS.png");
@@ -113,12 +115,14 @@ describe("sortProgramFacets", () => {
       { value: "PROGRAM_HEROS8", count: 400 },
       { value: "PROGRAM_NUMERO26", count: 50 },
       { value: "PROGRAM_ICONS", count: 900 },
+      { value: "PROGRAM_BD27", count: 6 },
       { value: "PROGRAM_TOTW27", count: 10 },
       { value: "PROGRAM_ANN27", count: 20 },
       { value: "PROGRAM_CHAMPIONS26", count: 200 },
       { value: "PROGRAM_GC26", count: 40 },
     ]);
     expect(sorted.map((row) => row.value)).toEqual([
+      "PROGRAM_BD27",
       "PROGRAM_TOTW27",
       "PROGRAM_ANN27",
       "PROGRAM_NUMERO26",
@@ -128,6 +132,9 @@ describe("sortProgramFacets", () => {
       "PROGRAM_ICONS",
       "PROGRAM_HEROS8",
     ]);
+    expect(programEventOrder("PROGRAM_BD27")).toBeLessThan(
+      programEventOrder("PROGRAM_TOTW27"),
+    );
     expect(programEventOrder("PROGRAM_TOTW27")).toBeLessThan(
       programEventOrder("PROGRAM_NUMERO26"),
     );

@@ -12,7 +12,7 @@ This is not a RenderZ client, not a private-API wrapper, and not a UI clone.
 - On-demand enrichment is **catalog-only**: unknown ids 404.
 - Public sitemaps list **10,000** player URLs. RenderZ marketing copy claims 30,000+; treat the sitemap as the discovery set.
 - The catalog is Aurora PostgreSQL. Card art and LOOP sheets are on S3, served through CloudFront.
-- The catalog keeps players it has already stored. Sync adds missing cards and refreshes promo cards from the last 14 days. Programs 39–106 on renderz.app/programs are skipped; newer events and programs 1–38, Icons, and Heroes are kept.
+- The catalog keeps players it has already stored. Sync adds missing cards and refreshes promo cards from the last 14 days. Older seasons on renderz.app/programs are skipped; the newest events (currently through Anniversary 26), Icons, and Heroes are kept.
 
 ## Setup
 
