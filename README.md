@@ -22,13 +22,13 @@ npm test
 npm run dev
 ```
 
-Open [http://localhost:3000/players](http://localhost:3000/players). Listing defaults to **newest added first**. On localhost, the first visit each local calendar day silently discovers new sitemap ids at the head of the sitemap (header shows progress; a toast appears when new players were added). Later visits the same day skip discovery. Production on Vercel does not run this — GitHub Actions runs `npm run catalog:sync` at 21:30 and 23:30 Asia/Ho_Chi_Minh. Copy `.env.example` for Aurora, S3, and the `RENDERZ_*` limiter.
+Open [http://localhost:3000/players](http://localhost:3000/players). Listing defaults to **newest added first**. On localhost, the first visit each local calendar day silently discovers new sitemap ids at the head of the sitemap (header shows progress; a toast appears when new players were added). Later visits the same day skip discovery. Production on Vercel does not run this — a Windows VPS runs the catalog sync at 21:00 and 23:00 Asia/Ho_Chi_Minh. Copy `.env.example` for Aurora, S3, and the `RENDERZ_*` limiter.
 
 `npm run seed` upserts the public `/players` listing then enriches those ids only. Re-run skips rows already at the current parse version. `--summaries-only` skips detail fetches.
 
 ## Daily production catalog
 
-GitHub Actions workflow `.github/workflows/daily-catalog.yml` runs at **21:30 and 23:30 Asia/Ho_Chi_Minh**, on GitHub's runners, so the laptop can be off. Each run reads the sitemap head, refreshes promo cards added in the last 14 days, backfills kept programs (including a new event once one of its cards is stored), then missing base gold/silver. It stops before the job timeout. The next run continues. Cards older than that window stay as stored. The browser loads card art from CloudFront.
+Windows Task Scheduler on the VPS runs `\renderz-daily-catalog` at **21:00 and 23:00 Asia/Ho_Chi_Minh**, whether or not anyone is logged on. The task runs `C:\opt\renderz\bin\daily-catalog.sh` in Git Bash: `git pull`, `npm install`, then `scripts/scheduled-catalog-sync.ts` with `C:\opt\renderz\.env.local` (Aurora and AWS keys). Output is appended to `C:\opt\renderz\daily-catalog.log`. A run that starts while the previous one is still going is skipped. GitHub-hosted runners are not used: Cloudflare returns HTTP 403 to them. Each run reads the sitemap head, refreshes promo cards added in the last 14 days, backfills kept programs (including a new event once one of its cards is stored), then missing base gold/silver. It stops before the job timeout. The next run continues. Cards older than that window stay as stored. The browser loads card art from CloudFront.
 
 ## Catalog check
 
