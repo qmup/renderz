@@ -4,6 +4,7 @@ export const THEME_EVENT = "fc-theme";
 
 export const THEME_PREFERENCES = ["system", "light", "dark"] as const;
 export type ThemePreference = (typeof THEME_PREFERENCES)[number];
+export const DEFAULT_THEME_PREFERENCE: ThemePreference = "dark";
 
 export function parseThemePreference(
   value: string | null | undefined,
@@ -11,7 +12,7 @@ export function parseThemePreference(
   if (value === "light" || value === "dark" || value === "system") {
     return value;
   }
-  return "system";
+  return DEFAULT_THEME_PREFERENCE;
 }
 
 export function isDarkTheme(
@@ -23,9 +24,9 @@ export function isDarkTheme(
 
 /**
  * Runs before paint. Preference order matches `readThemePreference`:
- * localStorage, then the theme cookie, then system.
+ * localStorage, then the theme cookie, then dark.
  */
-export const themeInitScript = `(function(){try{var pref=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});if(pref!=="light"&&pref!=="dark"&&pref!=="system"){var match=document.cookie.match(/(?:^|; )${THEME_COOKIE}=([^;]*)/);pref=match?decodeURIComponent(match[1]):"system";}if(pref!=="light"&&pref!=="dark"&&pref!=="system")pref="system";var dark=pref==="dark"||(pref==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);var root=document.documentElement;root.classList.toggle("dark",dark);root.dataset.theme=pref;}catch(e){}})();`;
+export const themeInitScript = `(function(){try{var pref=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});if(pref!=="light"&&pref!=="dark"&&pref!=="system"){var match=document.cookie.match(/(?:^|; )${THEME_COOKIE}=([^;]*)/);pref=match?decodeURIComponent(match[1]):${JSON.stringify(DEFAULT_THEME_PREFERENCE)};}if(pref!=="light"&&pref!=="dark"&&pref!=="system")pref=${JSON.stringify(DEFAULT_THEME_PREFERENCE)};var dark=pref==="dark"||(pref==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);var root=document.documentElement;root.classList.toggle("dark",dark);root.dataset.theme=pref;}catch(e){}})();`;
 
 export function readThemePreference(): ThemePreference {
   try {
@@ -38,12 +39,12 @@ export function readThemePreference(): ThemePreference {
   }
   const match = document.cookie.match(/(?:^|; )theme=([^;]*)/);
   if (!match?.[1]) {
-    return "system";
+    return DEFAULT_THEME_PREFERENCE;
   }
   try {
     return parseThemePreference(decodeURIComponent(match[1]));
   } catch {
-    return "system";
+    return DEFAULT_THEME_PREFERENCE;
   }
 }
 

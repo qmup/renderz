@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { formatNumber } from "@/lib/i18n/locale";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ThemedSelect } from "@/components/ui/themed-select";
 import {
   Pagination,
   PaginationContent,
@@ -24,9 +25,6 @@ import {
   paginationItems,
 } from "@/lib/catalog/pagination";
 import { PLAYER_LIST_MAX_PAGE_SIZE } from "@/lib/domain/query";
-
-const selectClassName =
-  "h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 export function PlayerPagination({
   page,
@@ -93,24 +91,31 @@ export function PlayerPagination({
           <span className="sm:hidden"> / {formatNumber(total, locale)}</span>
         </p>
         <div className="flex items-center gap-2">
-          <Label htmlFor={sizeId} className="text-muted-foreground text-xs font-normal">
+          <Label
+            id={`${sizeId}-label`}
+            htmlFor={sizeId}
+            className="text-muted-foreground text-xs font-normal"
+          >
             {m.perPage}
           </Label>
-          <select
+          <ThemedSelect
             id={sizeId}
-            className={selectClassName}
-            value={pageSize}
-            onChange={(event) => changePageSize(Number(event.target.value))}
-          >
-            {PLAYER_PAGE_SIZE_OPTIONS.map((size) => (
-              <option key={size} value={size}>
-                {size}
-              </option>
-            ))}
-            {!(PLAYER_PAGE_SIZE_OPTIONS as readonly number[]).includes(pageSize) ? (
-              <option value={pageSize}>{pageSize}</option>
-            ) : null}
-          </select>
+            aria-labelledby={`${sizeId}-label`}
+            className="w-20"
+            value={String(pageSize)}
+            options={[
+              ...PLAYER_PAGE_SIZE_OPTIONS.map((size) => ({
+                value: String(size),
+                label: String(size),
+              })),
+              ...(PLAYER_PAGE_SIZE_OPTIONS as readonly number[]).includes(
+                pageSize,
+              )
+                ? []
+                : [{ value: String(pageSize), label: String(pageSize) }],
+            ]}
+            onChange={(value) => changePageSize(Number(value))}
+          />
         </div>
       </div>
 
