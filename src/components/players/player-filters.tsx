@@ -44,13 +44,9 @@ export function PlayerFilters({
 }) {
   const { m } = usePreferences();
   const filterCount = countPlayerListFilters(query);
-  const sortLabels: Record<PlayerListQuery['sort'], string> = {
+  const sortLabels: Partial<Record<PlayerListQuery['sort'], string>> = {
     added_desc: m.sortNewest,
     rating_desc: m.sortRatingHigh,
-    rating_asc: m.sortRatingLow,
-    name_asc: m.sortNameAsc,
-    name_desc: m.sortNameDesc,
-    fetched_desc: m.sortFetched,
   };
 
   function patchFilters(filters: PlayerListQuery['filters']) {
@@ -87,26 +83,39 @@ export function PlayerFilters({
         </div>
       ) : null}
       <div className="flex flex-col gap-1.5 border-b border-border pb-3">
-        <Label htmlFor={`${idPrefix}-sort`}>{m.sort}</Label>
-        <select
-          id={`${idPrefix}-sort`}
-          className="border-input h-8 w-full rounded-lg border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-          value={query.sort}
-          onChange={(event) =>
-            onReplaceQuery({
-              ...query,
-              q: searchDraft,
-              sort: event.target.value as PlayerListQuery['sort'],
-              page: 1,
-            })
-          }
-        >
-          {PLAYER_SORT_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {sortLabels[option.value]}
-            </option>
-          ))}
-        </select>
+        <span className="text-sm leading-none font-medium">{m.sort}</span>
+        <div role="group" aria-label={m.sort} className="grid grid-cols-2 gap-1.5">
+          {PLAYER_SORT_OPTIONS.map((option) => {
+            const active = query.sort === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={active}
+                onClick={() => {
+                  if (active) {
+                    return;
+                  }
+                  onReplaceQuery({
+                    ...query,
+                    q: searchDraft,
+                    sort: option.value,
+                    page: 1,
+                  });
+                }}
+                className={cn(
+                  'h-8 rounded-lg text-sm font-medium transition-colors',
+                  'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
+                  active
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted/80 text-foreground hover:bg-muted',
+                )}
+              >
+                {sortLabels[option.value] ?? option.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
       <FacetAccordion
         title={m.programEvent}

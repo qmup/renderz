@@ -6,11 +6,7 @@ export const PLAYER_SORT_OPTIONS: Array<{
   label: string;
 }> = [
   { value: 'added_desc', label: 'Newest added' },
-  { value: 'rating_desc', label: 'Rating (high)' },
-  { value: 'rating_asc', label: 'Rating (low)' },
-  { value: 'name_asc', label: 'Name A–Z' },
-  { value: 'name_desc', label: 'Name Z–A' },
-  { value: 'fetched_desc', label: 'Recently fetched' },
+  { value: 'rating_desc', label: 'Highest rating' },
 ];
 
 export function formatProgramFacetLabel(programId: string): string {
