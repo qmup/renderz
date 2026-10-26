@@ -14,7 +14,6 @@ import {
   type SQL,
 } from "drizzle-orm";
 import type { AuroraDatabase } from "@/db/postgres";
-import { ensurePlayerColorColumns } from "@/db/player-columns";
 import { ingestJobs, playerAssets, players } from "@/db/postgres-schema";
 import { applyCardNameColors } from "@/lib/catalog/card-name-color";
 import {
@@ -289,14 +288,9 @@ function sqlOrderBy(sort: PlayerListQuery["sort"]) {
 }
 
 export class PostgresPlayerCatalog implements PlayerCatalog {
-  private readonly ready: Promise<void>;
-
-  constructor(private readonly db: AuroraDatabase) {
-    this.ready = ensurePlayerColorColumns(db);
-  }
+  constructor(private readonly db: AuroraDatabase) {}
 
   async exists(id: string): Promise<boolean> {
-    await this.ready;
     const row = await this.db
       .select({ id: players.id })
       .from(players)
@@ -306,7 +300,6 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
   }
 
   async isSkipped(id: string): Promise<boolean> {
-    await this.ready;
     const skipped = await this.db
       .select({ id: ingestJobs.id })
       .from(ingestJobs)
@@ -316,7 +309,6 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
   }
 
   async listPlayerIndex(): Promise<PlayerIndexRow[]> {
-    await this.ready;
     const rows = await this.db
       .select({
         id: players.id,
@@ -334,7 +326,6 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
   }
 
   async deletePlayer(id: string): Promise<void> {
-    await this.ready;
     clearPlayerListCache();
     await this.db.delete(playerAssets).where(eq(playerAssets.playerId, id));
     await this.db
@@ -373,7 +364,6 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
   }
 
   async getById(id: string): Promise<Player | null> {
-    await this.ready;
     const rows = await this.db
       .select()
       .from(players)
@@ -383,7 +373,6 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
   }
 
   async listByIds(ids: readonly string[]): Promise<PlayerSummary[]> {
-    await this.ready;
     const unique = uniquePlayerIds(ids);
     if (unique.length === 0) {
       return [];
@@ -404,7 +393,6 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
   }
 
   async list(input: PlayerListQuery): Promise<PlayerListResult> {
-    await this.ready;
     const query = normalizePlayerListQuery(playerListQuerySchema.parse(input));
     const cacheKey = playerListQueryToSearchParams(query).toString();
     const cached = readPlayerListCache(cacheKey);
@@ -723,7 +711,6 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
   }
 
   async upsertDiscovered(seed: PlayerSeed): Promise<void> {
-    await this.ready;
     clearPlayerListCache();
     const now = seed.discoveredAt ?? Date.now();
     const existing = await this.getById(seed.id);
@@ -743,7 +730,6 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
   }
 
   async upsertPlayer(player: Player, assets: PlayerAssetRow[]): Promise<void> {
-    await this.ready;
     clearPlayerListCache();
     const parsed = playerSchema.parse(player);
     const existing = await this.db
@@ -802,7 +788,6 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
   }
 
   async listLoopAssets(): Promise<PlayerAssetRow[]> {
-    await this.ready;
     const rows = await this.db
       .select()
       .from(playerAssets)
@@ -968,7 +953,6 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
   }
 
   async clearSkipped(playerIds: readonly string[]): Promise<number> {
-    await this.ready;
     const ids = [...new Set(playerIds.map((playerId) => playerIdSchema.parse(playerId)))];
     if (ids.length === 0) {
       return 0;
@@ -989,7 +973,6 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
   }
 
   async markSucceeded(jobId: number, now = Date.now()): Promise<void> {
-    await this.ready;
     await this.db
       .update(ingestJobs)
       .set({ status: "succeeded", completedAt: now, lastError: null })
@@ -1033,7 +1016,6 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
   }
 
   async listStalePlayerIds(criteria: StalePlayerCriteria): Promise<PlayerId[]> {
-    await this.ready;
     const conditions = [];
     if (criteria.olderThanFetchedAt !== undefined) {
       conditions.push(lte(players.fetchedAt, criteria.olderThanFetchedAt));
@@ -1053,7 +1035,6 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
   }
 
   async countOpenIngestJobs(kind?: IngestJobKind): Promise<number> {
-    await this.ready;
     const rows = await this.db
       .select({ n: count() })
       .from(ingestJobs)

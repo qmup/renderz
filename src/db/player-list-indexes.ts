@@ -3,8 +3,8 @@ import type { AuroraDatabase } from "@/db/postgres";
 
 /**
  * Indexes the listing sort and facet filters need. Idempotent.
- * CREATE INDEX CONCURRENTLY stays out of the request path; instrumentation
- * calls this once per server boot.
+ * CREATE INDEX CONCURRENTLY stays out of the web app; the scheduled catalog
+ * sync calls this before it writes.
  */
 const RETIRED_INDEXES = ["idx_players_added_utc_day"] as const;
 

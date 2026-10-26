@@ -17,6 +17,8 @@ import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s
 import { and, eq, gte, inArray, isNull, lt, notInArray, or, sql } from "drizzle-orm";
 import { auroraConfigFromEnv } from "../src/db/aurora-config";
 import { ensurePlayerColorColumns } from "../src/db/player-columns";
+import { ensurePlayerListIndexes } from "../src/db/player-list-indexes";
+import { ensurePlayerSearchIndex } from "../src/db/player-search";
 import { getPostgresDb } from "../src/db/postgres";
 import { ingestJobs, playerAssets, players } from "../src/db/postgres-schema";
 import {
@@ -521,7 +523,10 @@ async function main() {
   const startedAt = Date.now();
   const deadline = syncDeadline(startedAt);
   console.log(`catalog sync start bucket=${bucket} budgetMs=${deadline - startedAt}`);
-  await ensurePlayerColorColumns(getPostgresDb());
+  const db = getPostgresDb();
+  await ensurePlayerColorColumns(db);
+  await ensurePlayerSearchIndex(db);
+  await ensurePlayerListIndexes(db);
   const cleared = await clearOpenJobs("discovery");
   console.log(`clearedPendingDiscovery=${cleared}`);
 
