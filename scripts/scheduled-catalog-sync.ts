@@ -13,6 +13,7 @@
  * One run stops at CATALOG_SYNC_BUDGET_MS so the next schedule can continue.
  * Requires AURORA_HOST and AWS credentials that can write s3://$S3_BUCKET.
  */
+import { createHash } from "node:crypto";
 import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { and, eq, gte, inArray, isNull, lt, notInArray, or, sql } from "drizzle-orm";
 import { auroraConfigFromEnv } from "../src/db/aurora-config";
@@ -418,23 +419,37 @@ async function loadUploadCandidates(
   ];
 }
 
-async function objectExists(
+/** Unquoted ETag, or undefined when the object is missing. */
+async function objectETag(
   client: S3Client,
   bucket: string,
   key: string,
-): Promise<boolean> {
+): Promise<string | undefined> {
   try {
-    await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
-    return true;
+    const head = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+    return head.ETag?.replaceAll('"', "") ?? "";
   } catch (error) {
     const status = (error as { $metadata?: { httpStatusCode?: number } })
       .$metadata?.httpStatusCode;
     const name = error instanceof Error ? error.name : "";
     if (status === 404 || name === "NotFound" || name === "NoSuchKey") {
-      return false;
+      return undefined;
     }
     throw error;
   }
+}
+
+async function objectExists(
+  client: S3Client,
+  bucket: string,
+  key: string,
+): Promise<boolean> {
+  return (await objectETag(client, bucket, key)) !== undefined;
+}
+
+/** ETag of a single-part PUT with SSE-S3 is the MD5 of the body. */
+function md5Hex(bytes: Uint8Array): string {
+  return createHash("md5").update(bytes).digest("hex");
 }
 
 async function uploadMissing(
@@ -444,6 +459,7 @@ async function uploadMissing(
 ): Promise<{ uploaded: number; present: number; failed: number; requiredFailed: number }> {
   let uploaded = 0;
   let present = 0;
+  let unchanged = 0;
   let failed = 0;
   let requiredFailed = 0;
   let cursor = 0;
@@ -458,10 +474,16 @@ async function uploadMissing(
         continue;
       }
       try {
-        if (!job.replace && (await objectExists(client, bucket, job.key))) {
+        const etag = await objectETag(client, bucket, job.key);
+        const image =
+          etag !== undefined && !job.replace
+            ? undefined
+            : await fetchAllowlistedImage(job.upstreamUrl);
+        if (!image) {
           present += 1;
+        } else if (etag !== undefined && etag === md5Hex(image.bytes)) {
+          unchanged += 1;
         } else {
-          const image = await fetchAllowlistedImage(job.upstreamUrl);
           await client.send(
             new PutObjectCommand({
               Bucket: bucket,
@@ -486,7 +508,7 @@ async function uploadMissing(
       done += 1;
       if (done % 50 === 0 || done === jobs.length) {
         console.log(
-          `images ${done}/${jobs.length} uploaded=${uploaded} present=${present} failed=${failed}`,
+          `images ${done}/${jobs.length} uploaded=${uploaded} present=${present} unchanged=${unchanged} failed=${failed}`,
         );
       }
     }

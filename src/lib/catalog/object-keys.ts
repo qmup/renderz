@@ -36,7 +36,7 @@ export type CatalogUploadCandidate = {
   fetchedAt: number;
   /** A player ingested in this run. A failed upload should fail the job. */
   required: boolean;
-  /** Overwrite an existing S3 object. Used when a recent card is refreshed. */
+  /** Re-fetch and overwrite an existing S3 object when its bytes changed. Used when a recent card is refreshed. */
   replace?: boolean;
 };
 
