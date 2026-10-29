@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useSyncExternalStore,
   type ReactNode,
@@ -13,7 +14,10 @@ import { MarketRefreshToasts } from "@/components/players/market-refresh-toasts"
 import { usePreferences } from "@/components/providers/preferences-provider";
 import { Button } from "@/components/ui/button";
 import {
+  FOLLOW_SYNC_CODE_KEY,
   FOLLOWED_PLAYER_IDS_KEY,
+  mergeFollowedPlayerIds,
+  normalizeSyncCode,
   parseFollowedPlayerIds,
   toggleFollowedPlayerId,
 } from "@/lib/followed-players";
@@ -52,8 +56,7 @@ function getServerSnapshot(): string[] {
   return EMPTY_IDS;
 }
 
-export function toggleFollowedPlayer(id: string): void {
-  const next = toggleFollowedPlayerId(readSnapshot(), id);
+function writeIds(next: string[]): void {
   const raw = JSON.stringify(next);
   window.localStorage.setItem(FOLLOWED_PLAYER_IDS_KEY, raw);
   snapshotRaw = raw;
@@ -61,11 +64,168 @@ export function toggleFollowedPlayer(id: string): void {
   window.dispatchEvent(new Event(FOLLOW_EVENT));
 }
 
+export function toggleFollowedPlayer(id: string): void {
+  writeIds(toggleFollowedPlayerId(readSnapshot(), id));
+  schedulePush();
+}
+
+function readSyncCode(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  return window.localStorage.getItem(FOLLOW_SYNC_CODE_KEY);
+}
+
+function getServerSyncCode(): string | null {
+  return null;
+}
+
+function writeSyncCode(code: string | null): void {
+  if (code) {
+    window.localStorage.setItem(FOLLOW_SYNC_CODE_KEY, code);
+  } else {
+    window.localStorage.removeItem(FOLLOW_SYNC_CODE_KEY);
+  }
+  window.dispatchEvent(new Event(FOLLOW_EVENT));
+}
+
+export function useFollowSyncCode(): string | null {
+  return useSyncExternalStore(subscribe, readSyncCode, getServerSyncCode);
+}
+
+type SyncRecord = { code: string; ids: string[]; updatedAt: number };
+
+async function syncRequest(
+  path: string,
+  init?: RequestInit,
+): Promise<SyncRecord | null> {
+  const response = await fetch(`/api/follow-sync${path}`, {
+    cache: "no-store",
+    ...init,
+    headers: { "Content-Type": "application/json", ...init?.headers },
+  });
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(`Sync request failed (${response.status})`);
+  }
+  return (await response.json()) as SyncRecord;
+}
+
+function putIds(code: string, ids: string[]): Promise<SyncRecord | null> {
+  return syncRequest(`/${code}`, {
+    method: "PUT",
+    body: JSON.stringify({ ids }),
+  });
+}
+
+const PUSH_DELAY_MS = 500;
+let pushTimer: ReturnType<typeof setTimeout> | undefined;
+let pushInFlight: Promise<unknown> | undefined;
+
+function schedulePush(): void {
+  if (!readSyncCode()) {
+    return;
+  }
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => {
+    pushTimer = undefined;
+    const code = readSyncCode();
+    if (!code) {
+      return;
+    }
+    pushInFlight = putIds(code, readSnapshot())
+      .catch(() => undefined)
+      .finally(() => {
+        pushInFlight = undefined;
+      });
+  }, PUSH_DELAY_MS);
+}
+
+/** Replace local ids with the server copy. Skipped while a local edit is unsent. */
+async function pullFromServer(): Promise<void> {
+  const code = readSyncCode();
+  if (!code || pushTimer || pushInFlight) {
+    return;
+  }
+  const record = await syncRequest(`/${code}`);
+  if (pushTimer || pushInFlight || readSyncCode() !== code) {
+    return;
+  }
+  if (!record) {
+    writeSyncCode(null);
+    return;
+  }
+  const next = parseFollowedPlayerIds(JSON.stringify(record.ids));
+  if (JSON.stringify(next) !== JSON.stringify(readSnapshot())) {
+    writeIds(next);
+  }
+}
+
+/** Start syncing this browser's list under a new code. */
+export async function createSyncCode(): Promise<string> {
+  const record = await syncRequest("", {
+    method: "POST",
+    body: JSON.stringify({ ids: readSnapshot() }),
+  });
+  if (!record) {
+    throw new Error("Could not create sync code");
+  }
+  writeSyncCode(record.code);
+  return record.code;
+}
+
+/** Join an existing code. Local follows are merged into the shared list. */
+export async function linkSyncCode(input: string): Promise<boolean> {
+  const code = normalizeSyncCode(input);
+  if (!code) {
+    return false;
+  }
+  const record = await syncRequest(`/${code}`);
+  if (!record) {
+    return false;
+  }
+  const merged = mergeFollowedPlayerIds(record.ids, readSnapshot());
+  const saved = await putIds(code, merged);
+  if (!saved) {
+    return false;
+  }
+  writeIds(merged);
+  writeSyncCode(code);
+  return true;
+}
+
+export function unlinkSync(): void {
+  clearTimeout(pushTimer);
+  pushTimer = undefined;
+  writeSyncCode(null);
+}
+
 const FollowedPlayersContext = createContext<string[] | null>(null);
 
 export function FollowedPlayersProvider({ children }: { children: ReactNode }) {
   const ids = useSyncExternalStore(subscribe, readSnapshot, getServerSnapshot);
   const value = useMemo(() => ids, [ids]);
+  const syncCode = useFollowSyncCode();
+
+  useEffect(() => {
+    if (!syncCode) {
+      return;
+    }
+    const pull = () => {
+      if (document.visibilityState === "visible") {
+        pullFromServer().catch(() => undefined);
+      }
+    };
+    pull();
+    window.addEventListener("focus", pull);
+    document.addEventListener("visibilitychange", pull);
+    return () => {
+      window.removeEventListener("focus", pull);
+      document.removeEventListener("visibilitychange", pull);
+    };
+  }, [syncCode]);
   return (
     <FollowedPlayersContext.Provider value={value}>
       {children}
