@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { FollowSyncPanel } from "@/components/players/follow-sync-panel";
 import { FollowingBrowser } from "@/components/players/following-browser";
 import { messages } from "@/lib/i18n/messages";
 import { getLocale } from "@/lib/i18n/server";
@@ -17,6 +18,7 @@ export default async function FollowingPage() {
         </h1>
         <p className="text-muted-foreground text-sm">{copy.followingSubtitle}</p>
       </div>
+      <FollowSyncPanel />
       <FollowingBrowser />
     </main>
   );

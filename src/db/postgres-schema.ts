@@ -107,6 +107,12 @@ export const playerAssets = pgTable(
   ],
 );
 
+export const followSyncs = pgTable("follow_syncs", {
+  code: text("code").primaryKey(),
+  playerIds: jsonb("player_ids").$type<string[]>().notNull().default([]),
+  updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
+});
+
 export const ingestJobs = pgTable(
   "ingest_jobs",
   {
