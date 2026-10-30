@@ -113,7 +113,7 @@ function PlayerListLink({
       href={`/players/${player.id}`}
       className="hover:bg-muted/60 group flex min-h-[104px] items-center gap-2 px-2"
     >
-      <div className="relative w-16 shrink-0 md:w-[85px]">
+      <div className="@container relative w-16 shrink-0 md:w-[85px]">
         <PlayerCardArt
           id={player.id}
           kinds={player.availableImageKinds}
