@@ -147,4 +147,5 @@ export function sniffImageContentType(
   return mime || "application/octet-stream";
 }
 
-export const PLACEHOLDER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><rect fill="#e5e5e5" width="128" height="128"/><text x="64" y="70" text-anchor="middle" font-size="14" fill="#737373">No image</text></svg>`;
+/** Served with 200, so `<img onError>` never fires: it must stay fully transparent. */
+export const PLACEHOLDER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"/>`;

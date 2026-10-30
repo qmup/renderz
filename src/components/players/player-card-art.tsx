@@ -91,7 +91,7 @@ export function PlayerCardArt({
   if (!showStack) {
     return (
       <div
-        className={cn('bg-muted aspect-square w-full shrink-0 rounded-sm', className)}
+        className={cn('aspect-square w-full shrink-0', className)}
         aria-hidden
       />
     );

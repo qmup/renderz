@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import type { PlayerImageKind } from "@/lib/domain/player";
 import { playerArtPublicSrc, playerImageApiSrc } from "@/lib/images";
 import { cn } from "@/lib/utils";
@@ -29,24 +29,22 @@ export function PlayerImage({
   const staticSrc = playerArtPublicSrc(id, kind);
   const [src, setSrc] = useState(staticSrc);
   const [failed, setFailed] = useState(false);
-  useEffect(() => {
+  const [prevStaticSrc, setPrevStaticSrc] = useState(staticSrc);
+  if (prevStaticSrc !== staticSrc) {
+    setPrevStaticSrc(staticSrc);
     setSrc(staticSrc);
     setFailed(false);
-  }, [staticSrc]);
+  }
   if (failed) {
     if (hideOnError) {
       return null;
     }
     return (
-      <div
-        className={cn(
-          "bg-muted text-muted-foreground flex items-center justify-center rounded-sm border border-dashed text-[10px]",
-          className,
-        )}
+      <span
+        className={cn("inline-block", className)}
         style={{ width, height, ...style }}
-      >
-        No image
-      </div>
+        aria-hidden
+      />
     );
   }
   return (
