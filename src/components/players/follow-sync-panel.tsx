@@ -33,6 +33,12 @@ export function FollowSyncPanel() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<SyncError | null>(null);
   const [copied, setCopied] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  function fail(next: SyncError) {
+    setError(next);
+    setOpen(true);
+  }
 
   async function link(value: string) {
     setBusy(true);
@@ -42,10 +48,10 @@ export function FollowSyncPanel() {
       if (ok) {
         setInput("");
       } else {
-        setError("syncNotFound");
+        fail("syncNotFound");
       }
     } catch {
-      setError("syncUnreachable");
+      fail("syncUnreachable");
     } finally {
       setBusy(false);
     }
@@ -62,10 +68,10 @@ export function FollowSyncPanel() {
     linkSyncCode(fromUrl)
       .then((ok) => {
         if (!ok) {
-          setError("syncNotFound");
+          fail("syncNotFound");
         }
       })
-      .catch(() => setError("syncUnreachable"));
+      .catch(() => fail("syncUnreachable"));
   }, []);
 
   async function create() {
@@ -74,7 +80,7 @@ export function FollowSyncPanel() {
     try {
       await createSyncCode();
     } catch {
-      setError("syncCreateFailed");
+      fail("syncCreateFailed");
     } finally {
       setBusy(false);
     }
@@ -89,7 +95,7 @@ export function FollowSyncPanel() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      setError("syncCopyFailed");
+      fail("syncCopyFailed");
     }
   }
 
@@ -101,53 +107,70 @@ export function FollowSyncPanel() {
   }
 
   return (
-    <section className="border-border flex flex-col gap-2 rounded-lg border p-3 text-sm">
-      <div className="flex items-center gap-1.5 font-medium">
+    <details
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+      className="group border-border rounded-lg border text-sm"
+    >
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 p-3 font-medium [&::-webkit-details-marker]:hidden">
         <RefreshCw aria-hidden className="size-3.5" />
         {m.syncTitle}
-      </div>
-      {code ? (
-        <>
-          <p className="text-muted-foreground">
-            {m.syncLinkedBefore}{" "}
-            <span className="text-foreground font-mono font-semibold tracking-wider select-all">
-              {code}
-            </span>
-            {m.syncLinkedAfter}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={copy}>
-              {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
-              {copied ? m.syncCopied : m.syncCopyLink}
+        <span
+          aria-hidden
+          className="text-muted-foreground ml-auto inline-block transition-transform group-open:rotate-180"
+        >
+          ▾
+        </span>
+      </summary>
+      <div className="flex flex-col gap-2 px-3 pb-3">
+        {code ? (
+          <>
+            <p className="text-muted-foreground">
+              {m.syncLinkedBefore}{" "}
+              <span className="text-foreground font-mono font-semibold tracking-wider select-all">
+                {code}
+              </span>
+              {m.syncLinkedAfter}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={copy}>
+                {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
+                {copied ? m.syncCopied : m.syncCopyLink}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={unlinkSync}
+              >
+                {m.syncStop}
+              </Button>
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Button type="button" size="sm" onClick={create} disabled={busy}>
+              {m.syncCreate}
             </Button>
-            <Button type="button" size="sm" variant="ghost" onClick={unlinkSync}>
-              {m.syncStop}
-            </Button>
+            <span className="text-muted-foreground">{m.syncOr}</span>
+            <form onSubmit={onSubmit} className="flex gap-2">
+              <Input
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                placeholder={m.syncEnterCode}
+                aria-label={m.syncCodeLabel}
+                autoCapitalize="characters"
+                autoComplete="off"
+                className="w-36 font-mono uppercase"
+              />
+              <Button type="submit" size="sm" variant="outline" disabled={busy}>
+                {m.syncLink}
+              </Button>
+            </form>
           </div>
-        </>
-      ) : (
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Button type="button" size="sm" onClick={create} disabled={busy}>
-            {m.syncCreate}
-          </Button>
-          <span className="text-muted-foreground">{m.syncOr}</span>
-          <form onSubmit={onSubmit} className="flex gap-2">
-            <Input
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              placeholder={m.syncEnterCode}
-              aria-label={m.syncCodeLabel}
-              autoCapitalize="characters"
-              autoComplete="off"
-              className="w-36 font-mono uppercase"
-            />
-            <Button type="submit" size="sm" variant="outline" disabled={busy}>
-              {m.syncLink}
-            </Button>
-          </form>
-        </div>
-      )}
-      {error ? <p className="text-destructive">{m[error]}</p> : null}
-    </section>
+        )}
+        {error ? <p className="text-destructive">{m[error]}</p> : null}
+      </div>
+    </details>
   );
 }
