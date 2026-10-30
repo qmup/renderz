@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PlayerCardArt } from "@/components/players/player-card-art";
 import { usePreferences } from "@/components/providers/preferences-provider";
 import {
   formatRefreshClock,
@@ -20,6 +21,7 @@ import {
 
 const NOTICE_DISMISS_MS = 6000;
 const NOTICE_STORAGE_KEY = "fcvn.market-refresh-notices";
+const TOAST_CARD_SIZE = 56;
 
 type NoticeToast = {
   key: string;
@@ -34,6 +36,7 @@ type NoticeToast = {
 type ToastItem = {
   key: string;
   kind: "notice" | "countdown";
+  playerId: PlayerId;
   name: string;
   rating: number;
   refreshAtMs: number;
@@ -124,6 +127,7 @@ function countdownToasts(
     items.push({
       key: `${player.id}:${Math.floor(refreshAtMs / 1000)}`,
       kind: "countdown",
+      playerId: player.id,
       name: playerName(player),
       rating: player.rating,
       refreshAtMs,
@@ -192,6 +196,9 @@ export function MarketRefreshToasts({ ids }: { ids: readonly string[] }) {
 
   const followed = new Set(ids);
   const visiblePlayers = players.filter((player) => followed.has(player.id));
+  const playersById = new Map(
+    visiblePlayers.map((player) => [player.id, player] as const),
+  );
   const items: ToastItem[] = [
     ...countdownToasts(visiblePlayers, now),
     ...notices
@@ -200,6 +207,7 @@ export function MarketRefreshToasts({ ids }: { ids: readonly string[] }) {
         (notice): ToastItem => ({
           key: notice.key,
           kind: "notice",
+          playerId: notice.playerId,
           name: notice.name,
           rating: notice.rating,
           refreshAtMs: notice.refreshAtMs,
@@ -216,26 +224,49 @@ export function MarketRefreshToasts({ ids }: { ids: readonly string[] }) {
     <div className="fixed bottom-4 left-4 z-40 flex w-[min(100%-2rem,22rem)] flex-col gap-2">
       {items.map((item) => {
         const refreshAt = new Date(item.refreshAtMs);
+        const player = playersById.get(item.playerId);
         return (
           <div
             key={item.key}
             role="status"
             aria-live={item.kind === "countdown" ? "off" : "polite"}
-            className="bg-background text-foreground rounded-lg border px-3 py-2.5 shadow-lg"
+            className="bg-background text-foreground flex items-center gap-2.5 rounded-lg border px-3 py-2.5 shadow-lg"
           >
-            <p className="text-sm font-medium">
-              {item.name}
-              <span className="text-muted-foreground ml-1.5 tabular-nums">
-                {item.rating}
-              </span>
-            </p>
-            <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
-              {formatRefreshDate(refreshAt, dateLocale(locale))}{" "}
-              {formatRefreshClock(refreshAt, dateLocale(locale))}
-            </p>
-            <p className="mt-1 text-sm tabular-nums">
-              {formatAlertRemaining(item.refreshAtMs - now, locale)}
-            </p>
+            {player ? (
+              <div
+                className="relative shrink-0"
+                style={{ width: TOAST_CARD_SIZE }}
+              >
+                <PlayerCardArt
+                  id={player.id}
+                  kinds={player.availableImageKinds}
+                  rating={player.rating}
+                  position={player.position}
+                  auctionable={player.auctionable}
+                  displayName={cardDisplayName(player)}
+                  playStyles={player.playStyles}
+                  nameColor={player.nameColor}
+                  ratingColor={player.ratingColor}
+                  positionColor={player.positionColor}
+                  size={TOAST_CARD_SIZE}
+                />
+              </div>
+            ) : null}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">
+                {item.name}
+                <span className="text-muted-foreground ml-1.5 tabular-nums">
+                  {item.rating}
+                </span>
+              </p>
+              <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
+                {formatRefreshDate(refreshAt, dateLocale(locale))}{" "}
+                {formatRefreshClock(refreshAt, dateLocale(locale))}
+              </p>
+              <p className="mt-1 text-sm tabular-nums">
+                {formatAlertRemaining(item.refreshAtMs - now, locale)}
+              </p>
+            </div>
           </div>
         );
       })}
