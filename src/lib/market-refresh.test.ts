@@ -54,6 +54,27 @@ describe('sortByNextMarketRefresh', () => {
       marketRefreshAtSec('24044714', nowMs),
     );
   });
+
+  it('moves a player whose refresh just passed behind others still waiting', () => {
+    const players = [
+      { id: '24044714', auctionable: true, name: 'Mbappe' },
+      { id: '24029971', auctionable: true, name: 'Messi' },
+    ];
+    const messiRefresh = marketRefreshAtSec(
+      '24029971',
+      Date.parse('2026-09-04T08:20:17.000Z'),
+    );
+    expect(
+      sortByNextMarketRefresh(players, messiRefresh * 1000 - 1000).map(
+        (player) => player.name,
+      ),
+    ).toEqual(['Messi', 'Mbappe']);
+    expect(
+      sortByNextMarketRefresh(players, messiRefresh * 1000 + 1000).map(
+        (player) => player.name,
+      ),
+    ).toEqual(['Mbappe', 'Messi']);
+  });
 });
 
 describe('refreshAlertPhase', () => {
