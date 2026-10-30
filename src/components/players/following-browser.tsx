@@ -15,7 +15,17 @@ export function FollowingBrowser() {
   const [items, setItems] = useState<PlayerSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const idsKey = ids.join(",");
+
+  // Re-sort when a market refresh boundary passes (same 1s tick as the countdown toast).
+  useEffect(() => {
+    if (ids.length === 0) {
+      return;
+    }
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [ids.length]);
 
   useEffect(() => {
     if (!idsKey) {
@@ -53,6 +63,7 @@ export function FollowingBrowser() {
       const item = items.find((player) => player.id === id);
       return item ? [item] : [];
     }),
+    now,
   );
 
   if (ids.length === 0) {
