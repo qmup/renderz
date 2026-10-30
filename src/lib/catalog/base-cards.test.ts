@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { baseCardTier } from '@/lib/catalog/base-cards';
 import {
   baseCardSearchBody,
+  cardArtFromSearchPayload,
+  cardsAfterSearchBody,
   encodeRenderzSearchQuery,
   entriesFromSearchPayload,
 } from '@/lib/providers/renderz/base-card-search';
@@ -67,5 +69,52 @@ describe('base card search', () => {
     });
     expect(entries).toEqual([{ id: '19225645', slug: 'de-arrascaeta' }]);
     expect(JSON.stringify(entries)).not.toContain('http');
+  });
+
+  it('reads colors and unsigned art names for every card', () => {
+    const cards = cardArtFromSearchPayload({
+      players: [
+        {
+          assetId: 19020801,
+          cardName: 'Kroos',
+          animation: {
+            colors: { rating: '#4E3D0E', position: '#4E3D0E', name: '#4E3D0E' },
+          },
+          images: {
+            playerCardImage: 'https://images-v2.renderz.app/player_26_20801?verify=1-a',
+            playerCardBackground:
+              'https://images-v2.renderz.app/bg_23_backgrounds_26_S11_GOLD_BASE_STATIC?verify=1-b',
+          },
+        },
+        { assetId: 24000002, cardName: 'Plain', animation: { cardData: [] } },
+      ],
+    });
+    expect(cards).toEqual([
+      {
+        id: '19020801',
+        slug: 'kroos',
+        colors: { name: '#4E3D0E', rating: '#4E3D0E', position: '#4E3D0E' },
+        background: 'bg_23_backgrounds_26_S11_GOLD_BASE_STATIC',
+        card: 'player_26_20801',
+        backgroundUrl:
+          'https://images-v2.renderz.app/bg_23_backgrounds_26_S11_GOLD_BASE_STATIC?verify=1-b',
+        cardUrl: 'https://images-v2.renderz.app/player_26_20801?verify=1-a',
+      },
+      {
+        id: '24000002',
+        slug: 'plain',
+        colors: { name: '#FFFFFF', rating: '#FFFFFF', position: '#FFFFFF' },
+        background: undefined,
+        card: undefined,
+        backgroundUrl: undefined,
+        cardUrl: undefined,
+      },
+    ]);
+  });
+
+  it('pages the whole catalog by asset id', () => {
+    expect(cardsAfterSearchBody(24000100).query.bool.must).toEqual([
+      { range: { assetId: { gt: 24000100 } } },
+    ]);
   });
 });

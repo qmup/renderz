@@ -69,6 +69,14 @@ describe("parsePlayerPage", () => {
     expect(player.positionColor).toBe("#FFFFFF");
   });
 
+  it("stores white when RenderZ sends no animation.colors", () => {
+    const html = `<script>player:{id:24000002,firstName:"Plain",lastName:"Card",rating:80,animation:{cardData:["background"]}}</script>`;
+    const { player } = parsePlayerPage({ html });
+    expect(player.nameColor).toBe("#FFFFFF");
+    expect(player.ratingColor).toBe("#FFFFFF");
+    expect(player.positionColor).toBe("#FFFFFF");
+  });
+
   it("parses HTML-only player pages and prefers visible labels", () => {
     const { player, assets } = parsePlayerPage({ html: read("messi.html") });
     expect(player.id).toBe("24029971");

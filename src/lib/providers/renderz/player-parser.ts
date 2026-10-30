@@ -3,7 +3,7 @@ import {
   assignBaseCardIdentity,
   baseCardTier,
 } from '@/lib/catalog/base-cards';
-import { cardColorsFromAnimation } from '@/lib/catalog/card-name-color';
+import { renderzCardTextColors } from '@/lib/catalog/card-name-color';
 import { CURRENT_PARSE_VERSION } from '@/lib/catalog/parse-version';
 import {
   cardLoopImageKind,
@@ -823,7 +823,7 @@ function playerFromRaw(
     throw new ParseError('Player payload missing id, name, or rating');
   }
 
-  const textColors = cardColorsFromAnimation(raw.animation);
+  const textColors = renderzCardTextColors(raw.animation);
   const assets = [
     ...assetsFromImages(playerId, raw.images, fetchedAt),
     ...iconAssetsFromCollections(

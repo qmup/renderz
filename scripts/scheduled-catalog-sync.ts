@@ -13,8 +13,7 @@
  * One run stops at CATALOG_SYNC_BUDGET_MS so the next schedule can continue.
  * Requires AURORA_HOST and AWS credentials that can write s3://$S3_BUCKET.
  */
-import { createHash } from "node:crypto";
-import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { and, eq, gte, inArray, isNull, lt, notInArray, or, sql } from "drizzle-orm";
 import { auroraConfigFromEnv } from "../src/db/aurora-config";
 import { ensurePlayerColorColumns } from "../src/db/player-columns";
@@ -48,8 +47,12 @@ import { takeSitemapHead } from "../src/lib/ingest/sitemap-head";
 import {
   planCatalogUploads,
   type CatalogUploadCandidate,
-  type CatalogUploadJob,
 } from "../src/lib/catalog/object-keys";
+import {
+  CATALOG_OBJECT_CACHE_CONTROL,
+  objectExists,
+  uploadCatalogObjects,
+} from "../src/lib/catalog/s3-uploads";
 import { getPlayerCatalog } from "../src/lib/catalog/runtime";
 import { runIngestBatch } from "../src/lib/ingest/runner";
 import {
@@ -57,12 +60,9 @@ import {
   listSourceCardEntries,
 } from "../src/lib/providers/renderz/base-card-search";
 import { RenderzClient } from "../src/lib/providers/renderz/client";
-import { isExpiredImageError } from "../src/lib/providers/renderz/image-errors";
 import { fetchAllowlistedImage } from "../src/lib/providers/renderz/image-proxy";
 import { getRenderzSource } from "../src/lib/providers/renderz/renderz-source";
 
-const IMAGE_CONCURRENCY = 4;
-const CACHE_CONTROL = "public, max-age=31536000, immutable";
 const DB_ATTEMPTS = 3;
 const DEFAULT_SYNC_BUDGET_MS = 165 * 60 * 1000;
 const INGEST_SLICE = 15;
@@ -360,7 +360,7 @@ async function uploadMissingProgramLogos(
           Key: key,
           Body: image.bytes,
           ContentType: image.contentType || "image/png",
-          CacheControl: CACHE_CONTROL,
+          CacheControl: CATALOG_OBJECT_CACHE_CONTROL,
         }),
       );
       uploaded += 1;
@@ -419,107 +419,6 @@ async function loadUploadCandidates(
   ];
 }
 
-/** Unquoted ETag, or undefined when the object is missing. */
-async function objectETag(
-  client: S3Client,
-  bucket: string,
-  key: string,
-): Promise<string | undefined> {
-  try {
-    const head = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
-    return head.ETag?.replaceAll('"', "") ?? "";
-  } catch (error) {
-    const status = (error as { $metadata?: { httpStatusCode?: number } })
-      .$metadata?.httpStatusCode;
-    const name = error instanceof Error ? error.name : "";
-    if (status === 404 || name === "NotFound" || name === "NoSuchKey") {
-      return undefined;
-    }
-    throw error;
-  }
-}
-
-async function objectExists(
-  client: S3Client,
-  bucket: string,
-  key: string,
-): Promise<boolean> {
-  return (await objectETag(client, bucket, key)) !== undefined;
-}
-
-/** ETag of a single-part PUT with SSE-S3 is the MD5 of the body. */
-function md5Hex(bytes: Uint8Array): string {
-  return createHash("md5").update(bytes).digest("hex");
-}
-
-async function uploadMissing(
-  client: S3Client,
-  bucket: string,
-  jobs: CatalogUploadJob[],
-): Promise<{ uploaded: number; present: number; failed: number; requiredFailed: number }> {
-  let uploaded = 0;
-  let present = 0;
-  let unchanged = 0;
-  let failed = 0;
-  let requiredFailed = 0;
-  let cursor = 0;
-  let done = 0;
-
-  async function worker() {
-    while (cursor < jobs.length) {
-      const index = cursor;
-      cursor += 1;
-      const job = jobs[index];
-      if (!job) {
-        continue;
-      }
-      try {
-        const etag = await objectETag(client, bucket, job.key);
-        const image =
-          etag !== undefined && !job.replace
-            ? undefined
-            : await fetchAllowlistedImage(job.upstreamUrl);
-        if (!image) {
-          present += 1;
-        } else if (etag !== undefined && etag === md5Hex(image.bytes)) {
-          unchanged += 1;
-        } else {
-          await client.send(
-            new PutObjectCommand({
-              Bucket: bucket,
-              Key: job.key,
-              Body: image.bytes,
-              ContentType: image.contentType || "image/png",
-              CacheControl: CACHE_CONTROL,
-            }),
-          );
-          uploaded += 1;
-          console.log(`uploaded ${job.key}`);
-        }
-      } catch (error) {
-        failed += 1;
-        if (job.required) {
-          requiredFailed += 1;
-        }
-        const message = error instanceof Error ? error.message : String(error);
-        const expired = isExpiredImageError(error) ? " expired-signature" : "";
-        console.error(`image failed${expired} required=${job.required} ${job.key} ${message}`);
-      }
-      done += 1;
-      if (done % 50 === 0 || done === jobs.length) {
-        console.log(
-          `images ${done}/${jobs.length} uploaded=${uploaded} present=${present} unchanged=${unchanged} failed=${failed}`,
-        );
-      }
-    }
-  }
-
-  await Promise.all(
-    Array.from({ length: Math.min(IMAGE_CONCURRENCY, jobs.length) }, () => worker()),
-  );
-  return { uploaded, present, failed, requiredFailed };
-}
-
 async function uploadFetchedSince(
   since: number,
   bucket: string,
@@ -532,7 +431,7 @@ async function uploadFetchedSince(
   if (jobs.length === 0) {
     return { uploaded: 0, requiredFailed: 0 };
   }
-  const images = await uploadMissing(new S3Client({ region }), bucket, jobs);
+  const images = await uploadCatalogObjects(new S3Client({ region }), bucket, jobs);
   return { uploaded: images.uploaded, requiredFailed: images.requiredFailed };
 }
 

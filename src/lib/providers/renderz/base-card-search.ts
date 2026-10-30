@@ -1,4 +1,8 @@
 import { deflateRawSync } from 'node:zlib';
+import {
+  renderzCardTextColors,
+  type CardTextColors,
+} from '@/lib/catalog/card-name-color';
 import { ParseError } from '@/lib/http/errors';
 import { RenderzClient } from '@/lib/providers/renderz/client';
 
@@ -137,6 +141,86 @@ export async function listBaseCardEntries(
     }
   }
   return entries;
+}
+
+export type SearchCardArt = {
+  id: string;
+  slug: string;
+  colors: CardTextColors;
+  /** Upstream image names without host or signed query. */
+  background?: string;
+  card?: string;
+  /** Signed upstream URLs. Server-side only. */
+  backgroundUrl?: string;
+  cardUrl?: string;
+};
+
+/** Every card after `afterId`, in id order. Paged by id, not `from`. */
+export function cardsAfterSearchBody(afterId: number, size = PAGE_SIZE) {
+  return {
+    query: {
+      bool: {
+        must: [{ range: { assetId: { gt: afterId } } }],
+        should: [],
+        must_not: [],
+      },
+    },
+    sort: [{ assetId: { order: 'asc' } }],
+    from: 0,
+    size,
+    _source: [],
+  };
+}
+
+export function upstreamImageName(url: unknown): string | undefined {
+  if (typeof url !== 'string' || !url) {
+    return undefined;
+  }
+  return url.split('?')[0]?.split('/').pop() || undefined;
+}
+
+function upstreamUrl(value: unknown): string | undefined {
+  return typeof value === 'string' && value ? value : undefined;
+}
+
+export function cardArtFromSearchPayload(payload: unknown): SearchCardArt[] {
+  if (!isRecord(payload) || !Array.isArray(payload.players)) {
+    throw new ParseError('RenderZ search response has no players');
+  }
+  return payload.players.flatMap((player) => {
+    if (!isRecord(player)) {
+      return [];
+    }
+    const id = String(player.assetId ?? '');
+    if (!/^\d+$/.test(id)) {
+      return [];
+    }
+    const images = isRecord(player.images) ? player.images : {};
+    const cardName =
+      typeof player.cardName === 'string' ? player.cardName : undefined;
+    const backgroundUrl = upstreamUrl(images.playerCardBackground);
+    const cardUrl = upstreamUrl(images.playerCardImage);
+    return [
+      {
+        id,
+        slug: slugFromCardName(cardName, id),
+        colors: renderzCardTextColors(player.animation),
+        background: upstreamImageName(backgroundUrl),
+        card: upstreamImageName(cardUrl),
+        backgroundUrl,
+        cardUrl,
+      },
+    ];
+  });
+}
+
+export async function searchCardsAfter(
+  afterId: number,
+  client = new RenderzClient(),
+): Promise<SearchCardArt[]> {
+  return cardArtFromSearchPayload(
+    await client.getSearchJson(encodeRenderzSearchQuery(cardsAfterSearchBody(afterId))),
+  );
 }
 
 function slugFromCardName(cardName: string | undefined, id: string): string {

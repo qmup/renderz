@@ -18,6 +18,7 @@
     "ingest": "npx tsx scripts/ingest.ts",
     "catalog:verify": "npx tsx scripts/verify-catalog.ts",
     "catalog:sync": "npx tsx scripts/scheduled-catalog-sync.ts",
+    "catalog:backfill-colors": "caffeinate -dims npx tsx --env-file=.env.local scripts/backfill-card-colors.ts",
     "catalog:enrich-v6": "caffeinate -dims npx tsx scripts/enrich-parse-v6.ts"
   },
   "dependencies": {

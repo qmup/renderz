@@ -144,6 +144,19 @@ export function cardColorsFromAnimation(animation: unknown): {
 }
 
 /**
+ * What RenderZ paints for a season-23 card: `animation.colors` over a white
+ * default, so a missing field (or missing `colors`) is white.
+ */
+export function renderzCardTextColors(animation: unknown): CardTextColors {
+  const colors = cardColorsFromAnimation(animation);
+  return {
+    name: colors.name ?? CARD_NAME_WHITE,
+    rating: colors.rating ?? CARD_NAME_WHITE,
+    position: colors.position ?? CARD_NAME_WHITE,
+  };
+}
+
+/**
  * Stored `animation.colors` win. Rows ingested before that field existed
  * fall back to the measured background-filename table.
  */

@@ -38,6 +38,17 @@ npm run catalog:verify
 
 Prints how many players are stored. It does not delete older players.
 
+## Card text colors
+
+The name, rating, and position colors on a card are RenderZ `animation.colors` (white when absent). The detail parser stores them. To realign every stored card with RenderZ:
+
+```bash
+npm run catalog:backfill-colors                  # colors only
+npm run catalog:backfill-colors -- --refresh-art # also replace changed background / player art in S3
+```
+
+It pages through RenderZ search by asset id (100 cards per request). Base gold/silver cards move to new frames (S11) with new colors, so `--refresh-art` points their `background` / `card` assets at the new images and overwrites the S3 objects. Those objects are cached as immutable, so invalidate `/player-art/*` on CloudFront afterwards.
+
 ## Ingest
 
 Discovery enqueue does not fetch player pages:
