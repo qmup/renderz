@@ -257,7 +257,8 @@ export function FollowHeartButton({ playerId }: { playerId: string }) {
         toggleFollowedPlayer(playerId);
       }}
       className={cn(
-        "absolute top-1 right-1 z-10 flex size-7 cursor-pointer items-center justify-center rounded-full border border-border bg-background/95 text-foreground shadow-sm",
+        // Size from the card container (cqw), not rem, so text zoom does not inflate the hit target over the art.
+        "absolute top-[3cqw] right-[3cqw] z-10 flex size-[24cqw] cursor-pointer items-center justify-center rounded-full border border-border bg-background/95 text-foreground shadow-sm",
         "motion-safe:transition motion-safe:duration-150 motion-safe:ease-out",
         "[@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:scale-90 [@media(hover:hover)]:opacity-0",
         "[@media(hover:hover)]:group-hover:pointer-events-auto [@media(hover:hover)]:group-hover:scale-100 [@media(hover:hover)]:group-hover:opacity-100",
@@ -266,7 +267,7 @@ export function FollowHeartButton({ playerId }: { playerId: string }) {
     >
       <Heart
         aria-hidden
-        className={cn("size-3.5", followed && "fill-current text-rose-600")}
+        className={cn("size-[55%]", followed && "fill-current text-rose-600")}
       />
     </button>
   );
