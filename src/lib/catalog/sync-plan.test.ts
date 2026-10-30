@@ -3,6 +3,7 @@ import { BASE_PROGRAM_GOLD } from "@/lib/catalog/base-cards";
 import {
   programIdsToSync,
   RECENT_REFRESH_LIMIT,
+  selectDriftedCards,
   selectRecentRefreshIds,
 } from "@/lib/catalog/sync-plan";
 import { SYNC_KEEP_PROGRAM_IDS } from "@/lib/catalog/sync-programs";
@@ -23,6 +24,27 @@ describe("programIdsToSync", () => {
     expect(ids.slice(1)).toEqual([...SYNC_KEEP_PROGRAM_IDS]);
     expect(ids).not.toContain("PROGRAM_NF25");
     expect(ids).not.toContain(BASE_PROGRAM_GOLD);
+  });
+});
+
+describe("selectDriftedCards", () => {
+  it("refreshes stored cards whose OVR or position moved upstream", () => {
+    const stored = new Map([
+      ["19188567", { slug: "aubameyang", rating: 81, position: "ST" }],
+      ["19261278", { slug: "marcos", rating: 91, position: "RWB" }],
+      ["24052301", { slug: "bruno", rating: 117, position: "CAM" }],
+    ]);
+    const drifted = selectDriftedCards(stored, [
+      { id: "19188567", slug: "pierre-emerick-aubameyang", rating: 79, position: "ST" },
+      { id: "19261278", slug: "marcos", rating: 91, position: "RB" },
+      { id: "24052301", slug: "bruno", rating: 117, position: "CAM" },
+      { id: "99999999", slug: "not-stored", rating: 90, position: "ST" },
+      { id: "19188567", slug: "aubameyang" },
+    ]);
+    expect(drifted).toEqual([
+      { id: "19188567", slug: "aubameyang" },
+      { id: "19261278", slug: "marcos" },
+    ]);
   });
 });
 

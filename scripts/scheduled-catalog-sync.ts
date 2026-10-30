@@ -7,8 +7,10 @@
  *   1. Sitemap head (brand-new ids, including a new event).
  *   2. Refresh promo cards added in the last 14 days (OVR, price, traits,
  *      playstyles, colors, art). Base gold/silver are not in this slice.
- *   3. Search every kept program, plus any new program id already stored.
- *   4. Missing base gold/silver, 1,500 per run.
+ *   3. Page all RenderZ cards by asset id and re-fetch stored cards whose OVR
+ *      or position moved (base re-ratings, older promo upgrades).
+ *   4. Search every kept program, plus any new program id already stored.
+ *   5. Missing base gold/silver, 1,500 per run.
  *
  * One run stops at CATALOG_SYNC_BUDGET_MS so the next schedule can continue.
  * Requires AURORA_HOST and AWS credentials that can write s3://$S3_BUCKET.
@@ -41,7 +43,9 @@ import {
   programIdsToSync,
   RECENT_REFRESH_LIMIT,
   RECENT_REFRESH_MS,
+  selectDriftedCards,
   selectRecentRefreshIds,
+  type StoredCardSummary,
 } from "../src/lib/catalog/sync-plan";
 import { takeSitemapHead } from "../src/lib/ingest/sitemap-head";
 import {
@@ -58,6 +62,7 @@ import { runIngestBatch } from "../src/lib/ingest/runner";
 import {
   listBaseCardEntries,
   listSourceCardEntries,
+  searchCardsAfter,
 } from "../src/lib/providers/renderz/base-card-search";
 import { RenderzClient } from "../src/lib/providers/renderz/client";
 import { fetchAllowlistedImage } from "../src/lib/providers/renderz/image-proxy";
@@ -322,6 +327,63 @@ async function refreshRecentPlayers(
   });
 }
 
+/**
+ * Page every RenderZ card by asset id and re-fetch stored cards whose OVR or
+ * position moved. Cards left over when the budget runs out still differ, so
+ * the next run picks them up.
+ */
+async function refreshDriftedPlayers(
+  startedAt: number,
+  deadline: number,
+  afterSlice?: (since: number) => Promise<void>,
+): Promise<{ succeeded: number; failed: number; idle: boolean }> {
+  if (Date.now() >= deadline) {
+    return { succeeded: 0, failed: 0, idle: false };
+  }
+  const catalog = getPlayerCatalog();
+  const client = new RenderzClient();
+  const stored = await withDbRetry("drift stored", async () => {
+    const rows = await getPostgresDb()
+      .select({
+        id: players.id,
+        slug: players.slug,
+        rating: players.rating,
+        position: players.position,
+      })
+      .from(players);
+    return new Map<string, StoredCardSummary>(
+      rows.map((row) => [
+        row.id,
+        { slug: row.slug, rating: row.rating, position: row.position ?? undefined },
+      ]),
+    );
+  });
+  const drifted: Array<{ id: string; slug: string }> = [];
+  let afterId = 0;
+  let pages = 0;
+  while (Date.now() < deadline) {
+    const cards = await searchCardsAfter(afterId, client);
+    if (cards.length === 0) {
+      break;
+    }
+    pages += 1;
+    afterId = Number(cards.at(-1)!.id);
+    drifted.push(...selectDriftedCards(stored, cards));
+  }
+  console.log(`drift pages=${pages} stored=${stored.size} drifted=${drifted.length}`);
+  if (drifted.length === 0) {
+    return { succeeded: 0, failed: 0, idle: true };
+  }
+  return withDbRetry("drift refresh", async () => {
+    const cleared = await clearOpenJobs("refresh");
+    console.log(`drift refresh clearedPending=${cleared}`);
+    for (const [index, entry] of drifted.entries()) {
+      await catalog.enqueueRefresh(entry.id, entry.slug, startedAt + index);
+    }
+    return ingestQueuedPlayers(deadline, "drift refresh", afterSlice, "refresh");
+  });
+}
+
 function programLogoSlugsToUpload(programIds: readonly string[]): string[] {
   const slugs = new Set(catalogProgramLogoSlugs());
   for (const id of programIds) {
@@ -466,11 +528,15 @@ async function main() {
   const refreshed = head.idle
     ? await refreshRecentPlayers(startedAt, deadline, uploadSlice(true))
     : { succeeded: 0, failed: 0, idle: false };
-  const selected =
+  const drift =
     head.idle && refreshed.idle
+      ? await refreshDriftedPlayers(startedAt, deadline, uploadSlice(true))
+      : { succeeded: 0, failed: 0, idle: false };
+  const selected =
+    head.idle && refreshed.idle && drift.idle
       ? await discoverSelectedPrograms(startedAt, deadline, uploadSlice(false))
       : { succeeded: 0, failed: 0, idle: false };
-  if (head.idle && refreshed.idle) {
+  if (head.idle && refreshed.idle && drift.idle) {
     await uploadMissingProgramLogos(
       programIdsToSync(await storedProgramIds()),
       bucket,
@@ -478,12 +544,14 @@ async function main() {
     );
   }
   const baseCards =
-    head.idle && refreshed.idle && selected.idle
+    head.idle && refreshed.idle && drift.idle && selected.idle
       ? await discoverBaseCards(startedAt, deadline, uploadSlice(false))
       : { succeeded: 0, failed: 0, idle: false };
 
-  const playersAdded = head.succeeded + refreshed.succeeded + selected.succeeded + baseCards.succeeded;
-  const playerFailures = head.failed + refreshed.failed + selected.failed + baseCards.failed;
+  const playersAdded =
+    head.succeeded + refreshed.succeeded + drift.succeeded + selected.succeeded + baseCards.succeeded;
+  const playerFailures =
+    head.failed + refreshed.failed + drift.failed + selected.failed + baseCards.failed;
   console.log(
     `catalog sync done players=${playersAdded} playerFailures=${playerFailures} uploaded=${uploadTotals.uploaded} imageFailures=${uploadTotals.requiredFailed}`,
   );

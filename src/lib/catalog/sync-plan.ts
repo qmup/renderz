@@ -10,6 +10,43 @@ export const RECENT_REFRESH_MS = 14 * 24 * 60 * 60 * 1000;
 /** One run refreshes the stalest slice. The next run continues through the window. */
 export const RECENT_REFRESH_LIMIT = 200;
 
+export type StoredCardSummary = {
+  slug?: string;
+  rating: number;
+  position?: string;
+};
+
+export type UpstreamCardSummary = {
+  id: string;
+  slug: string;
+  rating?: number;
+  position?: string;
+};
+
+/**
+ * Stored cards whose OVR or position no longer match RenderZ search. FC Mobile
+ * re-rates base cards each season and upgrades older promos, long after the
+ * recent-refresh window has passed.
+ */
+export function selectDriftedCards(
+  stored: ReadonlyMap<string, StoredCardSummary>,
+  upstream: readonly UpstreamCardSummary[],
+): Array<{ id: string; slug: string }> {
+  return upstream.flatMap((card) => {
+    const ours = stored.get(card.id);
+    if (!ours) {
+      return [];
+    }
+    const ratingMoved = card.rating !== undefined && card.rating !== ours.rating;
+    const positionMoved =
+      card.position !== undefined && card.position !== ours.position;
+    if (!ratingMoved && !positionMoved) {
+      return [];
+    }
+    return [{ id: card.id, slug: ours.slug || card.slug }];
+  });
+}
+
 export type SyncProgramPlayer = {
   id: string;
   slug?: string;

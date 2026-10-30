@@ -77,6 +77,8 @@ describe('base card search', () => {
         {
           assetId: 19020801,
           cardName: 'Kroos',
+          rating: 88,
+          position: 'CM',
           animation: {
             colors: { rating: '#4E3D0E', position: '#4E3D0E', name: '#4E3D0E' },
           },
@@ -93,6 +95,8 @@ describe('base card search', () => {
       {
         id: '19020801',
         slug: 'kroos',
+        rating: 88,
+        position: 'CM',
         colors: { name: '#4E3D0E', rating: '#4E3D0E', position: '#4E3D0E' },
         background: 'bg_23_backgrounds_26_S11_GOLD_BASE_STATIC',
         card: 'player_26_20801',
@@ -103,6 +107,8 @@ describe('base card search', () => {
       {
         id: '24000002',
         slug: 'plain',
+        rating: undefined,
+        position: undefined,
         colors: { name: '#FFFFFF', rating: '#FFFFFF', position: '#FFFFFF' },
         background: undefined,
         card: undefined,

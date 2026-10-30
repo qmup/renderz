@@ -146,6 +146,8 @@ export async function listBaseCardEntries(
 export type SearchCardArt = {
   id: string;
   slug: string;
+  rating?: number;
+  position?: string;
   colors: CardTextColors;
   /** Upstream image names without host or signed query. */
   background?: string;
@@ -204,6 +206,14 @@ export function cardArtFromSearchPayload(payload: unknown): SearchCardArt[] {
       {
         id,
         slug: slugFromCardName(cardName, id),
+        rating:
+          typeof player.rating === 'number' && Number.isFinite(player.rating)
+            ? player.rating
+            : undefined,
+        position:
+          typeof player.position === 'string' && player.position
+            ? player.position
+            : undefined,
         colors: renderzCardTextColors(player.animation),
         background: upstreamImageName(backgroundUrl),
         card: upstreamImageName(cardUrl),
