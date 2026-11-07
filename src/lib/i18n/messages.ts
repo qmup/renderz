@@ -49,7 +49,7 @@ const en = {
     "The catalog row could not be rendered. Retry, or go back to the listing.",
   appFailed: "App failed to load",
   appFailedBody:
-    "The root layout crashed. Retry, and check that SQLite is migrated if this is a fresh checkout.",
+    "The root layout crashed. Retry, and check that DATABASE_URL is set if this is a fresh checkout.",
   playerMissing: "Player not in catalog",
   playerMissingBody:
     "This id has not been discovered yet. On-demand fetches are only allowed for players already seeded or ingested.",
@@ -215,7 +215,7 @@ const vi: Messages = {
     "Không hiển thị được dữ liệu cầu thủ. Hãy thử lại hoặc quay lại danh sách.",
   appFailed: "Ứng dụng không tải được",
   appFailedBody:
-    "Bố cục gốc bị lỗi. Hãy thử lại, và kiểm tra SQLite đã migrate nếu đây là bản mới.",
+    "Bố cục gốc bị lỗi. Hãy thử lại, và kiểm tra DATABASE_URL đã được đặt nếu đây là bản mới.",
   playerMissing: "Cầu thủ chưa có trong danh mục",
   playerMissingBody:
     "Mã này chưa được phát hiện. Chỉ tải theo yêu cầu với cầu thủ đã được seed hoặc ingest.",

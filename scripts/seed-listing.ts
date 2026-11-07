@@ -1,5 +1,5 @@
 /**
- * Fetch the public /players listing (50 rows) into SQLite, then enrich
+ * Fetch the public /players listing (50 rows) into Postgres, then enrich
  * those ids only. Respects RENDERZ_* limiter env vars (~1 req/s).
  */
 import { getPlayerCatalog } from "../src/lib/catalog/runtime";

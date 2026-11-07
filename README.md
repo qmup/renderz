@@ -22,13 +22,21 @@ npm test
 npm run dev
 ```
 
-Open [http://localhost:3000/players](http://localhost:3000/players). Listing defaults to **newest added first**. On localhost, the first visit each local calendar day silently discovers new sitemap ids at the head of the sitemap (header shows progress; a toast appears when new players were added). Later visits the same day skip discovery. Production on Vercel does not run this — a Windows VPS runs the catalog sync at 21:00 and 23:00 Asia/Ho_Chi_Minh. Run `vercel env pull` (or copy `.env.example`) for `DATABASE_URL`, the R2 `S3_*` keys, and the `RENDERZ_*` limiter.
+Open [http://localhost:3000/players](http://localhost:3000/players). Listing defaults to **newest added first**. On localhost, the first visit each local calendar day silently discovers new sitemap ids at the head of the sitemap (header shows progress; a toast appears when new players were added). Later visits the same day skip discovery. Production on Vercel does not run this; the production catalog is synced by hand (see below). Run `vercel env pull` (or copy `.env.example`) for `DATABASE_URL`, the R2 `S3_*` keys, and the `RENDERZ_*` limiter.
 
 `npm run seed` upserts the public `/players` listing then enriches those ids only. Re-run skips rows already at the current parse version. `--summaries-only` skips detail fetches.
 
-## Daily production catalog
+## Production catalog sync
 
-Windows Task Scheduler on the VPS runs `\renderz-daily-catalog` at **21:00 and 23:00 Asia/Ho_Chi_Minh**, whether or not anyone is logged on. The task runs `C:\opt\renderz\bin\daily-catalog.sh` in Git Bash: `git pull`, `npm install`, then `scripts/scheduled-catalog-sync.ts` with `C:\opt\renderz\.env.local` (`DATABASE_URL` and the R2 `S3_*` keys). Output is appended to `C:\opt\renderz\daily-catalog.log`. A run that starts while the previous one is still going is skipped. GitHub-hosted runners are not used: Cloudflare returns HTTP 403 to them. Each run reads the sitemap head, refreshes promo cards added in the last 14 days, backfills kept programs (including a new event once one of its cards is stored), then missing base gold/silver. It stops before the job timeout. The next run continues. Cards older than that window stay as stored. The browser loads card art from R2.
+There is no scheduler. Run the sync by hand from a machine on a residential connection, with `.env.local` holding `DATABASE_URL` and the R2 `S3_*` keys:
+
+```bash
+npm run catalog:sync
+```
+
+The Mac stays awake for the run (`caffeinate`). Output is also written to `logs/catalog-sync-<date>.log`.
+
+Cloudflare returns HTTP 403 to datacenter IPs, including GitHub-hosted runners and Vercel (Functions, Cron, Sandbox), so the sync cannot run there. Each run reads the sitemap head, refreshes promo cards added in the last 14 days, backfills kept programs (including a new event once one of its cards is stored), then missing base gold/silver. It stops before the job timeout. The next run continues. Cards older than that window stay as stored. The browser loads card art from R2.
 
 ## Catalog check
 
@@ -44,7 +52,7 @@ The name, rating, and position colors on a card are RenderZ `animation.colors` (
 
 ```bash
 npm run catalog:backfill-colors                  # colors only
-npm run catalog:backfill-colors -- --refresh-art # also replace changed background / player art in S3
+npm run catalog:backfill-colors -- --refresh-art # also replace changed background / player art in R2
 ```
 
 It pages through RenderZ search by asset id (100 cards per request). Base gold/silver cards move to new frames (S11) with new colors, so `--refresh-art` points their `background` / `card` assets at the new images and overwrites the S3 objects. Those objects are cached as immutable, so invalidate `/player-art/*` on CloudFront afterwards.
@@ -76,4 +84,4 @@ npm run probe:renderz
 
 ## Stack
 
-Next.js App Router, TypeScript strict, Tailwind, shadcn/ui, TanStack Query (listing only), Zod, Neon Postgres + Drizzle. Unit tests use an in-memory SQLite catalog.
+Next.js App Router, TypeScript strict, Tailwind, shadcn/ui, TanStack Query (listing only), Zod, Neon Postgres + Drizzle.

@@ -1,10 +1,7 @@
 import { sql } from "drizzle-orm";
 import type { PostgresDatabase } from "@/db/postgres";
 
-/**
- * Accent folds used by player_search_text. Keep this list aligned with the
- * SQLite catalog search in drizzle-repository.ts.
- */
+/** Accent folds used by player_search_text. */
 const SEARCH_FOLDS: Array<[string, string]> = [
   ["à", "a"],
   ["á", "a"],

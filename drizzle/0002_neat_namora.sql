@@ -1,1 +1,0 @@
-ALTER TABLE `players` ADD `card_name` text;

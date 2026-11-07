@@ -10,11 +10,8 @@
 !.yarn/releases
 !.yarn/versions
 
-# local sqlite leftovers and the file image cache
-/data/*.sqlite
-/data/*.sqlite-*
+# local file image cache
 /data/image-cache/
-/data/*.db
 
 /public/player-art/
 

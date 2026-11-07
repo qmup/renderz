@@ -18,7 +18,7 @@ import type {
   PlayerTrait,
   SkillNode,
 } from "@/lib/domain/player";
-import type { IngestJobKind, IngestJobStatus } from "@/db/schema";
+import type { IngestJobKind, IngestJobStatus } from "@/lib/catalog/repository";
 
 export const players = pgTable(
   "players",

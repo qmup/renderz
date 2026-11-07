@@ -2,9 +2,8 @@
  * Enqueue + run parse-version refreshes until the catalog is on CURRENT_PARSE_VERSION
  * (includes LOOP animation assets). Does not re-crawl the sitemap.
  *
- *   npx tsx scripts/enrich-parse-v6.ts
- *   npx tsx scripts/enrich-parse-v6.ts --limit 25
- *   npm run catalog:enrich-v6   # wraps with macOS caffeinate -dims (screen stays on)
+ *   npm run catalog:reparse
+ *   npm run catalog:reparse -- --limit 25
  */
 import { getPlayerCatalog } from '../src/lib/catalog/runtime';
 import { runIngestBatch } from '../src/lib/ingest/runner';
