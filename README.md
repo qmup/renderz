@@ -34,7 +34,7 @@ There is no scheduler. Run the sync by hand from a machine on a residential conn
 npm run catalog:sync
 ```
 
-The Mac stays awake for the run (`caffeinate`). Output is also written to `logs/catalog-sync-<date>.log`.
+The Mac stays awake for the run (`caffeinate`). Output is also written to `logs/catalog-sync-<date>.log`. Afterwards it marks the production `player-list` cache stale (`vercel cache invalidate`), so the Vercel CLI must be logged in and this folder linked to the `fcvn` project. Without that, listing pages and filters keep the old catalog until the cache expires.
 
 Cloudflare returns HTTP 403 to datacenter IPs, including GitHub-hosted runners and Vercel (Functions, Cron, Sandbox), so the sync cannot run there. Each run reads the sitemap head, refreshes promo cards added in the last 14 days, backfills kept programs (including a new event once one of its cards is stored), then missing base gold/silver. It stops before the job timeout. The next run continues. Cards older than that window stay as stored. The browser loads card art from R2.
 
