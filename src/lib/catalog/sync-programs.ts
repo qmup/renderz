@@ -117,11 +117,32 @@ const DECLINED_SYNC_PROGRAM_IDS = new Set([
   "PROGRAM_FOUNDERS",
   "PROGRAM_WF24",
   "PROGRAM_S8_UCL",
+  "PROGRAM_SCREAMTEAM27",
 ]);
+
+/**
+ * Event cards filed under another program (Scream Team Icon / Hero / Classic)
+ * or with no program id at all are only recognisable by their program name.
+ */
+const DECLINED_SYNC_PROGRAM_NAME_PREFIXES = ["scream team "];
 
 export const SKIP_REASON_PROGRAM = "program_not_selected";
 
 export function isDeclinedSyncProgram(programId: string | undefined): boolean {
   const id = programId?.trim();
   return id !== undefined && id !== "" && DECLINED_SYNC_PROGRAM_IDS.has(id);
+}
+
+export function isDeclinedSyncCard(card: {
+  programId?: string;
+  programName?: string;
+}): boolean {
+  if (isDeclinedSyncProgram(card.programId)) {
+    return true;
+  }
+  const name = card.programName?.trim().toLowerCase();
+  return (
+    name !== undefined &&
+    DECLINED_SYNC_PROGRAM_NAME_PREFIXES.some((prefix) => name.startsWith(prefix))
+  );
 }
