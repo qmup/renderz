@@ -225,30 +225,11 @@ export function PlayerFilters({
         />
       </FacetAccordion>
 
-      <label
-        htmlFor={`${idPrefix}-auctionable`}
-        className="flex cursor-pointer items-center justify-between gap-3 border-t border-border py-3 text-sm"
-      >
-        <span>{m.auctionableOnly}</span>
-        <input
-          id={`${idPrefix}-auctionable`}
-          type="checkbox"
-          className="border-input accent-foreground size-4 rounded border"
-          checked={query.filters.auctionable === true}
-          onChange={(event) =>
-            patchFilters({
-              ...query.filters,
-              auctionable: event.target.checked ? true : undefined,
-            })
-          }
-        />
-      </label>
-
       {filterCount > 0 ? (
         <Button
           type="button"
           variant="outline"
-          className="mt-1"
+          className="mt-3"
           onClick={() => {
             onSearchDraft('');
             onReplaceQuery({

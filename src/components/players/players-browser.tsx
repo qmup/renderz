@@ -30,6 +30,7 @@ import {
   playerListQueryToSearchParams,
 } from '@/lib/domain/query';
 import { usePlayerList } from '@/lib/query/hooks';
+import { cn } from '@/lib/utils';
 
 function queryFromSearch(search: string): PlayerListQuery {
   return playerListQueryFromSearchParams(new URLSearchParams(search));
@@ -163,23 +164,37 @@ export function PlayersBrowser({
             {m.catalogLoadErrorBody}
           </CatalogNotice>
         ) : null}
+        <div className="mb-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 sm:mb-3">
+          <p className="text-muted-foreground text-sm tabular-nums">
+            {data && !showListSkeleton ? m.playerCount(data.total) : '\u00a0'}
+          </p>
+          <div className="flex items-center gap-2">
+            <AuctionableToggle
+              checked={query.filters.auctionable === true}
+              onChange={(checked) =>
+                replaceQuery({
+                  ...query,
+                  q: searchDraft,
+                  page: 1,
+                  filters: {
+                    ...query.filters,
+                    auctionable: checked ? true : undefined,
+                  },
+                })
+              }
+            />
+            <ViewSwitch
+              view={query.view}
+              onChange={(view) =>
+                replaceQuery({ ...query, q: searchDraft, view })
+              }
+            />
+          </div>
+        </div>
         {showListSkeleton ? (
           <ListingSkeleton view={query.view} />
         ) : data ? (
           <>
-            <div className="mb-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 sm:mb-3">
-              <p className="text-muted-foreground text-sm tabular-nums">
-                {m.playerCount(data.total)}
-              </p>
-              <div className="flex items-center gap-2">
-                <ViewSwitch
-                  view={query.view}
-                  onChange={(view) =>
-                    replaceQuery({ ...query, q: searchDraft, view })
-                  }
-                />
-              </div>
-            </div>
             {data.total === 0 ? (
               <EmptyCatalog filtered={filtered} />
             ) : (
@@ -244,6 +259,45 @@ function PlayerGridLink({
         priority={priority}
       />
     </Link>
+  );
+}
+
+function AuctionableToggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  const { m } = usePreferences();
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        'flex h-10 items-center gap-2 rounded-lg border px-2.5 text-sm font-medium transition-colors sm:h-8',
+        'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
+        checked ? 'border-primary/60 bg-primary/10' : 'hover:bg-muted/70',
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          'relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors',
+          checked ? 'bg-primary' : 'bg-input',
+        )}
+      >
+        <span
+          className={cn(
+            'block size-3 rounded-full bg-background shadow-sm transition-transform',
+            checked ? 'translate-x-3.5' : 'translate-x-0.5',
+          )}
+        />
+      </span>
+      <span>{m.auctionableOnly}</span>
+    </button>
   );
 }
 
