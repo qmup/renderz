@@ -31,7 +31,7 @@ Open [http://localhost:3000/players](http://localhost:3000/players). Listing def
 There is no scheduler. Run the sync by hand from a machine on a residential connection, with `.env.local` holding `DATABASE_URL` and the R2 `S3_*` keys:
 
 ```bash
-npm run catalog:sync
+npm run sync
 ```
 
 The Mac stays awake for the run (`caffeinate`). Output is also written to `logs/catalog-sync-<date>.log`. Afterwards it marks the production `player-list` cache stale (`vercel cache invalidate`), so the Vercel CLI must be logged in and this folder linked to the `fcvn` project. Without that, listing pages and filters keep the old catalog until the cache expires.

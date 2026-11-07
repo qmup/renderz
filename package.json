@@ -14,7 +14,7 @@
     "seed": "npx tsx --env-file=.env.local scripts/seed-listing.ts",
     "ingest": "npx tsx --env-file=.env.local scripts/ingest.ts",
     "catalog:verify": "npx tsx --env-file=.env.local scripts/verify-catalog.ts",
-    "catalog:sync": "mkdir -p logs && set -o pipefail && caffeinate -dims npx tsx --env-file=.env.local scripts/scheduled-catalog-sync.ts 2>&1 | tee \"logs/catalog-sync-$(date +%Y%m%d-%H%M).log\"; status=$?; vercel cache invalidate --tag player-list --yes; exit $status",
+    "sync": "mkdir -p logs && set -o pipefail && caffeinate -dims npx tsx --env-file=.env.local scripts/scheduled-catalog-sync.ts 2>&1 | tee \"logs/catalog-sync-$(date +%Y%m%d-%H%M).log\"; status=$?; vercel cache invalidate --tag player-list --yes; exit $status",
     "catalog:backfill-colors": "caffeinate -dims npx tsx --env-file=.env.local scripts/backfill-card-colors.ts",
     "catalog:reparse": "caffeinate -dims npx tsx --env-file=.env.local scripts/reparse-catalog.ts"
   },
