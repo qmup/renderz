@@ -11,7 +11,7 @@ This is not a RenderZ client, not a private-API wrapper, and not a UI clone.
 - Domain models (`Player` / `PlayerSummary`) contain **no URLs**. The UI builds image paths from `id` + `kind`.
 - On-demand enrichment is **catalog-only**: unknown ids 404.
 - Public sitemaps list **10,000** player URLs. RenderZ marketing copy claims 30,000+; treat the sitemap as the discovery set.
-- The catalog is Aurora PostgreSQL. Card art and LOOP sheets are on S3, served through CloudFront.
+- The catalog is Neon Postgres (Vercel Marketplace). Card art and LOOP sheets are in a Cloudflare R2 bucket, served from its public `r2.dev` URL.
 - The catalog keeps players it has already stored. Sync adds missing cards and refreshes promo cards from the last 14 days. Older seasons on renderz.app/programs are skipped; the newest events (currently through Anniversary 26), Icons, and Heroes are kept.
 
 ## Setup
@@ -22,13 +22,13 @@ npm test
 npm run dev
 ```
 
-Open [http://localhost:3000/players](http://localhost:3000/players). Listing defaults to **newest added first**. On localhost, the first visit each local calendar day silently discovers new sitemap ids at the head of the sitemap (header shows progress; a toast appears when new players were added). Later visits the same day skip discovery. Production on Vercel does not run this — a Windows VPS runs the catalog sync at 21:00 and 23:00 Asia/Ho_Chi_Minh. Copy `.env.example` for Aurora, S3, and the `RENDERZ_*` limiter.
+Open [http://localhost:3000/players](http://localhost:3000/players). Listing defaults to **newest added first**. On localhost, the first visit each local calendar day silently discovers new sitemap ids at the head of the sitemap (header shows progress; a toast appears when new players were added). Later visits the same day skip discovery. Production on Vercel does not run this — a Windows VPS runs the catalog sync at 21:00 and 23:00 Asia/Ho_Chi_Minh. Run `vercel env pull` (or copy `.env.example`) for `DATABASE_URL`, the R2 `S3_*` keys, and the `RENDERZ_*` limiter.
 
 `npm run seed` upserts the public `/players` listing then enriches those ids only. Re-run skips rows already at the current parse version. `--summaries-only` skips detail fetches.
 
 ## Daily production catalog
 
-Windows Task Scheduler on the VPS runs `\renderz-daily-catalog` at **21:00 and 23:00 Asia/Ho_Chi_Minh**, whether or not anyone is logged on. The task runs `C:\opt\renderz\bin\daily-catalog.sh` in Git Bash: `git pull`, `npm install`, then `scripts/scheduled-catalog-sync.ts` with `C:\opt\renderz\.env.local` (Aurora and AWS keys). Output is appended to `C:\opt\renderz\daily-catalog.log`. A run that starts while the previous one is still going is skipped. GitHub-hosted runners are not used: Cloudflare returns HTTP 403 to them. Each run reads the sitemap head, refreshes promo cards added in the last 14 days, backfills kept programs (including a new event once one of its cards is stored), then missing base gold/silver. It stops before the job timeout. The next run continues. Cards older than that window stay as stored. The browser loads card art from CloudFront.
+Windows Task Scheduler on the VPS runs `\renderz-daily-catalog` at **21:00 and 23:00 Asia/Ho_Chi_Minh**, whether or not anyone is logged on. The task runs `C:\opt\renderz\bin\daily-catalog.sh` in Git Bash: `git pull`, `npm install`, then `scripts/scheduled-catalog-sync.ts` with `C:\opt\renderz\.env.local` (`DATABASE_URL` and the R2 `S3_*` keys). Output is appended to `C:\opt\renderz\daily-catalog.log`. A run that starts while the previous one is still going is skipped. GitHub-hosted runners are not used: Cloudflare returns HTTP 403 to them. Each run reads the sitemap head, refreshes promo cards added in the last 14 days, backfills kept programs (including a new event once one of its cards is stored), then missing base gold/silver. It stops before the job timeout. The next run continues. Cards older than that window stay as stored. The browser loads card art from R2.
 
 ## Catalog check
 
@@ -62,7 +62,7 @@ Parser v2 stops copying the whole player page into `programName`. Re-run seed or
 
 ## Images
 
-Listing card art is served from CloudFront (`/player-art/...`). The UI falls back to `GET /api/images/player/:id/:kind` (allowlisted CDN hosts, SSRF controls, placeholder on failure). Signed CDN URLs never reach the browser. Expired signatures trigger a catalog refresh for that id, then one retry.
+Listing card art is served from R2 (`/player-art/...`). The UI falls back to `GET /api/images/player/:id/:kind` (allowlisted CDN hosts, SSRF controls, placeholder on failure). Signed CDN URLs never reach the browser. Expired signatures trigger a catalog refresh for that id, then one retry.
 
 ## Fixtures
 
@@ -76,4 +76,4 @@ npm run probe:renderz
 
 ## Stack
 
-Next.js App Router, TypeScript strict, Tailwind, shadcn/ui, TanStack Query (listing only), Zod, Aurora PostgreSQL + Drizzle. Unit tests use an in-memory SQLite catalog.
+Next.js App Router, TypeScript strict, Tailwind, shadcn/ui, TanStack Query (listing only), Zod, Neon Postgres + Drizzle. Unit tests use an in-memory SQLite catalog.

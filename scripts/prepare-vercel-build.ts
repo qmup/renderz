@@ -1,5 +1,5 @@
 /**
- * Card art and LOOP sheets are served from CloudFront. Drop any local copies
+ * Card art and LOOP sheets are served from the image CDN. Drop any local copies
  * so they are not uploaded with the deployment.
  */
 import { rmSync } from "node:fs";

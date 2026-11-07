@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import type { AuroraDatabase } from "@/db/postgres";
+import type { PostgresDatabase } from "@/db/postgres";
 
 /**
  * Accent folds used by player_search_text. Keep this list aligned with the
@@ -89,7 +89,7 @@ END $$
 let pending: Promise<void> | undefined;
 
 /** Idempotent. The listing query reads search_text and its trigram index. */
-export function ensurePlayerSearchIndex(db: AuroraDatabase): Promise<void> {
+export function ensurePlayerSearchIndex(db: PostgresDatabase): Promise<void> {
   if (!pending) {
     pending = applyPlayerSearchIndex(db).catch((error: unknown) => {
       pending = undefined;
@@ -99,7 +99,7 @@ export function ensurePlayerSearchIndex(db: AuroraDatabase): Promise<void> {
   return pending;
 }
 
-async function applyPlayerSearchIndex(db: AuroraDatabase): Promise<void> {
+async function applyPlayerSearchIndex(db: PostgresDatabase): Promise<void> {
   const existing = await db.execute(
     sql`select 1 as ok from pg_indexes where indexname = 'idx_players_search_trgm'`,
   );

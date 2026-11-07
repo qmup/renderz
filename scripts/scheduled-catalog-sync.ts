@@ -1,5 +1,5 @@
 /**
- * Keep the Aurora catalog aligned with RenderZ, then upload card art to S3.
+ * Keep the Postgres catalog aligned with RenderZ, then upload card art to R2.
  *
  *   npx tsx scripts/scheduled-catalog-sync.ts
  *
@@ -13,11 +13,12 @@
  *   5. Missing base gold/silver, 1,500 per run.
  *
  * One run stops at CATALOG_SYNC_BUDGET_MS so the next schedule can continue.
- * Requires AURORA_HOST and AWS credentials that can write s3://$S3_BUCKET.
+ * Requires DATABASE_URL and S3_ENDPOINT + S3_ACCESS_KEY_ID + S3_SECRET_ACCESS_KEY
+ * with write access to the R2 bucket $S3_BUCKET.
  */
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { and, eq, gte, inArray, isNull, lt, notInArray, or, sql } from "drizzle-orm";
-import { auroraConfigFromEnv } from "../src/db/aurora-config";
+import { isPostgresConfigured } from "../src/db/database-config";
 import { ensurePlayerColorColumns } from "../src/db/player-columns";
 import { ensurePlayerListIndexes } from "../src/db/player-list-indexes";
 import { ensurePlayerSearchIndex } from "../src/db/player-search";
@@ -54,6 +55,8 @@ import {
 } from "../src/lib/catalog/object-keys";
 import {
   CATALOG_OBJECT_CACHE_CONTROL,
+  catalogBucket,
+  createS3Client,
   objectExists,
   uploadCatalogObjects,
 } from "../src/lib/catalog/s3-uploads";
@@ -398,13 +401,12 @@ function programLogoSlugsToUpload(programIds: readonly string[]): string[] {
 async function uploadMissingProgramLogos(
   programIds: readonly string[],
   bucket: string,
-  region: string,
 ): Promise<void> {
   const slugs = programLogoSlugsToUpload(programIds);
   if (slugs.length === 0) {
     return;
   }
-  const client = new S3Client({ region });
+  const client = createS3Client();
   let uploaded = 0;
   for (const slug of slugs) {
     if (uploaded >= PROGRAM_LOGO_LIMIT) {
@@ -484,7 +486,6 @@ async function loadUploadCandidates(
 async function uploadFetchedSince(
   since: number,
   bucket: string,
-  region: string,
   replacePlayerArt = false,
 ): Promise<{ uploaded: number; requiredFailed: number }> {
   const candidates = await loadUploadCandidates(since, replacePlayerArt);
@@ -493,16 +494,15 @@ async function uploadFetchedSince(
   if (jobs.length === 0) {
     return { uploaded: 0, requiredFailed: 0 };
   }
-  const images = await uploadCatalogObjects(new S3Client({ region }), bucket, jobs);
+  const images = await uploadCatalogObjects(createS3Client(), bucket, jobs);
   return { uploaded: images.uploaded, requiredFailed: images.requiredFailed };
 }
 
 async function main() {
-  if (!auroraConfigFromEnv()) {
-    throw new Error("AURORA_HOST is required");
+  if (!isPostgresConfigured()) {
+    throw new Error("DATABASE_URL is required");
   }
-  const bucket = process.env.S3_BUCKET?.trim() || "renderz-bucket";
-  const region = process.env.AWS_REGION?.trim() || "ap-southeast-1";
+  const bucket = catalogBucket();
   const startedAt = Date.now();
   const deadline = syncDeadline(startedAt);
   console.log(`catalog sync start bucket=${bucket} budgetMs=${deadline - startedAt}`);
@@ -515,12 +515,12 @@ async function main() {
 
   const uploadTotals = { uploaded: 0, requiredFailed: 0 };
   const uploadSlice = (replacePlayerArt: boolean) => async (since: number) => {
-    const images = await uploadFetchedSince(since, bucket, region, replacePlayerArt);
+    const images = await uploadFetchedSince(since, bucket, replacePlayerArt);
     uploadTotals.uploaded += images.uploaded;
     uploadTotals.requiredFailed += images.requiredFailed;
   };
 
-  const healed = await uploadFetchedSince(startedAt - IMAGE_HEAL_MS, bucket, region);
+  const healed = await uploadFetchedSince(startedAt - IMAGE_HEAL_MS, bucket);
   uploadTotals.uploaded += healed.uploaded;
   uploadTotals.requiredFailed += healed.requiredFailed;
 
@@ -540,7 +540,6 @@ async function main() {
     await uploadMissingProgramLogos(
       programIdsToSync(await storedProgramIds()),
       bucket,
-      region,
     );
   }
   const baseCards =

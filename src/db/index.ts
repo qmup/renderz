@@ -4,7 +4,7 @@ import * as schema from "@/db/schema";
 
 export type CatalogDatabase = BetterSQLite3Database<typeof schema>;
 
-/** In-memory catalog used by unit tests. The running app reads Aurora. */
+/** In-memory catalog used by unit tests. The running app reads Postgres. */
 export function createCatalogDb(sqlite: Database.Database): CatalogDatabase {
   return drizzle(sqlite, { schema });
 }

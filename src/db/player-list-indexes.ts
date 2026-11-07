@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import type { AuroraDatabase } from "@/db/postgres";
+import type { PostgresDatabase } from "@/db/postgres";
 
 /**
  * Indexes the listing sort and facet filters need. Idempotent.
@@ -41,7 +41,7 @@ const LIST_INDEXES: ReadonlyArray<{ name: string; ddl: string }> = [
 
 let pending: Promise<void> | undefined;
 
-export function ensurePlayerListIndexes(db: AuroraDatabase): Promise<void> {
+export function ensurePlayerListIndexes(db: PostgresDatabase): Promise<void> {
   if (!pending) {
     pending = applyPlayerListIndexes(db).catch((error: unknown) => {
       pending = undefined;
@@ -51,7 +51,7 @@ export function ensurePlayerListIndexes(db: AuroraDatabase): Promise<void> {
   return pending;
 }
 
-async function applyPlayerListIndexes(db: AuroraDatabase): Promise<void> {
+async function applyPlayerListIndexes(db: PostgresDatabase): Promise<void> {
   for (const name of RETIRED_INDEXES) {
     await db.execute(sql.raw(`drop index concurrently if exists ${name}`));
   }

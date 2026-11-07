@@ -7,14 +7,13 @@
  * 2. Cards whose upstream background or player image changed since ingest
  *    (base gold/silver moved to the S11 frames) are listed. With
  *    --refresh-art their `background` / `card` assets point at the new
- *    images and the S3 objects are replaced. CloudFront still needs an
- *    invalidation for the printed paths.
+ *    images and the R2 objects are replaced. Objects are cached as immutable,
+ *    so browsers may keep the old art for the printed paths.
  * 3. Cards search did not return get colors from their detail page.
  *
  *   npm run catalog:backfill-colors
  *   npm run catalog:backfill-colors -- --refresh-art
  */
-import { S3Client } from "@aws-sdk/client-s3";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { getPostgresDb } from "../src/db/postgres";
 import { playerAssets, players } from "../src/db/postgres-schema";
@@ -23,7 +22,11 @@ import {
   type CardTextColors,
 } from "../src/lib/catalog/card-name-color";
 import { catalogObjectKey, planCatalogUploads } from "../src/lib/catalog/object-keys";
-import { uploadCatalogObjects } from "../src/lib/catalog/s3-uploads";
+import {
+  catalogBucket,
+  createS3Client,
+  uploadCatalogObjects,
+} from "../src/lib/catalog/s3-uploads";
 import {
   searchCardsAfter,
   upstreamImageName,
@@ -136,9 +139,8 @@ async function backfillFromSearch(stored: Map<string, StoredCard>): Promise<ArtC
 }
 
 async function refreshArt(changes: readonly ArtChange[]): Promise<void> {
-  const bucket = process.env.S3_BUCKET?.trim() || "renderz-bucket";
-  const region = process.env.AWS_REGION?.trim() || "ap-southeast-1";
-  const s3 = new S3Client({ region });
+  const bucket = catalogBucket();
+  const s3 = createS3Client();
   let failed = 0;
   for (let start = 0; start < changes.length; start += ART_UPLOAD_SLICE) {
     const slice = changes.slice(start, start + ART_UPLOAD_SLICE);

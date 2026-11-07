@@ -16,7 +16,7 @@ export function playerArtPublicFileName(kind: string): string {
 }
 
 /**
- * CloudFront origin. Empty in local/dev so paths stay on this site.
+ * Image CDN origin (R2 public bucket). Empty in local/dev so paths stay on this site.
  * The unset branch must read process.env.NEXT_PUBLIC_IMAGE_BASE_URL directly.
  * A dynamic lookup is not inlined into the client bundle, so Back navigation
  * would request /player-art on this origin and fall through to the placeholder.

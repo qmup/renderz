@@ -13,7 +13,7 @@ import {
   sql,
   type SQL,
 } from "drizzle-orm";
-import type { AuroraDatabase } from "@/db/postgres";
+import type { PostgresDatabase } from "@/db/postgres";
 import { ingestJobs, playerAssets, players } from "@/db/postgres-schema";
 import { applyCardNameColors } from "@/lib/catalog/card-name-color";
 import {
@@ -288,7 +288,7 @@ function sqlOrderBy(sort: PlayerListQuery["sort"]) {
 }
 
 export class PostgresPlayerCatalog implements PlayerCatalog {
-  constructor(private readonly db: AuroraDatabase) {}
+  constructor(private readonly db: PostgresDatabase) {}
 
   async exists(id: string): Promise<boolean> {
     const row = await this.db

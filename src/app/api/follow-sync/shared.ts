@@ -1,6 +1,6 @@
 import { z, ZodError } from "zod";
-import { auroraConfigFromEnv } from "@/db/aurora-config";
-import { getPostgresDb, type AuroraDatabase } from "@/db/postgres";
+import { isPostgresConfigured } from "@/db/database-config";
+import { getPostgresDb, type PostgresDatabase } from "@/db/postgres";
 import {
   MAX_FOLLOWED_PLAYERS,
   parseFollowedPlayerIds,
@@ -10,8 +10,8 @@ const bodySchema = z.object({
   ids: z.array(z.string()).max(MAX_FOLLOWED_PLAYERS),
 });
 
-export function getSyncDb(): AuroraDatabase | null {
-  return auroraConfigFromEnv() ? getPostgresDb() : null;
+export function getSyncDb(): PostgresDatabase | null {
+  return isPostgresConfigured() ? getPostgresDb() : null;
 }
 
 export async function readIdsBody(request: Request): Promise<string[]> {

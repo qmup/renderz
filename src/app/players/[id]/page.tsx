@@ -135,7 +135,7 @@ export default async function PlayerDetailPage({
     loopAsset && readLoopPublicFile(loopAsset.upstreamUrl)
       ? loopPublicSrc(loopAsset.upstreamUrl)
       : undefined;
-  // On Vercel the sheet is on CloudFront, not on the function disk.
+  // On Vercel the sheet is on the image CDN, not on the function disk.
   const loopSrc =
     packedLoop ??
     (loopAsset && imageCdnBase()

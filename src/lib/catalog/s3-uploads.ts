@@ -14,6 +14,28 @@ export type CatalogUploadResult = {
   requiredFailed: number;
 };
 
+export function catalogBucket(env: NodeJS.ProcessEnv = process.env): string {
+  return env.S3_BUCKET?.trim() || "renderz-bucket";
+}
+
+/**
+ * Client for the catalog bucket on Cloudflare R2 (S3 API). Credentials are
+ * passed explicitly so ambient AWS credentials are never picked up.
+ */
+export function createS3Client(env: NodeJS.ProcessEnv = process.env): S3Client {
+  const endpoint = env.S3_ENDPOINT?.trim();
+  const accessKeyId = env.S3_ACCESS_KEY_ID?.trim();
+  const secretAccessKey = env.S3_SECRET_ACCESS_KEY?.trim();
+  if (!endpoint || !accessKeyId || !secretAccessKey) {
+    throw new Error("S3_ENDPOINT, S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY are required");
+  }
+  return new S3Client({
+    region: "auto",
+    endpoint,
+    credentials: { accessKeyId, secretAccessKey },
+  });
+}
+
 /** Unquoted ETag, or undefined when the object is missing. */
 async function objectETag(
   client: S3Client,

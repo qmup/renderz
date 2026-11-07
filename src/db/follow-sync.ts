@@ -1,5 +1,5 @@
 import { eq, sql } from "drizzle-orm";
-import type { AuroraDatabase } from "@/db/postgres";
+import type { PostgresDatabase } from "@/db/postgres";
 import { followSyncs } from "@/db/postgres-schema";
 import { generateSyncCode } from "@/lib/followed-players";
 
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS follow_syncs (
 let pending: Promise<void> | undefined;
 
 /** Idempotent. Created on first use so no separate migration step is needed. */
-export function ensureFollowSyncTable(db: AuroraDatabase): Promise<void> {
+export function ensureFollowSyncTable(db: PostgresDatabase): Promise<void> {
   if (!pending) {
     pending = db
       .execute(sql.raw(CREATE_TABLE))
@@ -34,7 +34,7 @@ export function ensureFollowSyncTable(db: AuroraDatabase): Promise<void> {
 }
 
 export async function createSync(
-  db: AuroraDatabase,
+  db: PostgresDatabase,
   ids: string[],
   now = Date.now(),
 ): Promise<FollowSyncRecord> {
@@ -54,7 +54,7 @@ export async function createSync(
 }
 
 export async function readSync(
-  db: AuroraDatabase,
+  db: PostgresDatabase,
   code: string,
 ): Promise<FollowSyncRecord | null> {
   await ensureFollowSyncTable(db);
@@ -71,7 +71,7 @@ export async function readSync(
 
 /** Returns null when the code does not exist. */
 export async function writeSync(
-  db: AuroraDatabase,
+  db: PostgresDatabase,
   code: string,
   ids: string[],
   now = Date.now(),
