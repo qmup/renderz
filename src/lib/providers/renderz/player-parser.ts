@@ -978,6 +978,24 @@ function collectBaseArtNames(value: unknown, parts: string[], depth = 0): void {
   }
 }
 
+/** Event cards RenderZ sends with `source: null`, known only by program name. */
+const PROGRAM_ID_BY_NAME_PREFIX: ReadonlyArray<readonly [string, string]> = [
+  ['scream team ', 'PROGRAM_SCREAMTEAM27'],
+];
+
+function assignProgramFromName<
+  T extends { programId?: string; programName?: string },
+>(player: T): T {
+  if (player.programId) {
+    return player;
+  }
+  const name = player.programName?.trim().toLowerCase();
+  const hit = name
+    ? PROGRAM_ID_BY_NAME_PREFIX.find(([prefix]) => name.startsWith(prefix))
+    : undefined;
+  return hit ? { ...player, programId: hit[1] } : player;
+}
+
 export function parsePlayerPage(input: {
   html?: string;
   dataJson?: string;
@@ -999,12 +1017,14 @@ export function parsePlayerPage(input: {
   const programName = baseCardTier({ programName: labeled.programName })
     ? labeled.programName
     : (subtitle ?? labeled.programName);
-  const player = assignBaseCardIdentity(
-    { ...labeled, programName },
-    {
-      bindingXml: asString(raw.bindingXml),
-      artHint: baseArtHint(raw),
-    },
+  const player = assignProgramFromName(
+    assignBaseCardIdentity(
+      { ...labeled, programName },
+      {
+        bindingXml: asString(raw.bindingXml),
+        artHint: baseArtHint(raw),
+      },
+    ),
   );
   const htmlAssets = labels
     ? iconAssetsFromHtmlLabels(player.id, player, labels, fetchedAt)
