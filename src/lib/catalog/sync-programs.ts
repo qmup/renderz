@@ -1,10 +1,11 @@
 /**
  * Programs the catalog keeps. Indexes match renderz.app/programs, newest
- * event first: 1–39 (Ballon d'Or through Anniversary 26), plus Icons and
+ * event first: 1–40 (Scream Team through Anniversary 26), plus Icons and
  * Heroes. Older seasons are declined when a card is fetched. Any other program
  * id (a newer event) is kept.
  */
 export const SYNC_KEEP_PROGRAM_IDS = [
+  "PROGRAM_SCREAMTEAM27",
   "PROGRAM_BD27",
   "PROGRAM_TOTW27",
   "PROGRAM_UB27",
@@ -117,32 +118,11 @@ const DECLINED_SYNC_PROGRAM_IDS = new Set([
   "PROGRAM_FOUNDERS",
   "PROGRAM_WF24",
   "PROGRAM_S8_UCL",
-  "PROGRAM_SCREAMTEAM27",
 ]);
-
-/**
- * Event cards filed under another program (Scream Team Icon / Hero / Classic)
- * or with no program id at all are only recognisable by their program name.
- */
-const DECLINED_SYNC_PROGRAM_NAME_PREFIXES = ["scream team "];
 
 export const SKIP_REASON_PROGRAM = "program_not_selected";
 
 export function isDeclinedSyncProgram(programId: string | undefined): boolean {
   const id = programId?.trim();
   return id !== undefined && id !== "" && DECLINED_SYNC_PROGRAM_IDS.has(id);
-}
-
-export function isDeclinedSyncCard(card: {
-  programId?: string;
-  programName?: string;
-}): boolean {
-  if (isDeclinedSyncProgram(card.programId)) {
-    return true;
-  }
-  const name = card.programName?.trim().toLowerCase();
-  return (
-    name !== undefined &&
-    DECLINED_SYNC_PROGRAM_NAME_PREFIXES.some((prefix) => name.startsWith(prefix))
-  );
 }

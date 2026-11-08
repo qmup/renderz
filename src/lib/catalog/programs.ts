@@ -16,6 +16,7 @@ export type ProgramCatalogEntry = {
 };
 
 export const RENDERZ_PROGRAM_CATALOG: ProgramCatalogEntry[] = [
+  { label: "Scream Team", aliases: ["SCREAMTEAM27"], logo: "SCREAMTEAM27" },
   { label: "Ballon d'Or", aliases: ["BD27"], logo: "BD27" },
   { label: "Team of the Week", aliases: ["TOTW27"], logo: "TOTW27" },
   { label: "Unbreakable", aliases: ["UB27"], logo: "UB27" },

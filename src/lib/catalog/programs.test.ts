@@ -12,6 +12,7 @@ import {
 
 describe("programEventLabel", () => {
   it("uses RenderZ event names for known PROGRAM_* ids", () => {
+    expect(programEventLabel("PROGRAM_SCREAMTEAM27")).toBe("Scream Team");
     expect(programEventLabel("PROGRAM_BD27")).toBe("Ballon d'Or");
     expect(programEventLabel("PROGRAM_TOTW27")).toBe("Team of the Week");
     expect(programEventLabel("PROGRAM_UB27")).toBe("Unbreakable");
@@ -37,6 +38,9 @@ describe("programEventLabel", () => {
 
 describe("programLogoSrc", () => {
   it("maps catalog aliases to origin-served logo paths", () => {
+    expect(programLogoSrc("PROGRAM_SCREAMTEAM27")).toBe(
+      "/program-logos/SCREAMTEAM27.png",
+    );
     expect(programLogoSrc("PROGRAM_BD27")).toBe("/program-logos/BD27.png");
     expect(programLogoSrc("PROGRAM_TOTW27")).toBe("/program-logos/TOTW27.png");
     expect(programLogoSrc("PROGRAM_UB27")).toBe("/program-logos/UB27.png");
@@ -132,6 +136,9 @@ describe("sortProgramFacets", () => {
       "PROGRAM_ICONS",
       "PROGRAM_HEROS8",
     ]);
+    expect(programEventOrder("PROGRAM_SCREAMTEAM27")).toBeLessThan(
+      programEventOrder("PROGRAM_BD27"),
+    );
     expect(programEventOrder("PROGRAM_BD27")).toBeLessThan(
       programEventOrder("PROGRAM_TOTW27"),
     );
