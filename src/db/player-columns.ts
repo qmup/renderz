@@ -5,11 +5,12 @@ const ADD_COLOR_COLUMNS = `
 ALTER TABLE players ADD COLUMN IF NOT EXISTS name_color text;
 ALTER TABLE players ADD COLUMN IF NOT EXISTS rating_color text;
 ALTER TABLE players ADD COLUMN IF NOT EXISTS position_color text;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS event_program_id text;
 `;
 
 let pending: Promise<void> | undefined;
 
-/** Idempotent. Sync and the web app both read these card-text columns. */
+/** Idempotent. Sync and the web app both read these columns. */
 export function ensurePlayerColorColumns(db: PostgresDatabase): Promise<void> {
   if (!pending) {
     pending = db

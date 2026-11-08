@@ -35,6 +35,8 @@ export const players = pgTable(
     altPositions: jsonb("alt_positions").$type<string[]>().notNull().default([]),
     programId: text("program_id"),
     programName: text("program_name"),
+    // Event an Icon / Hero / Classic card was released for; see eventProgramIdFor.
+    eventProgramId: text("event_program_id"),
     clubName: text("club_name"),
     nationName: text("nation_name"),
     leagueName: text("league_name"),
@@ -77,6 +79,7 @@ export const players = pgTable(
     index("idx_players_rating").on(table.rating),
     index("idx_players_position").on(table.position),
     index("idx_players_program_id").on(table.programId),
+    index("idx_players_event_program_id").on(table.eventProgramId),
     index("idx_players_club_name").on(table.clubName),
     index("idx_players_nation_name").on(table.nationName),
     index("idx_players_league_name").on(table.leagueName),

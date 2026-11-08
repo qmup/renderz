@@ -70,6 +70,7 @@ export function playerSearchNeedle(value: string): string {
 
 export type PlayerFacetSource = {
   programId?: string;
+  eventProgramId?: string;
   position?: string;
   nationName?: string;
   clubName?: string;
@@ -104,7 +105,8 @@ export function matchesFacetSource(
   if (
     omit !== "programIds" &&
     filters.programIds.length > 0 &&
-    (!row.programId || !filters.programIds.includes(row.programId))
+    !(row.programId && filters.programIds.includes(row.programId)) &&
+    !(row.eventProgramId && filters.programIds.includes(row.eventProgramId))
   ) {
     return false;
   }
@@ -157,6 +159,9 @@ export function buildFacetsFromSource(
   for (const row of rows) {
     if (row.programId) {
       programs.push([row.programId, 1]);
+    }
+    if (row.eventProgramId) {
+      programs.push([row.eventProgramId, 1]);
     }
     if (row.position && matchesFacetSource(row, query, "positions")) {
       positions.push([row.position, 1]);

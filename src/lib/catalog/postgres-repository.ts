@@ -26,6 +26,7 @@ import {
 
 export { clearPlayerListCache };
 import { SEED_PARSE_VERSION } from "@/lib/catalog/parse-version";
+import { eventProgramIdFor } from "@/lib/catalog/programs";
 import {
   escapeLike,
   facetValuesFromCounts,
@@ -137,6 +138,7 @@ function playerToRow(
     altPositions: player.altPositions,
     programId: player.programId ?? null,
     programName: player.programName ?? null,
+    eventProgramId: eventProgramIdFor(player) ?? null,
     clubName: player.clubName ?? null,
     nationName: player.nationName ?? null,
     leagueName: player.leagueName ?? null,
@@ -509,11 +511,13 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
   private async queryCatalogFacets(): Promise<PlayerListFacets> {
     const result = await this.db.execute<{
       g_program: number;
+      g_event: number;
       g_position: number;
       g_nation: number;
       g_club: number;
       g_league: number;
       program_id: string | null;
+      event_program_id: string | null;
       position: string | null;
       nation_name: string | null;
       club_name: string | null;
@@ -522,11 +526,13 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
     }>(sql`
       select
         grouping(${players.programId}) as g_program,
+        grouping(${players.eventProgramId}) as g_event,
         grouping(${players.position}) as g_position,
         grouping(${players.nationName}) as g_nation,
         grouping(${players.clubName}) as g_club,
         grouping(${players.leagueName}) as g_league,
         ${players.programId} as program_id,
+        ${players.eventProgramId} as event_program_id,
         ${players.position} as position,
         ${players.nationName} as nation_name,
         ${players.clubName} as club_name,
@@ -535,6 +541,7 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
       from ${players}
       group by grouping sets (
         (${players.programId}),
+        (${players.eventProgramId}),
         (${players.position}),
         (${players.nationName}),
         (${players.clubName}),
@@ -552,6 +559,8 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
       const count = Number(row.n);
       if (Number(row.g_program) === 0 && row.program_id) {
         grouped.programs.push([row.program_id, count]);
+      } else if (Number(row.g_event) === 0 && row.event_program_id) {
+        grouped.programs.push([row.event_program_id, count]);
       } else if (Number(row.g_position) === 0 && row.position) {
         grouped.positions.push([row.position, count]);
       } else if (Number(row.g_nation) === 0 && row.nation_name) {
@@ -588,6 +597,8 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
       n: number;
     }>(sql`
       ${branch("programs", sql`${players.programId}`, sql`true`)}
+      union all
+      ${branch("programs", sql`${players.eventProgramId}`, sql`true`)}
       union all
       ${branch(
         "positions",
@@ -684,7 +695,12 @@ export class PostgresPlayerCatalog implements PlayerCatalog {
       }
     }
     if (filters.programIds.length > 0 && !omit.has("programIds")) {
-      parts.push(inArray(players.programId, filters.programIds));
+      parts.push(
+        or(
+          inArray(players.programId, filters.programIds),
+          inArray(players.eventProgramId, filters.programIds),
+        )!,
+      );
     }
     if (filters.nations.length > 0 && !omit.has("nations")) {
       parts.push(inArray(players.nationName, filters.nations));

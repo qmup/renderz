@@ -18,6 +18,10 @@ const LIST_INDEXES: ReadonlyArray<{ name: string; ddl: string }> = [
     ddl: `create index concurrently if not exists idx_players_program_id on players (program_id)`,
   },
   {
+    name: "idx_players_event_program_id",
+    ddl: `create index concurrently if not exists idx_players_event_program_id on players (event_program_id)`,
+  },
+  {
     name: "idx_players_club_name",
     ddl: `create index concurrently if not exists idx_players_club_name on players (club_name)`,
   },

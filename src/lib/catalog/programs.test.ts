@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   catalogProgramLogoSlugs,
+  eventProgramIdFor,
   programEventLabel,
   programEventOrder,
   programLogoSlug,
@@ -109,6 +110,78 @@ describe("programLogoSrc", () => {
         "TOTW27",
       ]),
     );
+  });
+});
+
+describe("eventProgramIdFor", () => {
+  const at = (day: string) => Date.parse(`${day}T00:00:00Z`);
+
+  it("maps Icon, Hero and Classic cards to their event", () => {
+    expect(
+      eventProgramIdFor({ programId: "PROGRAM_ICONS", programName: "Scream Team Icon Player" }),
+    ).toBe("PROGRAM_SCREAMTEAM27");
+    expect(
+      eventProgramIdFor({ programId: "PROGRAM_HEROS8", programName: "Scream Team Hero Player" }),
+    ).toBe("PROGRAM_SCREAMTEAM27");
+    expect(
+      eventProgramIdFor({ programId: "PROGRAM_HOFS", programName: "Scream Team Classic Player" }),
+    ).toBe("PROGRAM_SCREAMTEAM27");
+    expect(
+      eventProgramIdFor({ programId: "PROGRAM_ICONS", programName: "Team of The Year Icons Player" }),
+    ).toBe("PROGRAM_TOTY24");
+    expect(
+      eventProgramIdFor({ programId: "PROGRAM_ICONS", programName: "UEFA Dreamchasers Icon Player" }),
+    ).toBe("PROGRAM_UCL26");
+    expect(
+      eventProgramIdFor({ programId: "PROGRAM_ICONS", programName: "Capped Legends Icon Player" }),
+    ).toBe("PROGRAM_CAPPED_LEGENDS_26");
+  });
+
+  it("prefers the longest event name", () => {
+    expect(
+      eventProgramIdFor({ programId: "PROGRAM_ICONS", programName: "Ballon d'Or 25 Icons Player" }),
+    ).toBe("PROGRAM_BALLONDOR25");
+    expect(
+      eventProgramIdFor({ programId: "PROGRAM_ICONS", programName: "Ballon d'Or 26 Nominated Icon Player" }),
+    ).toBe("PROGRAM_BO26");
+    expect(
+      eventProgramIdFor({ programId: "PROGRAM_ICONS", programName: "Ballon d'Or Icon Player" }),
+    ).toBe("PROGRAM_BD27");
+    expect(
+      eventProgramIdFor({ programId: "PROGRAM_ICONS", programName: "Día De Muertos 25 Icons Player" }),
+    ).toBe("PROGRAM_DDLM25");
+    expect(
+      eventProgramIdFor({ programId: "PROGRAM_ICONS", programName: "Día de Muertos Icon Player" }),
+    ).toBe("PROGRAM_DDLM24");
+  });
+
+  it("splits reused names by when the card was added", () => {
+    const libertadores = (addedAt: number) =>
+      eventProgramIdFor({
+        programId: "PROGRAM_ICONS",
+        programName: "CONMEBOL Libertadores Icon Player",
+        addedAt,
+      });
+    expect(libertadores(at("2026-10-14"))).toBe("PROGRAM_CL27");
+    expect(libertadores(at("2025-10-01"))).toBe("PROGRAM_CL26");
+    expect(libertadores(at("2024-10-16"))).toBe("PROGRAM_CONMEBOLLIBERTADORES25");
+    expect(libertadores(at("2023-10-01"))).toBe("PROGRAM_CL24");
+  });
+
+  it("leaves event cards, generic Icons and cards without a program alone", () => {
+    expect(
+      eventProgramIdFor({ programId: "PROGRAM_SCREAMTEAM27", programName: "Scream Team Player" }),
+    ).toBeUndefined();
+    expect(
+      eventProgramIdFor({ programName: "Scream Team Squawkzilla Player" }),
+    ).toBeUndefined();
+    expect(
+      eventProgramIdFor({ programId: "PROGRAM_ICONS", programName: "Prime Icon Player" }),
+    ).toBeUndefined();
+    expect(
+      eventProgramIdFor({ programId: "PROGRAM_ICONS", programName: "1963 Ballon d'Or Winner Icon Player" }),
+    ).toBeUndefined();
+    expect(eventProgramIdFor({ programId: "PROGRAM_ICONS" })).toBeUndefined();
   });
 });
 
