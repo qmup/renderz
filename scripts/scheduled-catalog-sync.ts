@@ -19,6 +19,8 @@
  * Requires DATABASE_URL and S3_ENDPOINT + S3_ACCESS_KEY_ID + S3_SECRET_ACCESS_KEY
  * with write access to the R2 bucket $S3_BUCKET.
  */
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { and, eq, gte, inArray, isNull, lt, notInArray, or, sql } from "drizzle-orm";
 import { isPostgresConfigured } from "../src/db/database-config";
@@ -420,7 +422,13 @@ async function uploadMissingProgramLogos(
       if (await objectExists(client, bucket, key)) {
         continue;
       }
-      const image = await fetchAllowlistedImage(programLogoUpstreamUrl(slug));
+      // Some logos 404 on the unsigned host; those are committed under public/.
+      const committed = await readFile(
+        path.join(process.cwd(), "public", key),
+      ).catch(() => undefined);
+      const image = committed
+        ? { bytes: committed, contentType: "image/png" }
+        : await fetchAllowlistedImage(programLogoUpstreamUrl(slug));
       await client.send(
         new PutObjectCommand({
           Bucket: bucket,
