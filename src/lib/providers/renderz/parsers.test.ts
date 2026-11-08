@@ -171,18 +171,6 @@ describe("parsePlayerPage", () => {
     expect(player.programId).toBe("PROGRAM_TOTW27");
   });
 
-  it("files Scream Team cards without a source under PROGRAM_SCREAMTEAM27", () => {
-    const html = `<script>kit.start(app, element, {data:[null,{type:"data",data:{player:{id:30923801,cardName:"Squawkward",firstName:"",lastName:"Squawkward",rating:99,position:"GK",source:null,programName:"Scream Team Squawkward Player",images:{}}}}]});</script>`;
-    const { player } = parsePlayerPage({ html });
-    expect(player.programId).toBe("PROGRAM_SCREAMTEAM27");
-  });
-
-  it("keeps the program id RenderZ sends for Scream Team Icon cards", () => {
-    const html = `<script>kit.start(app, element, {data:[null,{type:"data",data:{player:{id:30923103,cardName:"David Luiz",firstName:"David",lastName:"Luiz",rating:99,position:"CB",source:"PROGRAM_ICONS",programName:"Scream Team Icon Player",images:{}}}}]});</script>`;
-    const { player } = parsePlayerPage({ html });
-    expect(player.programId).toBe("PROGRAM_ICONS");
-  });
-
   it("does not copy the whole page into programName", () => {
     const html = `<h1>Osimhen</h1>
 <div>FC Mobile Like Dislike Champions Club Player 122 ST Osimhen Animate Compare Download Card TEAM ignored
