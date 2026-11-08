@@ -22,19 +22,28 @@ npm test
 npm run dev
 ```
 
-Open [http://localhost:3000/players](http://localhost:3000/players). Listing defaults to **newest added first**. On localhost, the first visit each local calendar day silently discovers new sitemap ids at the head of the sitemap (header shows progress; a toast appears when new players were added). Later visits the same day skip discovery. Production on Vercel does not run this; the production catalog is synced by hand (see below). Run `vercel env pull` (or copy `.env.example`) for `DATABASE_URL`, the R2 `S3_*` keys, and the `RENDERZ_*` limiter.
+Open [http://localhost:3000/players](http://localhost:3000/players). Listing defaults to **newest added first**. On localhost, the first visit each local calendar day silently discovers new sitemap ids at the head of the sitemap (header shows progress; a toast appears when new players were added). Later visits the same day skip discovery. Production on Vercel does not run this; the production catalog is synced from a VPS (see below). Run `vercel env pull` (or copy `.env.example`) for `DATABASE_URL`, the R2 `S3_*` keys, and the `RENDERZ_*` limiter.
 
 `npm run seed` upserts the public `/players` listing then enriches those ids only. Re-run skips rows already at the current parse version. `--summaries-only` skips detail fetches.
 
 ## Production catalog sync
 
-There is no scheduler. Run the sync by hand from a machine on a residential connection, with `.env.local` holding `DATABASE_URL` and the R2 `S3_*` keys:
+A Windows VPS runs the sync on a schedule. Task Scheduler task `renderz-daily-catalog` (21:00 and 23:00, UTC+7) runs `C:\Program Files\Git\bin\bash.exe -lc /c/opt/renderz/bin/daily-catalog.sh`, a copy of [`scripts/vps/daily-catalog.sh`](scripts/vps/daily-catalog.sh). The script resets `package-lock.json`, pulls `main`, runs `npm install`, then the sync, and appends everything to `C:\opt\renderz\daily-catalog.log`. After changing the script, copy it to `bin/` on the VPS:
+
+```bash
+scp scripts/vps/daily-catalog.sh vps:C:/opt/renderz/bin/daily-catalog.sh
+ssh vps 'powershell -NoProfile -Command "Start-ScheduledTask renderz-daily-catalog"'   # run now
+```
+
+`C:\opt\renderz\.env.local` needs `DATABASE_URL`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, and `S3_BUCKET`. With `VERCEL_TOKEN` (a token scoped to the team that owns `fcvn`) the script also marks the production `player-list` cache stale. Without it, listing pages keep the old catalog until the cache expires (30 minutes).
+
+To run the sync by hand instead, from a machine on a residential connection with the same `.env.local`:
 
 ```bash
 npm run sync
 ```
 
-The Mac stays awake for the run (`caffeinate`). Output is also written to `logs/catalog-sync-<date>.log`. Afterwards it marks the production `player-list` cache stale (`vercel cache invalidate`), so the Vercel CLI must be logged in and this folder linked to the `fcvn` project. Without that, listing pages and filters keep the old catalog until the cache expires.
+The Mac stays awake for the run (`caffeinate`). Output is also written to `logs/catalog-sync-<date>.log`. Afterwards it marks the production `player-list` cache stale (`vercel cache invalidate`), so the Vercel CLI must be logged in and this folder linked to the `fcvn` project.
 
 Cloudflare returns HTTP 403 to datacenter IPs, including GitHub-hosted runners and Vercel (Functions, Cron, Sandbox), so the sync cannot run there. Each run reads the sitemap head, refreshes promo cards added in the last 14 days, backfills kept programs (including a new event once one of its cards is stored), then missing base gold/silver. It stops before the job timeout. The next run continues. Cards older than that window stay as stored. The browser loads card art from R2.
 
