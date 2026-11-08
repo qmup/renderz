@@ -12,6 +12,9 @@
  *   4. Search every kept program, plus any new program id already stored.
  *   5. Missing base gold/silver, 1,500 per run.
  *
+ * CATALOG_SYNC_MODE=head runs step 1 only (and skips the 3-day image heal), for
+ * frequent checks while RenderZ is publishing a new event.
+ *
  * One run stops at CATALOG_SYNC_BUDGET_MS so the next schedule can continue.
  * Requires DATABASE_URL and S3_ENDPOINT + S3_ACCESS_KEY_ID + S3_SECRET_ACCESS_KEY
  * with write access to the R2 bucket $S3_BUCKET.
@@ -505,7 +508,10 @@ async function main() {
   const bucket = catalogBucket();
   const startedAt = Date.now();
   const deadline = syncDeadline(startedAt);
-  console.log(`catalog sync start bucket=${bucket} budgetMs=${deadline - startedAt}`);
+  const headOnly = process.env.CATALOG_SYNC_MODE === "head";
+  console.log(
+    `catalog sync start mode=${headOnly ? "head" : "full"} bucket=${bucket} budgetMs=${deadline - startedAt}`,
+  );
   const db = getPostgresDb();
   await ensurePlayerColorColumns(db);
   await ensurePlayerSearchIndex(db);
@@ -520,30 +526,33 @@ async function main() {
     uploadTotals.requiredFailed += images.requiredFailed;
   };
 
-  const healed = await uploadFetchedSince(startedAt - IMAGE_HEAL_MS, bucket);
-  uploadTotals.uploaded += healed.uploaded;
-  uploadTotals.requiredFailed += healed.requiredFailed;
+  if (!headOnly) {
+    const healed = await uploadFetchedSince(startedAt - IMAGE_HEAL_MS, bucket);
+    uploadTotals.uploaded += healed.uploaded;
+    uploadTotals.requiredFailed += healed.requiredFailed;
+  }
 
   const head = await discoverSitemapHead(startedAt, deadline, uploadSlice(false));
-  const refreshed = head.idle
+  const headDone = head.idle && !headOnly;
+  const refreshed = headDone
     ? await refreshRecentPlayers(startedAt, deadline, uploadSlice(true))
     : { succeeded: 0, failed: 0, idle: false };
   const drift =
-    head.idle && refreshed.idle
+    headDone && refreshed.idle
       ? await refreshDriftedPlayers(startedAt, deadline, uploadSlice(true))
       : { succeeded: 0, failed: 0, idle: false };
   const selected =
-    head.idle && refreshed.idle && drift.idle
+    headDone && refreshed.idle && drift.idle
       ? await discoverSelectedPrograms(startedAt, deadline, uploadSlice(false))
       : { succeeded: 0, failed: 0, idle: false };
-  if (head.idle && refreshed.idle && drift.idle) {
+  if (headDone && refreshed.idle && drift.idle) {
     await uploadMissingProgramLogos(
       programIdsToSync(await storedProgramIds()),
       bucket,
     );
   }
   const baseCards =
-    head.idle && refreshed.idle && drift.idle && selected.idle
+    headDone && refreshed.idle && drift.idle && selected.idle
       ? await discoverBaseCards(startedAt, deadline, uploadSlice(false))
       : { succeeded: 0, failed: 0, idle: false };
 

@@ -28,12 +28,21 @@ Open [http://localhost:3000/players](http://localhost:3000/players). Listing def
 
 ## Production catalog sync
 
-A Windows VPS runs the sync on a schedule. Task Scheduler task `renderz-daily-catalog` (21:00 and 23:00, UTC+7) runs `C:\Program Files\Git\bin\bash.exe -lc /c/opt/renderz/bin/daily-catalog.sh`, a copy of [`scripts/vps/daily-catalog.sh`](scripts/vps/daily-catalog.sh). The script resets `package-lock.json`, pulls `main`, runs `npm install`, then the sync, and appends everything to `C:\opt\renderz\daily-catalog.log`. After changing the script, copy it to `bin/` on the VPS:
+A Windows VPS runs the sync on a schedule. RenderZ adds new players once a week, on Thursday between about 17:00 and 02:00 (UTC+7), so the sync only runs then:
+
+| Task Scheduler task | When (UTC+7) | Runs |
+|---|---|---|
+| `renderz-catalog-head` | Thursday 17:00, 19:00, 21:00, 23:00, Friday 01:00 | `catalog-sync.sh head`: sitemap head only (new players), about a minute when nothing is new |
+| `renderz-catalog-full` | Friday 03:00 | `catalog-sync.sh full`: every step below |
+
+Both run `C:\Program Files\Git\bin\bash.exe -lc "/c/opt/renderz/bin/catalog-sync.sh <mode>"`, a copy of [`scripts/vps/catalog-sync.sh`](scripts/vps/catalog-sync.sh). The script resets `package-lock.json`, pulls `main`, runs `npm install`, then the sync with `CATALOG_SYNC_MODE=<mode>`, and appends everything to `C:\opt\renderz\catalog-sync.log`. Runs share a lock: a head run skips while another run holds it, a full run waits. After changing the script, copy it to `bin/` on the VPS:
 
 ```bash
-scp scripts/vps/daily-catalog.sh vps:C:/opt/renderz/bin/daily-catalog.sh
-ssh vps 'powershell -NoProfile -Command "Start-ScheduledTask renderz-daily-catalog"'   # run now
+scp scripts/vps/catalog-sync.sh vps:C:/opt/renderz/bin/catalog-sync.sh
+ssh vps 'powershell -NoProfile -Command "Start-ScheduledTask renderz-catalog-full"'   # run now
 ```
+
+[`scripts/vps/register-tasks.ps1`](scripts/vps/register-tasks.ps1) (re)creates both tasks: `ssh vps 'powershell -NoProfile -ExecutionPolicy Bypass -File C:\opt\renderz\scripts\vps\register-tasks.ps1'`.
 
 `C:\opt\renderz\.env.local` needs `DATABASE_URL`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, and `S3_BUCKET`. With `VERCEL_TOKEN` (a token scoped to the team that owns `fcvn`) the script also marks the production `player-list` cache stale. Without it, listing pages keep the old catalog until the cache expires (30 minutes).
 
@@ -45,7 +54,7 @@ npm run sync
 
 The Mac stays awake for the run (`caffeinate`). Output is also written to `logs/catalog-sync-<date>.log`. Afterwards it marks the production `player-list` cache stale (`vercel cache invalidate`), so the Vercel CLI must be logged in and this folder linked to the `fcvn` project.
 
-Cloudflare returns HTTP 403 to datacenter IPs, including GitHub-hosted runners and Vercel (Functions, Cron, Sandbox), so the sync cannot run there. Each run reads the sitemap head, refreshes promo cards added in the last 14 days, backfills kept programs (including a new event once one of its cards is stored), then missing base gold/silver. It stops before the job timeout. The next run continues. Cards older than that window stay as stored. The browser loads card art from R2.
+Cloudflare returns HTTP 403 to datacenter IPs, including GitHub-hosted runners and Vercel (Functions, Cron, Sandbox), so the sync cannot run there. Each full run reads the sitemap head, refreshes promo cards added in the last 14 days, backfills kept programs (including a new event once one of its cards is stored), then missing base gold/silver. It stops before the job timeout. The next run continues. Cards older than that window stay as stored. The browser loads card art from R2.
 
 ## Catalog check
 
