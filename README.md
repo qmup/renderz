@@ -28,12 +28,12 @@ Open [http://localhost:3000/players](http://localhost:3000/players). Listing def
 
 ## Production catalog sync
 
-A Windows VPS runs the sync on a schedule. RenderZ adds new players once a week, on Thursday between about 17:00 and 02:00 (UTC+7), so the sync only runs then:
+A Windows VPS runs the sync on a schedule. RenderZ adds new players once a week, on Wednesday between about 17:00 and 02:00 (UTC+7), so the sync only runs then:
 
 | Task Scheduler task | When (UTC+7) | Runs |
 |---|---|---|
-| `renderz-catalog-head` | Thursday 17:00, 19:00, 21:00, 23:00, Friday 01:00 | `catalog-sync.sh head`: sitemap head only (new players), about a minute when nothing is new |
-| `renderz-catalog-full` | Friday 03:00 | `catalog-sync.sh full`: every step below |
+| `renderz-catalog-head` | Wednesday 17:00, 19:00, 21:00, 23:00, Thursday 01:00 | `catalog-sync.sh head`: sitemap head only (new players), about a minute when nothing is new |
+| `renderz-catalog-full` | Thursday 03:00 | `catalog-sync.sh full`: every step below |
 
 Both run `C:\Program Files\Git\bin\bash.exe -lc "/c/opt/renderz/bin/catalog-sync.sh <mode>"`, a copy of [`scripts/vps/catalog-sync.sh`](scripts/vps/catalog-sync.sh). The script resets `package-lock.json`, pulls `main`, runs `npm install`, then the sync with `CATALOG_SYNC_MODE=<mode>`, and appends everything to `C:\opt\renderz\catalog-sync.log`. Runs share a lock: a head run skips while another run holds it, a full run waits. After changing the script, copy it to `bin/` on the VPS:
 
