@@ -46,12 +46,17 @@ npm install --no-audit --no-fund
 status=0
 CATALOG_SYNC_MODE=$MODE npx --yes tsx --env-file=.env.local scripts/scheduled-catalog-sync.ts || status=$?
 
-VERCEL_TOKEN=$(sed -n 's/^VERCEL_TOKEN=["'\'']\{0,1\}\([^"'\'']*\).*/\1/p' .env.local)
+VERCEL_TOKEN=$(sed -n 's/^VERCEL_TOKEN=["'\'']\{0,1\}\([^"'\'']*\).*/\1/p' .env.local | tr -d '\r')
 if [ -n "$VERCEL_TOKEN" ]; then
-  npx --yes vercel cache invalidate --tag player-list --yes \
-    --project prj_qaczLSOtZsp156aOYHZ8ULy4uv2P \
-    --scope team_Os99QO6BurA8ahyo9Fevqp7L \
-    --token "$VERCEL_TOKEN" || echo "vercel cache invalidate failed"
+  if curl -fsS -X POST \
+    "https://api.vercel.com/v1/edge-cache/invalidate-by-tags?projectIdOrName=prj_qaczLSOtZsp156aOYHZ8ULy4uv2P&teamId=team_Os99QO6BurA8ahyo9Fevqp7L" \
+    -H "Authorization: Bearer $VERCEL_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"tags":["player-list"]}'; then
+    echo "vercel cache invalidated (tag=player-list)"
+  else
+    echo "vercel cache invalidate failed"
+  fi
 else
   echo "VERCEL_TOKEN not set; player-list cache expires on its own (30 min)"
 fi
