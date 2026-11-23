@@ -13,6 +13,12 @@ import {
 
 describe("programEventLabel", () => {
   it("uses RenderZ event names for known PROGRAM_* ids", () => {
+    expect(programEventLabel("PROGRAM_RV27")).toBe("Rivals");
+    expect(programEventLabel("PROGRAM_POTM27_EPL")).toBe("POTM 27 EPL");
+    expect(programEventLabel("PROGRAM_POTM27_BUNDESLIGA")).toBe("POTM 27 BUNDESLIGA");
+    expect(programEventLabel("PROGRAM_POTM27_SERIEA")).toBe("POTM 27 SERIE A");
+    expect(programEventLabel("PROGRAM_STREETSTARS27")).toBe("Street Stars");
+    expect(programEventLabel("PROGRAM_POTM27_LALIGA")).toBe("POTM 27 LALIGA");
     expect(programEventLabel("PROGRAM_SCREAMTEAM27")).toBe("Scream Team");
     expect(programEventLabel("PROGRAM_BD27")).toBe("Ballon d'Or");
     expect(programEventLabel("PROGRAM_TOTW27")).toBe("Team of the Week");
@@ -166,6 +172,33 @@ describe("eventProgramIdFor", () => {
     expect(libertadores(at("2025-10-01"))).toBe("PROGRAM_CL26");
     expect(libertadores(at("2024-10-16"))).toBe("PROGRAM_CONMEBOLLIBERTADORES25");
     expect(libertadores(at("2023-10-01"))).toBe("PROGRAM_CL24");
+    expect(
+      eventProgramIdFor({
+        programId: "PROGRAM_ICONS",
+        programName: "Rivals Icon Player",
+        addedAt: at("2026-11-18"),
+      }),
+    ).toBe("PROGRAM_RV27");
+    expect(
+      eventProgramIdFor({
+        programId: "PROGRAM_HEROS8",
+        programName: "Rivals Hero Player",
+        addedAt: at("2026-11-18"),
+      }),
+    ).toBe("PROGRAM_RV27");
+    expect(
+      eventProgramIdFor({
+        programId: "PROGRAM_ICONS",
+        programName: "Rivals Icon Player",
+        addedAt: at("2024-01-15"),
+      }),
+    ).toBe("PROGRAM_RIVALS24");
+    expect(
+      eventProgramIdFor({
+        programId: "PROGRAM_ICONS",
+        programName: "Street Stars Icon Player",
+      }),
+    ).toBe("PROGRAM_STREETSTARS27");
   });
 
   it("leaves event cards, generic Icons and cards without a program alone", () => {

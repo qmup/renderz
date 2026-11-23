@@ -18,6 +18,16 @@ export function playersDataUrl(): string {
   return `${RENDERZ_ORIGIN}/players/__data.json`;
 }
 
+export function programsUrl(page = 1): string {
+  return page > 1 ? `${RENDERZ_ORIGIN}/programs?page=${page}` : `${RENDERZ_ORIGIN}/programs`;
+}
+
+export function programsDataUrl(page = 1): string {
+  return page > 1
+    ? `${RENDERZ_ORIGIN}/programs/__data.json?page=${page}`
+    : `${RENDERZ_ORIGIN}/programs/__data.json`;
+}
+
 export function playerPath(id: string, slug?: string): string {
   return slug ? `/player/${id}-${slug}` : `/player/${id}`;
 }

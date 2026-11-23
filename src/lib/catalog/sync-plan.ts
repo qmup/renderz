@@ -1,4 +1,5 @@
 import { isBaseCardProgram } from "@/lib/catalog/base-cards";
+import { programLogoSlug } from "@/lib/catalog/programs";
 import {
   isDeclinedSyncProgram,
   SYNC_KEEP_PROGRAM_IDS,
@@ -56,11 +57,15 @@ export type SyncProgramPlayer = {
 };
 
 /**
- * New events already stored are searched first (caller passes them newest
- * card first). The hardcoded keep-list follows, so a brand-new program is
- * not stuck behind TOTW…Heroes. Declined seasons and base cards are omitted.
+ * Brand-new events discovered from RenderZ /programs are searched first,
+ * followed by any other new events already stored in Postgres (newest card
+ * first), then the hardcoded keep-list. Declined seasons and base cards are
+ * omitted.
  */
-export function programIdsToSync(storedProgramIds: readonly string[]): string[] {
+export function programIdsToSync(
+  storedProgramIds: readonly string[],
+  upstreamProgramIds: readonly string[] = [],
+): string[] {
   const keep = new Set<string>(SYNC_KEEP_PROGRAM_IDS);
   const seen = new Set<string>();
   const ids: string[] = [];
@@ -75,8 +80,13 @@ export function programIdsToSync(storedProgramIds: readonly string[]): string[] 
     seen.add(trimmed);
     ids.push(trimmed);
   };
+  for (const id of upstreamProgramIds) {
+    if (!keep.has(id.trim())) {
+      push(id);
+    }
+  }
   for (const id of storedProgramIds) {
-    if (!keep.has(id)) {
+    if (!keep.has(id.trim())) {
       push(id);
     }
   }
@@ -84,6 +94,25 @@ export function programIdsToSync(storedProgramIds: readonly string[]): string[] 
     push(id);
   }
   return ids;
+}
+
+/** Map program logo slugs to signed upstream URLs returned by RenderZ /programs. */
+export function programLogoUrlsBySlug(
+  programs: readonly { id: string; imageUrl?: string }[],
+): Map<string, string> {
+  const urls = new Map<string, string>();
+  for (const program of programs) {
+    const imageUrl = program.imageUrl?.trim();
+    if (!imageUrl) {
+      continue;
+    }
+    const slug = programLogoSlug(program.id);
+    if (!slug || urls.has(slug)) {
+      continue;
+    }
+    urls.set(slug, imageUrl);
+  }
+  return urls;
 }
 
 /**

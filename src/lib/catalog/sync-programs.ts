@@ -1,10 +1,16 @@
 /**
  * Programs the catalog keeps. Indexes match renderz.app/programs, newest
- * event first: 1–40 (Scream Team through Anniversary 26), plus Icons and
- * Heroes. Older seasons are declined when a card is fetched. Any other program
+ * event first (Rivals through Anniversary 26), plus Icons and Heroes.
+ * Older seasons are declined when a card is fetched. Any other program
  * id (a newer event) is kept.
  */
 export const SYNC_KEEP_PROGRAM_IDS = [
+  "PROGRAM_RV27",
+  "PROGRAM_POTM27_EPL",
+  "PROGRAM_POTM27_BUNDESLIGA",
+  "PROGRAM_POTM27_SERIEA",
+  "PROGRAM_STREETSTARS27",
+  "PROGRAM_POTM27_LALIGA",
   "PROGRAM_SCREAMTEAM27",
   "PROGRAM_BD27",
   "PROGRAM_TOTW27",

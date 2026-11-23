@@ -3,17 +3,21 @@
  *
  *   npx tsx scripts/scheduled-catalog-sync.ts
  *
- * Order, so a new event is not stuck behind the base-card backlog:
- *   1. Sitemap head (brand-new ids, including a new event).
- *   2. Refresh promo cards added in the last 14 days (OVR, price, traits,
+ * Order, so a new event is not stuck behind the base-card backlog or OVR-sorted
+ * sitemap streak:
+ *   1. Sitemap head (brand-new high-OVR ids, Icons, Heroes).
+ *   2. Discover programs from RenderZ /programs (newest first), search every
+ *      new and kept program, and upload missing program logos from signed
+ *      /programs URLs.
+ *   3. Refresh promo cards added in the last 14 days (OVR, price, traits,
  *      playstyles, colors, art). Base gold/silver are not in this slice.
- *   3. Page all RenderZ cards by asset id and re-fetch stored cards whose OVR
+ *   4. Page all RenderZ cards by asset id and re-fetch stored cards whose OVR
  *      or position moved (base re-ratings, older promo upgrades).
- *   4. Search every kept program, plus any new program id already stored.
  *   5. Missing base gold/silver, 1,500 per run.
  *
- * CATALOG_SYNC_MODE=head runs step 1 only (and skips the 3-day image heal), for
- * frequent checks while RenderZ is publishing a new event.
+ * CATALOG_SYNC_MODE=head runs step 1 + brand-new upstream programs + missing
+ * program logos (and skips the 3-day image heal), for frequent checks while
+ * RenderZ is publishing a new event.
  *
  * One run stops at CATALOG_SYNC_BUDGET_MS so the next schedule can continue.
  * Requires DATABASE_URL and S3_ENDPOINT + S3_ACCESS_KEY_ID + S3_SECRET_ACCESS_KEY
@@ -47,12 +51,14 @@ import {
 } from "../src/lib/catalog/programs";
 import {
   programIdsToSync,
+  programLogoUrlsBySlug,
   RECENT_REFRESH_LIMIT,
   RECENT_REFRESH_MS,
   selectDriftedCards,
   selectRecentRefreshIds,
   type StoredCardSummary,
 } from "../src/lib/catalog/sync-plan";
+import { isDeclinedSyncProgram } from "../src/lib/catalog/sync-programs";
 import { takeSitemapHead } from "../src/lib/ingest/sitemap-head";
 import {
   planCatalogUploads,
@@ -74,6 +80,10 @@ import {
 } from "../src/lib/providers/renderz/base-card-search";
 import { RenderzClient } from "../src/lib/providers/renderz/client";
 import { fetchAllowlistedImage } from "../src/lib/providers/renderz/image-proxy";
+import {
+  listUpstreamPrograms,
+  type UpstreamProgramEntry,
+} from "../src/lib/providers/renderz/programs-parser";
 import { getRenderzSource } from "../src/lib/providers/renderz/renderz-source";
 
 const DB_ATTEMPTS = 3;
@@ -185,18 +195,53 @@ async function storedProgramIds(): Promise<string[]> {
   return rows.rows.map((row) => row.programId);
 }
 
+async function loadUpstreamPrograms(
+  headOnly: boolean,
+): Promise<UpstreamProgramEntry[]> {
+  const client = new RenderzClient();
+  try {
+    const programs = await listUpstreamPrograms(client, {
+      maxPages: headOnly ? 1 : 10,
+      shouldStopAfterPage: (page) =>
+        page.length > 0 && page.every((entry) => isDeclinedSyncProgram(entry.id)),
+    });
+    console.log(`upstream programs=${programs.length}`);
+    return programs;
+  } catch (error) {
+    console.error(`upstream programs failed ${describeError(error)}`);
+    return [];
+  }
+}
+
 async function discoverSelectedPrograms(
   startedAt: number,
   deadline: number,
+  upstreamProgramIds: readonly string[],
   afterSlice?: (since: number) => Promise<void>,
+  newOnly = false,
 ): Promise<{ succeeded: number; failed: number; idle: boolean }> {
+  if (Date.now() >= deadline) {
+    return { succeeded: 0, failed: 0, idle: false };
+  }
   const catalog = getPlayerCatalog();
   const client = new RenderzClient();
   return withDbRetry("selected programs", async () => {
     const db = getPostgresDb();
-    const programIds = programIdsToSync(await storedProgramIds());
-    const extras = programIds.length - programIdsToSync([]).length;
-    console.log(`programs=${programIds.length} newEvents=${extras}`);
+    const stored = await storedProgramIds();
+    const allToSync = programIdsToSync(stored, upstreamProgramIds);
+    const storedSet = new Set(stored);
+    const programIds = newOnly
+      ? allToSync.filter(
+          (id) => upstreamProgramIds.includes(id) && !storedSet.has(id),
+        )
+      : allToSync;
+    const extras = allToSync.length - programIdsToSync([]).length;
+    console.log(
+      `programs=${programIds.length} newEvents=${extras} newOnly=${newOnly}`,
+    );
+    if (programIds.length === 0) {
+      return { succeeded: 0, failed: 0, idle: true };
+    }
     const existingRows = await db.select({ id: players.id }).from(players);
     const existing = new Set(existingRows.map((row) => row.id));
     console.log(`known players=${existing.size}`);
@@ -392,11 +437,19 @@ async function refreshDriftedPlayers(
   });
 }
 
-function programLogoSlugsToUpload(programIds: readonly string[]): string[] {
-  const slugs = new Set(catalogProgramLogoSlugs());
+function programLogoSlugsToUpload(
+  programIds: readonly string[],
+  includeCatalogSlugs = true,
+): string[] {
+  const slugs = new Set<string>();
   for (const id of programIds) {
     const slug = programLogoSlug(id);
     if (slug) {
+      slugs.add(slug);
+    }
+  }
+  if (includeCatalogSlugs) {
+    for (const slug of catalogProgramLogoSlugs()) {
       slugs.add(slug);
     }
   }
@@ -405,9 +458,11 @@ function programLogoSlugsToUpload(programIds: readonly string[]): string[] {
 
 async function uploadMissingProgramLogos(
   programIds: readonly string[],
+  upstreamLogoUrls: ReadonlyMap<string, string>,
   bucket: string,
+  includeCatalogSlugs = true,
 ): Promise<void> {
-  const slugs = programLogoSlugsToUpload(programIds);
+  const slugs = programLogoSlugsToUpload(programIds, includeCatalogSlugs);
   if (slugs.length === 0) {
     return;
   }
@@ -422,13 +477,16 @@ async function uploadMissingProgramLogos(
       if (await objectExists(client, bucket, key)) {
         continue;
       }
-      // Some logos 404 on the unsigned host; those are committed under public/.
+      // Prefer committed files, then signed URLs from /programs/__data.json;
+      // the unsigned RenderZ host 404s for program logos.
       const committed = await readFile(
         path.join(process.cwd(), "public", key),
       ).catch(() => undefined);
+      const upstreamUrl =
+        upstreamLogoUrls.get(slug) ?? programLogoUpstreamUrl(slug);
       const image = committed
         ? { bytes: committed, contentType: "image/png" }
-        : await fetchAllowlistedImage(programLogoUpstreamUrl(slug));
+        : await fetchAllowlistedImage(upstreamUrl);
       await client.send(
         new PutObjectCommand({
           Bucket: bucket,
@@ -540,27 +598,41 @@ async function main() {
     uploadTotals.requiredFailed += healed.requiredFailed;
   }
 
+  const upstreamPrograms = await loadUpstreamPrograms(headOnly);
+  const upstreamProgramIds = upstreamPrograms.map((program) => program.id);
+  const upstreamLogoUrls = programLogoUrlsBySlug(upstreamPrograms);
+
   const head = await discoverSitemapHead(startedAt, deadline, uploadSlice(false));
-  const headDone = head.idle && !headOnly;
-  const refreshed = headDone
+  const selected = head.idle
+    ? await discoverSelectedPrograms(
+        startedAt,
+        deadline,
+        upstreamProgramIds,
+        uploadSlice(false),
+        headOnly,
+      )
+    : { succeeded: 0, failed: 0, idle: false };
+  if (head.idle) {
+    const logoProgramIds = headOnly
+      ? upstreamProgramIds
+      : programIdsToSync(await storedProgramIds(), upstreamProgramIds);
+    await uploadMissingProgramLogos(
+      logoProgramIds,
+      upstreamLogoUrls,
+      bucket,
+      !headOnly,
+    );
+  }
+  const fullReady = head.idle && selected.idle && !headOnly;
+  const refreshed = fullReady
     ? await refreshRecentPlayers(startedAt, deadline, uploadSlice(true))
     : { succeeded: 0, failed: 0, idle: false };
   const drift =
-    headDone && refreshed.idle
+    fullReady && refreshed.idle
       ? await refreshDriftedPlayers(startedAt, deadline, uploadSlice(true))
       : { succeeded: 0, failed: 0, idle: false };
-  const selected =
-    headDone && refreshed.idle && drift.idle
-      ? await discoverSelectedPrograms(startedAt, deadline, uploadSlice(false))
-      : { succeeded: 0, failed: 0, idle: false };
-  if (headDone && refreshed.idle && drift.idle) {
-    await uploadMissingProgramLogos(
-      programIdsToSync(await storedProgramIds()),
-      bucket,
-    );
-  }
   const baseCards =
-    headDone && refreshed.idle && drift.idle && selected.idle
+    fullReady && refreshed.idle && drift.idle
       ? await discoverBaseCards(startedAt, deadline, uploadSlice(false))
       : { succeeded: 0, failed: 0, idle: false };
 

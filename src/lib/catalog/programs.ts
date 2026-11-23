@@ -23,6 +23,12 @@ export type ProgramCatalogEntry = {
 };
 
 export const RENDERZ_PROGRAM_CATALOG: ProgramCatalogEntry[] = [
+  { label: "Rivals", aliases: ["RV27"], logo: "RV27", names: ["Rivals"], since: "2026-11-01" },
+  { label: "POTM 27 EPL", aliases: ["POTM27_EPL"], logo: "POTM27_EPL" },
+  { label: "POTM 27 BUNDESLIGA", aliases: ["POTM27_BUNDESLIGA"], logo: "POTM27_BUNDESLIGA" },
+  { label: "POTM 27 SERIE A", aliases: ["POTM27_SERIEA"], logo: "POTM27_SERIEA" },
+  { label: "Street Stars", aliases: ["STREETSTARS27"], logo: "STREETSTARS27", names: ["Street Stars"] },
+  { label: "POTM 27 LALIGA", aliases: ["POTM27_LALIGA"], logo: "POTM27_LALIGA" },
   { label: "Scream Team", aliases: ["SCREAMTEAM27"], logo: "SCREAMTEAM27", names: ["Scream Team"] },
   { label: "Ballon d'Or", aliases: ["BD27"], logo: "BD27", names: ["Ballon d'Or"] },
   { label: "Team of the Week", aliases: ["TOTW27"], logo: "TOTW27" },

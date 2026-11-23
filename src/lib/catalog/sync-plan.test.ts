@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BASE_PROGRAM_GOLD } from "@/lib/catalog/base-cards";
 import {
   programIdsToSync,
+  programLogoUrlsBySlug,
   RECENT_REFRESH_LIMIT,
   selectDriftedCards,
   selectRecentRefreshIds,
@@ -24,6 +25,63 @@ describe("programIdsToSync", () => {
     expect(ids.slice(1)).toEqual([...SYNC_KEEP_PROGRAM_IDS]);
     expect(ids).not.toContain("PROGRAM_NF25");
     expect(ids).not.toContain(BASE_PROGRAM_GOLD);
+  });
+
+  it("prioritizes brand-new upstream programs before stored and keep-list entries", () => {
+    const ids = programIdsToSync(
+      ["PROGRAM_STOREDNEW28", "PROGRAM_TOTW27"],
+      [
+        "PROGRAM_UPSTREAMNEW28",
+        "PROGRAM_STOREDNEW28",
+        "PROGRAM_RV27",
+        "PROGRAM_TOTS25",
+        BASE_PROGRAM_GOLD,
+      ],
+    );
+    expect(ids.slice(0, 2)).toEqual([
+      "PROGRAM_UPSTREAMNEW28",
+      "PROGRAM_STOREDNEW28",
+    ]);
+    expect(ids.slice(2)).toEqual([...SYNC_KEEP_PROGRAM_IDS]);
+    expect(ids).not.toContain("PROGRAM_TOTS25");
+    expect(ids).not.toContain(BASE_PROGRAM_GOLD);
+  });
+});
+
+describe("programLogoUrlsBySlug", () => {
+  it("maps resolved program logo slugs to signed upstream URLs", () => {
+    const urls = programLogoUrlsBySlug([
+      {
+        id: "PROGRAM_RV27",
+        imageUrl: "https://images-v2.renderz.app/programlogos_23_RV27?verify=1-a",
+      },
+      {
+        id: "PROGRAM_RECORDHOLDERS",
+        imageUrl: "https://images-v2.renderz.app/programlogos_23_RECORDHOLDERS26?verify=1-b",
+      },
+      {
+        id: "PROGRAM_NEWPROMO28",
+        imageUrl: "https://images-v2.renderz.app/programlogos_23_NEWPROMO28?verify=1-c",
+      },
+      {
+        id: "PROGRAM_RV27",
+        imageUrl: "https://images-v2.renderz.app/duplicate",
+      },
+      { id: "FC_BASE_GOLD", imageUrl: "https://images-v2.renderz.app/ignored" },
+      { id: "PROGRAM_EMPTY" },
+    ]);
+
+    expect([...urls.entries()]).toEqual([
+      ["RV27", "https://images-v2.renderz.app/programlogos_23_RV27?verify=1-a"],
+      [
+        "RECORDHOLDERS26",
+        "https://images-v2.renderz.app/programlogos_23_RECORDHOLDERS26?verify=1-b",
+      ],
+      [
+        "NEWPROMO28",
+        "https://images-v2.renderz.app/programlogos_23_NEWPROMO28?verify=1-c",
+      ],
+    ]);
   });
 });
 
