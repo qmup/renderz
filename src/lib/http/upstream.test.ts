@@ -7,7 +7,11 @@ import {
   UpstreamLimiter,
   type UpstreamLimiterConfig,
 } from "@/lib/http/upstream";
-import { RateLimitedError, UpstreamHttpError } from "@/lib/http/errors";
+import {
+  RateLimitedError,
+  UpstreamHttpError,
+  UpstreamTimeoutError,
+} from "@/lib/http/errors";
 
 const config: UpstreamLimiterConfig = {
   concurrency: 1,
@@ -129,5 +133,54 @@ describe("fetchUpstream", () => {
           new Response("nope", { status: 429, headers: { "Retry-After": "3" } }),
       }),
     ).rejects.toBeInstanceOf(RateLimitedError);
+  });
+
+  it("retries UpstreamTimeoutError with backoff before succeeding", async () => {
+    const sleeps: number[] = [];
+    const clock = {
+      now: () => 0,
+      sleep: async (ms: number) => {
+        sleeps.push(ms);
+      },
+    };
+    const limiter = new UpstreamLimiter(config, clock);
+    let calls = 0;
+    const response = await fetchUpstream("https://renderz.app/players", undefined, {
+      limiter,
+      config: { ...config, maxRetries: 2, timeoutMs: 10 },
+      clock,
+      fetchImpl: async (_url, init) => {
+        calls += 1;
+        if (calls === 1) {
+          return new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+              reject(new DOMException("Aborted", "AbortError"));
+            });
+          });
+        }
+        return new Response("ok", { status: 200 });
+      },
+    });
+    expect(response.status).toBe(200);
+    expect(calls).toBe(2);
+    expect(sleeps).toContain(10);
+  });
+
+  it("throws UpstreamTimeoutError after exhausting retries", async () => {
+    const clock = { now: () => 0, sleep: async () => undefined };
+    const limiter = new UpstreamLimiter(config, clock);
+    await expect(
+      fetchUpstream("https://renderz.app/players", undefined, {
+        limiter,
+        config: { ...config, maxRetries: 1, timeoutMs: 10 },
+        clock,
+        fetchImpl: async (_url, init) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+              reject(new DOMException("Aborted", "AbortError"));
+            });
+          }),
+      }),
+    ).rejects.toBeInstanceOf(UpstreamTimeoutError);
   });
 });

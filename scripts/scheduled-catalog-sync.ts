@@ -74,9 +74,11 @@ import {
 import { getPlayerCatalog } from "../src/lib/catalog/runtime";
 import { runIngestBatch } from "../src/lib/ingest/runner";
 import {
+  isBaseGoldOrSilverArt,
   listBaseCardEntries,
   listSourceCardEntries,
   searchCardsAfter,
+  type BaseCardSearchEntry,
 } from "../src/lib/providers/renderz/base-card-search";
 import { RenderzClient } from "../src/lib/providers/renderz/client";
 import { fetchAllowlistedImage } from "../src/lib/providers/renderz/image-proxy";
@@ -229,15 +231,17 @@ async function discoverSelectedPrograms(
     const db = getPostgresDb();
     const stored = await storedProgramIds();
     const allToSync = programIdsToSync(stored, upstreamProgramIds);
-    const storedSet = new Set(stored);
+    const headSet = new Set([
+      ...upstreamProgramIds,
+      "PROGRAM_ICONS",
+      "PROGRAM_HEROS8",
+    ]);
     const programIds = newOnly
-      ? allToSync.filter(
-          (id) => upstreamProgramIds.includes(id) && !storedSet.has(id),
-        )
+      ? allToSync.filter((id) => headSet.has(id))
       : allToSync;
     const extras = allToSync.length - programIdsToSync([]).length;
     console.log(
-      `programs=${programIds.length} newEvents=${extras} newOnly=${newOnly}`,
+      `programs=${programIds.length} newEvents=${extras} headPrograms=${newOnly}`,
     );
     if (programIds.length === 0) {
       return { succeeded: 0, failed: 0, idle: true };
@@ -302,11 +306,15 @@ async function discoverSitemapHead(
 async function discoverBaseCards(
   startedAt: number,
   deadline: number,
+  prelisted?: readonly BaseCardSearchEntry[],
   afterSlice?: (since: number) => Promise<void>,
 ): Promise<{ succeeded: number; failed: number; idle: boolean }> {
   const catalog = getPlayerCatalog();
-  console.log("reading base gold and silver cards");
-  const listed = await listBaseCardEntries();
+  const listed =
+    prelisted !== undefined
+      ? [...prelisted]
+      : (console.log("reading base gold and silver cards"),
+        await listBaseCardEntries());
   console.log(`base cards listed=${listed.length}`);
   return withDbRetry("base cards", async () => {
     const db = getPostgresDb();
@@ -389,9 +397,14 @@ async function refreshDriftedPlayers(
   startedAt: number,
   deadline: number,
   afterSlice?: (since: number) => Promise<void>,
-): Promise<{ succeeded: number; failed: number; idle: boolean }> {
+): Promise<{
+  succeeded: number;
+  failed: number;
+  idle: boolean;
+  baseCards: BaseCardSearchEntry[];
+}> {
   if (Date.now() >= deadline) {
-    return { succeeded: 0, failed: 0, idle: false };
+    return { succeeded: 0, failed: 0, idle: false, baseCards: [] };
   }
   const catalog = getPlayerCatalog();
   const client = new RenderzClient();
@@ -412,6 +425,8 @@ async function refreshDriftedPlayers(
     );
   });
   const drifted: Array<{ id: string; slug: string }> = [];
+  const baseCards: BaseCardSearchEntry[] = [];
+  const seenBase = new Set<string>();
   let afterId = 0;
   let pages = 0;
   while (Date.now() < deadline) {
@@ -422,12 +437,20 @@ async function refreshDriftedPlayers(
     pages += 1;
     afterId = Number(cards.at(-1)!.id);
     drifted.push(...selectDriftedCards(stored, cards));
+    for (const card of cards) {
+      if (isBaseGoldOrSilverArt(card) && !seenBase.has(card.id)) {
+        seenBase.add(card.id);
+        baseCards.push({ id: card.id, slug: card.slug });
+      }
+    }
   }
-  console.log(`drift pages=${pages} stored=${stored.size} drifted=${drifted.length}`);
+  console.log(
+    `drift pages=${pages} stored=${stored.size} drifted=${drifted.length} baseCards=${baseCards.length}`,
+  );
   if (drifted.length === 0) {
-    return { succeeded: 0, failed: 0, idle: true };
+    return { succeeded: 0, failed: 0, idle: true, baseCards };
   }
-  return withDbRetry("drift refresh", async () => {
+  const result = await withDbRetry("drift refresh", async () => {
     const cleared = await clearOpenJobs("refresh");
     console.log(`drift refresh clearedPending=${cleared}`);
     for (const [index, entry] of drifted.entries()) {
@@ -435,6 +458,7 @@ async function refreshDriftedPlayers(
     }
     return ingestQueuedPlayers(deadline, "drift refresh", afterSlice, "refresh");
   });
+  return { ...result, baseCards };
 }
 
 function programLogoSlugsToUpload(
@@ -630,10 +654,15 @@ async function main() {
   const drift =
     fullReady && refreshed.idle
       ? await refreshDriftedPlayers(startedAt, deadline, uploadSlice(true))
-      : { succeeded: 0, failed: 0, idle: false };
+      : { succeeded: 0, failed: 0, idle: false, baseCards: [] };
   const baseCards =
     fullReady && refreshed.idle && drift.idle
-      ? await discoverBaseCards(startedAt, deadline, uploadSlice(false))
+      ? await discoverBaseCards(
+          startedAt,
+          deadline,
+          drift.baseCards,
+          uploadSlice(false),
+        )
       : { succeeded: 0, failed: 0, idle: false };
 
   const playersAdded =

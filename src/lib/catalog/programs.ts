@@ -23,6 +23,7 @@ export type ProgramCatalogEntry = {
 };
 
 export const RENDERZ_PROGRAM_CATALOG: ProgramCatalogEntry[] = [
+  { label: "POTM 27 Ligue 1", aliases: ["POTM27_LIGUE1"], logo: "POTM27_LIGUE1" },
   { label: "Rivals", aliases: ["RV27"], logo: "RV27", names: ["Rivals"], since: "2026-11-01" },
   { label: "POTM 27 EPL", aliases: ["POTM27_EPL"], logo: "POTM27_EPL" },
   { label: "POTM 27 BUNDESLIGA", aliases: ["POTM27_BUNDESLIGA"], logo: "POTM27_BUNDESLIGA" },

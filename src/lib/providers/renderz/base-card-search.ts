@@ -1,4 +1,5 @@
 import { deflateRawSync } from 'node:zlib';
+import { baseCardTier } from '@/lib/catalog/base-cards';
 import {
   renderzCardTextColors,
   type CardTextColors,
@@ -7,7 +8,7 @@ import { ParseError } from '@/lib/http/errors';
 import { RenderzClient } from '@/lib/providers/renderz/client';
 
 const PAGE_SIZE = 100;
-const MAX_FROM = 20_000;
+const MAX_PAGES = 1000;
 
 /**
  * bindingXml templates behind the "FC Base Gold Player" and
@@ -43,6 +44,12 @@ export function baseCardSearchBody(from: number, size = PAGE_SIZE) {
     size,
     _source: [],
   };
+}
+
+export function isBaseGoldOrSilverArt(
+  card: Pick<SearchCardArt, 'background'>,
+): boolean {
+  return baseCardTier({ artHint: card.background }) !== null;
 }
 
 /** Deflate + base64url, matching the RenderZ search client. */
@@ -94,15 +101,44 @@ export function sourceSearchBody(source: string, from: number, size = PAGE_SIZE)
   };
 }
 
+export function sourceSearchAfterBody(
+  source: string,
+  afterId: number,
+  size = PAGE_SIZE,
+) {
+  return {
+    query: {
+      bool: {
+        must: [
+          {
+            query_string: {
+              fields: ['source'],
+              query: source,
+            },
+          },
+          { range: { assetId: { gt: afterId } } },
+        ],
+        should: [],
+        must_not: [],
+      },
+    },
+    sort: [{ assetId: { order: 'asc' } }],
+    from: 0,
+    size,
+    _source: [],
+  };
+}
+
 export async function listSourceCardEntries(
   source: string,
   client = new RenderzClient(),
 ): Promise<BaseCardSearchEntry[]> {
   const entries: BaseCardSearchEntry[] = [];
   const seen = new Set<string>();
-  for (let from = 0; from < MAX_FROM; from += PAGE_SIZE) {
+  let afterId = 0;
+  for (let pageIndex = 0; pageIndex < MAX_PAGES; pageIndex += 1) {
     const payload = await client.getSearchJson(
-      encodeRenderzSearchQuery(sourceSearchBody(source, from)),
+      encodeRenderzSearchQuery(sourceSearchAfterBody(source, afterId)),
     );
     const page = entriesFromSearchPayload(payload);
     for (const entry of page) {
@@ -115,30 +151,42 @@ export async function listSourceCardEntries(
     if (page.length < PAGE_SIZE) {
       break;
     }
+    const nextAfterId = Number(page.at(-1)!.id);
+    if (!Number.isFinite(nextAfterId) || nextAfterId <= afterId) {
+      break;
+    }
+    afterId = nextAfterId;
   }
   return entries;
 }
 
+/**
+ * RenderZ removed `bindingXml` from the search API field allowlist (HTTP 400),
+ * so base gold/silver cards are filtered client-side from `searchCardsAfter`.
+ */
 export async function listBaseCardEntries(
   client = new RenderzClient(),
 ): Promise<BaseCardSearchEntry[]> {
   const entries: BaseCardSearchEntry[] = [];
   const seen = new Set<string>();
-  for (let from = 0; from < MAX_FROM; from += PAGE_SIZE) {
-    const payload = await client.getSearchJson(
-      encodeRenderzSearchQuery(baseCardSearchBody(from)),
-    );
-    const page = entriesFromSearchPayload(payload);
-    for (const entry of page) {
-      if (seen.has(entry.id)) {
-        continue;
-      }
-      seen.add(entry.id);
-      entries.push(entry);
-    }
-    if (page.length < PAGE_SIZE) {
+  let afterId = 0;
+  for (let pageIndex = 0; pageIndex < MAX_PAGES; pageIndex += 1) {
+    const page = await searchCardsAfter(afterId, client);
+    if (page.length === 0) {
       break;
     }
+    for (const card of page) {
+      if (!isBaseGoldOrSilverArt(card) || seen.has(card.id)) {
+        continue;
+      }
+      seen.add(card.id);
+      entries.push({ id: card.id, slug: card.slug });
+    }
+    const nextAfterId = Number(page.at(-1)!.id);
+    if (!Number.isFinite(nextAfterId) || nextAfterId <= afterId) {
+      break;
+    }
+    afterId = nextAfterId;
   }
   return entries;
 }

@@ -5,6 +5,7 @@
  * id (a newer event) is kept.
  */
 export const SYNC_KEEP_PROGRAM_IDS = [
+  "PROGRAM_POTM27_LIGUE1",
   "PROGRAM_RV27",
   "PROGRAM_POTM27_EPL",
   "PROGRAM_POTM27_BUNDESLIGA",

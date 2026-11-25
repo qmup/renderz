@@ -144,23 +144,34 @@ export async function fetchUpstream(
   let attempt = 0;
 
   while (true) {
-    const response = await options.limiter.schedule(async () => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), options.config.timeoutMs);
-      try {
-        return await fetchImpl(url, {
-          ...init,
-          signal: init?.signal ?? controller.signal,
-        });
-      } catch (error) {
-        if (controller.signal.aborted && !init?.signal?.aborted) {
-          throw new UpstreamTimeoutError();
+    let response: Response;
+    try {
+      response = await options.limiter.schedule(async () => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), options.config.timeoutMs);
+        try {
+          return await fetchImpl(url, {
+            ...init,
+            signal: init?.signal ?? controller.signal,
+          });
+        } catch (error) {
+          if (controller.signal.aborted && !init?.signal?.aborted) {
+            throw new UpstreamTimeoutError();
+          }
+          throw error;
+        } finally {
+          clearTimeout(timeoutId);
         }
-        throw error;
-      } finally {
-        clearTimeout(timeoutId);
+      });
+    } catch (error) {
+      if (error instanceof UpstreamTimeoutError && attempt < options.config.maxRetries) {
+        const delay = computeBackoffMs(attempt, options.config);
+        attempt += 1;
+        await clock.sleep(delay);
+        continue;
       }
-    });
+      throw error;
+    }
 
     if (!isRetryableStatus(response.status) || attempt >= options.config.maxRetries) {
       if (isRetryableStatus(response.status) && attempt >= options.config.maxRetries) {

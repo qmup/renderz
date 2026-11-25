@@ -13,6 +13,7 @@ import {
 
 describe("programEventLabel", () => {
   it("uses RenderZ event names for known PROGRAM_* ids", () => {
+    expect(programEventLabel("PROGRAM_POTM27_LIGUE1")).toBe("POTM 27 Ligue 1");
     expect(programEventLabel("PROGRAM_RV27")).toBe("Rivals");
     expect(programEventLabel("PROGRAM_POTM27_EPL")).toBe("POTM 27 EPL");
     expect(programEventLabel("PROGRAM_POTM27_BUNDESLIGA")).toBe("POTM 27 BUNDESLIGA");

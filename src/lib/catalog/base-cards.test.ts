@@ -7,7 +7,10 @@ import {
   cardsAfterSearchBody,
   encodeRenderzSearchQuery,
   entriesFromSearchPayload,
+  listBaseCardEntries,
+  sourceSearchAfterBody,
 } from '@/lib/providers/renderz/base-card-search';
+import type { RenderzClient } from '@/lib/providers/renderz/client';
 
 describe('baseCardTier', () => {
   it('recognizes the gold and silver subtitles and frames', () => {
@@ -121,6 +124,66 @@ describe('base card search', () => {
   it('pages the whole catalog by asset id', () => {
     expect(cardsAfterSearchBody(24000100).query.bool.must).toEqual([
       { range: { assetId: { gt: 24000100 } } },
+    ]);
+  });
+
+  it('pages program sources by assetId and filters base gold/silver from searchCardsAfter', async () => {
+    const sourceBody = sourceSearchAfterBody('PROGRAM_RV27', 24055200);
+    expect(sourceBody.from).toBe(0);
+    expect(sourceBody.query.bool.must).toContainEqual({
+      range: { assetId: { gt: 24055200 } },
+    });
+
+    const seenQueries: Array<{ from: number; gt: number }> = [];
+    const client = {
+      getSearchJson: async (encoded: string) => {
+        const query = JSON.parse(
+          inflateRawSync(Buffer.from(encoded, 'base64url')).toString('utf8'),
+        );
+        const gt = query.query.bool.must[0].range.assetId.gt as number;
+        seenQueries.push({ from: query.from, gt });
+        if (gt === 0) {
+          return {
+            players: [
+              {
+                assetId: 19000001,
+                cardName: 'Gold Guy',
+                images: {
+                  playerCardBackground:
+                    'https://images-v2.renderz.app/bg_23_backgrounds_26_S11_GOLD_BASE_STATIC?verify=1',
+                },
+              },
+              {
+                assetId: 19000002,
+                cardName: 'Bronze Guy',
+                images: {
+                  playerCardBackground:
+                    'https://images-v2.renderz.app/bg_23_backgrounds_26_S11_BRONZE_BASE_STATIC?verify=1',
+                },
+              },
+              {
+                assetId: 19000003,
+                cardName: 'Silver Guy',
+                images: {
+                  playerCardBackground:
+                    'https://images-v2.renderz.app/bg_23_backgrounds_26_S11_SLIVER_BASE_STATIC?verify=1',
+                },
+              },
+            ],
+          };
+        }
+        return { players: [] };
+      },
+    } as unknown as RenderzClient;
+
+    const entries = await listBaseCardEntries(client);
+    expect(entries).toEqual([
+      { id: '19000001', slug: 'gold-guy' },
+      { id: '19000003', slug: 'silver-guy' },
+    ]);
+    expect(seenQueries).toEqual([
+      { from: 0, gt: 0 },
+      { from: 0, gt: 19000003 },
     ]);
   });
 });
