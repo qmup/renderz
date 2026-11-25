@@ -321,6 +321,30 @@ describe('skill tree unlocking and card-specific primary skills', () => {
     expect(cleared).toEqual([]);
   });
 
+  it('hydrates legacy DB rows that only store skill id and key from the static skill catalog', () => {
+    const legacySkills: SkillNode[] = [
+      { id: '37031', key: 'NAME_SKILL_37030' },
+      { id: '39010', key: 'NAME_SKILL_39010' },
+      { id: '39013', key: 'NAME_SKILL_39013' },
+    ];
+    const atRank6 = getSkillStates(legacySkills, [], 6);
+    expect(atRank6[0]?.name).toBe('Poacher');
+    expect(atRank6[0]?.hasLevels).toBe(true);
+    expect(atRank6[0]?.isDisabled).toBe(false);
+    expect(atRank6[1]?.requirement).toEqual({
+      skillId: '37031',
+      level: 2,
+      skillName: 'Poacher',
+    });
+    const upgraded = toggleSkillToMax(legacySkills, [], '37031', 6);
+    expect(upgraded).toEqual([{ id: '37031', level: 2 }]);
+    const withScoring = toggleSkillToMax(legacySkills, upgraded, '39010', 6);
+    expect(withScoring).toEqual([
+      { id: '37031', level: 2 },
+      { id: '39010', level: 1 },
+    ]);
+  });
+
   it('supports different card-specific primary skills (e.g. Inverted Winger for LW)', () => {
     const mbappeSkills: SkillNode[] = [
       {

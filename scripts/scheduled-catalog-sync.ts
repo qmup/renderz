@@ -554,7 +554,8 @@ async function loadUploadCandidates(
     FROM player_assets
     WHERE kind LIKE 'playstyle%'
        OR kind LIKE 'trait%'
-       OR kind IN ('untradeable', 'star-shard')
+       OR kind LIKE 'skill%'
+       OR kind IN ('untradeable', 'star-shard', 'rank-1', 'rank-2', 'rank-3', 'rank-4', 'rank-5', 'rank-6')
     ORDER BY kind, fetched_at DESC
   `);
 

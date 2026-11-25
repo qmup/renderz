@@ -1,4 +1,18 @@
 import type { SkillLevel, SkillNode } from '@/lib/domain/player';
+import rawSkillCatalog from '@/lib/skill-catalog.json';
+
+type SkillCatalogEntry = {
+  key?: string;
+  levels: Array<{
+    level: number;
+    abilityModifiers: Record<string, number>;
+  }>;
+  requirement?: { skillId: string; level: number } | null;
+};
+
+const SKILL_CATALOG = rawSkillCatalog as Readonly<
+  Record<string, SkillCatalogEntry>
+>;
 
 /**
  * Official FC Mobile / RenderZ skill display names keyed by `NAME_SKILL_*`.
@@ -375,16 +389,24 @@ export function resolveSkillName(skill: {
 }
 
 /**
- * Normalize parsed skills so every node has a resolved name and—for legacy rows
- * that only stored `{ id, key }`—still attaches the universal S10 secondary
- * levels & requirement if missing.
+ * Normalize parsed skills so every node has a resolved name and—for rows that
+ * only stored `{ id, key }` without `levels`—hydrates exact RenderZ `levels`
+ * and `requirement` from the complete 353-skill catalog.
  */
 export function normalizePlayerSkills(skills: readonly SkillNode[]): SkillNode[] {
   const firstId = skills[0]?.id;
+  const presentIds = new Set(skills.map((skill) => skill.id));
   return skills.map((skill, index) => {
-    const fallbackLevels =
+    const catalogEntry = SKILL_CATALOG[skill.id];
+    const fallbackLevels: readonly SkillLevel[] | undefined =
       !skill.levels || skill.levels.length === 0
-        ? UNIVERSAL_S10_SECONDARY_LEVELS[skill.id]
+        ? catalogEntry?.levels.length
+          ? catalogEntry.levels.map((lvl) => ({
+              level: lvl.level,
+              unlockedPositions: [],
+              abilityModifiers: { ...lvl.abilityModifiers },
+            }))
+          : UNIVERSAL_S10_SECONDARY_LEVELS[skill.id]
         : undefined;
     const levels =
       skill.levels && skill.levels.length > 0
@@ -396,15 +418,41 @@ export function normalizePlayerSkills(skills: readonly SkillNode[]): SkillNode[]
               abilityModifiers: { ...lvl.abilityModifiers },
             }))
           : undefined;
-    const requirement =
-      skill.requirement !== undefined
-        ? skill.requirement
-        : fallbackLevels && index > 0 && firstId && firstId !== skill.id
-          ? { skillId: firstId, level: 2 }
-          : undefined;
+
+    let requirement = skill.requirement;
+    if (requirement === undefined) {
+      const catReq = catalogEntry?.requirement;
+      if (catReq === null) {
+        requirement = null;
+      } else if (catReq) {
+        if (catReq.skillId === 'PRIMARY') {
+          requirement =
+            index > 0 && firstId && firstId !== skill.id
+              ? { skillId: firstId, level: catReq.level }
+              : null;
+        } else if (presentIds.has(catReq.skillId)) {
+          requirement = { skillId: catReq.skillId, level: catReq.level };
+        } else {
+          requirement = null;
+        }
+      } else if (
+        UNIVERSAL_S10_SECONDARY_LEVELS[skill.id] &&
+        index > 0 &&
+        firstId &&
+        firstId !== skill.id
+      ) {
+        requirement = { skillId: firstId, level: 2 };
+      }
+    }
+
     return {
       ...skill,
-      name: resolveSkillName(skill),
+      key: skill.key ?? catalogEntry?.key,
+      name: resolveSkillName({
+        id: skill.id,
+        key: skill.key ?? catalogEntry?.key,
+        name: skill.name,
+      }),
       ...(levels ? { levels } : {}),
       ...(requirement !== undefined ? { requirement } : {}),
     };
