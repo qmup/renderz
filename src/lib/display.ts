@@ -152,6 +152,27 @@ export function formatCoinAmount(value: number, locale = 'en'): string {
   return new Intl.NumberFormat(locale === 'vi' ? 'vi-VN' : 'en-US').format(value);
 }
 
+/** Compact star rating like `5★` from RenderZ strings such as `(5) ★★★★★`. */
+export function formatStarRating(value?: string): string | undefined {
+  const label = displayLabel(value);
+  if (!label) {
+    return undefined;
+  }
+  const parenNum = label.match(/\((\d+)\)/);
+  if (parenNum?.[1]) {
+    return `${parenNum[1]}★`;
+  }
+  const plainNum = label.match(/^(\d+)\s*★*$/);
+  if (plainNum?.[1]) {
+    return `${plainNum[1]}★`;
+  }
+  const stars = label.match(/★/g);
+  if (stars && stars.length > 0) {
+    return `${stars.length}★`;
+  }
+  return label;
+}
+
 export function formatRetryAfter(retryAfterMs?: number, locale = 'en'): string {
   const vi = locale === 'vi';
   if (!retryAfterMs || retryAfterMs <= 0) {

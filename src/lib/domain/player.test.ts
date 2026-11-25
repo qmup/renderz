@@ -12,6 +12,8 @@ import {
   playerSchema,
   parsePlayerId,
   playStyleImageKind,
+  rankImageKind,
+  skillImageKind,
   sortPlayStylesByLevelDesc,
   traitImageKind,
   toPlayerSummary,
@@ -114,6 +116,15 @@ describe("playerSchema", () => {
     expect(isPlayerCommonImageKind("star-shard")).toBe(true);
     expect(isSharedImageKind("star-shard")).toBe(true);
     expect(playerImageKindSchema.parse("star-shard")).toBe("star-shard");
+    expect(rankImageKind(1)).toBe("rank-1");
+    expect(rankImageKind(6)).toBe("rank-6");
+    expect(rankImageKind(0)).toBeUndefined();
+    expect(rankImageKind(7)).toBeUndefined();
+    expect(isPlayerCommonImageKind("rank-6")).toBe(true);
+    expect(isSharedImageKind("rank-6")).toBe(true);
+    expect(skillImageKind("32021")).toBe("skill-32021");
+    expect(isPlayerIconImageKind("skill-32021")).toBe(true);
+    expect(isSharedImageKind("skill-32021")).toBe(true);
     expect(isPlayerCommonImageKind("card")).toBe(false);
   });
 

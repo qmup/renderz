@@ -88,6 +88,90 @@ export const DETAIL_STAT_GROUPS = [
   },
 ] as const;
 
+export const GK_DETAIL_STAT_GROUPS = [
+  {
+    key: "avg1",
+    label: "DIV",
+    name: "Diving",
+    children: [{ key: "gkd", label: "GK Diving" }],
+  },
+  {
+    key: "avg2",
+    label: "POS",
+    name: "Positioning",
+    children: [{ key: "gkp", label: "GK Positioning" }],
+  },
+  {
+    key: "avg3",
+    label: "HAN",
+    name: "Handling",
+    children: [{ key: "han", label: "GK Handling" }],
+  },
+  {
+    key: "avg4",
+    label: "REF",
+    name: "Reflexes",
+    children: [{ key: "ref", label: "GK Reflexes" }],
+  },
+  {
+    key: "avg5",
+    label: "KIC",
+    name: "Kicking",
+    children: [{ key: "gkk", label: "GK Kicking" }],
+  },
+  {
+    key: "avg6",
+    label: "PHY",
+    name: "Physical",
+    children: [
+      { key: "rea", label: "Reactions" },
+      { key: "agi", label: "Agility" },
+      { key: "spd", label: "Sprint Speed" },
+      { key: "str", label: "Strength" },
+    ],
+  },
+] as const;
+
+export const STAT_LABELS: Readonly<Record<string, string>> = {
+  acc: "Acceleration",
+  spd: "Sprint Speed",
+  fin: "Finishing",
+  lsa: "Long Shot",
+  sho: "Shot Power",
+  pos: "Positioning",
+  vol: "Volley",
+  pen: "Penalties",
+  spa: "Short Passing",
+  lpa: "Long Passing",
+  vis: "Vision",
+  cro: "Crossing",
+  cur: "Curve",
+  frk: "Free Kick",
+  dri: "Dribbling",
+  bal: "Balance",
+  agi: "Agility",
+  rea: "Reactions",
+  bac: "Ball Control",
+  mrk: "Marking",
+  stt: "Standing Tackle",
+  slt: "Sliding Tackle",
+  awr: "Awareness",
+  hea: "Heading",
+  str: "Strength",
+  agg: "Aggression",
+  jmp: "Jumping",
+  sta: "Stamina",
+  gkd: "GK Diving",
+  gkp: "GK Positioning",
+  han: "GK Handling",
+  ref: "GK Reflexes",
+  gkk: "GK Kicking",
+};
+
+export function statLabel(key: string): string {
+  return STAT_LABELS[key.toLowerCase()] ?? key.toUpperCase();
+}
+
 export type GroupStat = {
   key: string;
   label: string;
@@ -119,9 +203,16 @@ export function groupStatsFromPlayerStats(stats: PlayerStat[]): GroupStat[] {
   });
 }
 
-export function groupDetailStats(stats: PlayerStat[]): DetailStatGroup[] {
+export function groupDetailStats(
+  stats: PlayerStat[],
+  position?: string,
+): DetailStatGroup[] {
   const byKey = new Map(stats.map((stat) => [stat.key, stat]));
-  return DETAIL_STAT_GROUPS.flatMap((group) => {
+  const definitions =
+    position?.toUpperCase() === "GK"
+      ? GK_DETAIL_STAT_GROUPS
+      : DETAIL_STAT_GROUPS;
+  return definitions.flatMap((group) => {
     const header = byKey.get(group.key);
     if (!header) {
       return [];

@@ -40,6 +40,12 @@ const COMMON_IMAGE_UPSTREAM_URLS: Record<PlayerCommonImageKind, string> = {
     'https://images-v2-unsigned.renderz.app/common_23_untradeable_icon',
   /** Star Signings BUY/SELL currency (RenderZ `common_STAR_SHARD_S`). */
   'star-shard': 'https://images-v2-unsigned.renderz.app/common_STAR_SHARD_S',
+  'rank-1': 'https://images-v2-unsigned.renderz.app/rank_23_RANK1_ANIM',
+  'rank-2': 'https://images-v2-unsigned.renderz.app/rank_23_RANK2_ANIM',
+  'rank-3': 'https://images-v2-unsigned.renderz.app/rank_23_RANK3_ANIM',
+  'rank-4': 'https://images-v2-unsigned.renderz.app/rank_23_RANK4_ANIM',
+  'rank-5': 'https://images-v2-unsigned.renderz.app/rank_23_RANK5_ANIM',
+  'rank-6': 'https://images-v2-unsigned.renderz.app/rank_23_RANK6_ANIM',
 };
 
 function commonImageUpstreamUrl(kind: PlayerImageKind): string | undefined {

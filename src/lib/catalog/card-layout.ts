@@ -33,7 +33,21 @@ export const FM23_LAYOUT = {
   liveClub: { left: 168, ...BADGE },
   playStyles: { top: 24, left: 8, padding: 4, icon: 32 },
   price: { top: 96, fontSize: 18, icon: 18 },
+  /** Bottom-center rank gem & training level measured on RenderZ 256px FM23 cards. */
+  rank: { left: 128, top: 232, width: 32, height: 32 },
+  /** Rank 6 sprite sheet is 288×288 (48px frame = 1.5× of ranks 1–5's 32px frame). */
+  rank6: { left: 128, top: 232, width: 48, height: 48 },
+  trainingLevel: { left: 128, top: 233, fontSize: 23 },
 } as const;
+
+export function fm23RankLayout(rank: number): {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+} {
+  return rank === 6 ? FM23_LAYOUT.rank6 : FM23_LAYOUT.rank;
+}
 
 /** Tight line box so uppercase names do not grow into the badge row. */
 export const FM23_NAME_LINE_HEIGHT = 1;

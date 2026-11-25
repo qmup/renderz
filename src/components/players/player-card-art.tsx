@@ -3,6 +3,7 @@
 import { useLayoutEffect, useRef } from 'react';
 import { CardLoopCanvas } from '@/components/players/card-loop-canvas';
 import { PlayerImage } from '@/components/players/player-image';
+import { RankSpriteIcon } from '@/components/players/rank-sprite-icon';
 import { usePreferences } from '@/components/providers/preferences-provider';
 import {
   FM23_CARD_SIZE,
@@ -12,6 +13,7 @@ import {
   fm23BoxStyle,
   fm23Cqw,
   fm23Pct,
+  fm23RankLayout,
 } from '@/lib/catalog/card-layout';
 import { cardOvrColors } from '@/lib/catalog/card-name-color';
 import {
@@ -42,6 +44,8 @@ export function PlayerCardArt({
   priority = false,
   animate = false,
   loopSrc,
+  rank = 0,
+  trainingLevel = 0,
 }: {
   id: string;
   kinds: string[];
@@ -65,6 +69,10 @@ export function PlayerCardArt({
   animate?: boolean;
   /** Same-origin static LOOP sheet URL from the catalog sprite name. */
   loopSrc?: string;
+  /** Selected rank (0–6). Draws the bottom-center rank gem when > 0. */
+  rank?: number;
+  /** Selected training level (0 or 30). Draws the level badge when > 0. */
+  trainingLevel?: number;
 }) {
   const { locale, m } = usePreferences();
   const has = (kind: PlayerImageKind) => kinds.includes(kind);
@@ -200,6 +208,43 @@ export function PlayerCardArt({
           className="absolute z-[11]"
           style={fm23BoxStyle(badges.club)}
         />
+      ) : null}
+      {rank >= 1 && rank <= 6 ? (() => {
+        const rankBox = fm23RankLayout(rank);
+        return (
+          <div
+            className="pointer-events-none absolute z-[12] flex items-center justify-center"
+            style={{
+              left: fm23Pct(rankBox.left),
+              top: fm23Pct(rankBox.top),
+              width: fm23Pct(rankBox.width),
+              height: fm23Pct(rankBox.height),
+              transform: 'translate(-50%, -50%)',
+            }}
+          >
+            <RankSpriteIcon
+              playerId={id}
+              rank={rank}
+              size={Math.round((size * rankBox.width) / FM23_CARD_SIZE)}
+              className="h-full w-full"
+            />
+          </div>
+        );
+      })() : null}
+      {trainingLevel > 0 ? (
+        <div
+          className="font-card pointer-events-none absolute z-[13] flex items-center justify-center leading-none font-bold text-white tabular-nums"
+          style={{
+            left: fm23Pct(FM23_LAYOUT.trainingLevel.left),
+            top: fm23Pct(FM23_LAYOUT.trainingLevel.top),
+            fontSize: fm23Cqw(FM23_LAYOUT.trainingLevel.fontSize),
+            transform: 'translate(-50%, -50%)',
+            textShadow:
+              '0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.8)',
+          }}
+        >
+          {trainingLevel}
+        </div>
       ) : null}
       {price !== undefined ? (
         <div

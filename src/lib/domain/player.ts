@@ -53,13 +53,22 @@ export const playerCardImageKindSchema = z.enum(PLAYER_CARD_IMAGE_KINDS);
 export type PlayerCardImageKind = z.infer<typeof playerCardImageKindSchema>;
 
 /** Well-known shared chrome icons (not stored per player). */
-export const PLAYER_COMMON_IMAGE_KINDS = ['untradeable', 'star-shard'] as const;
+export const PLAYER_COMMON_IMAGE_KINDS = [
+  'untradeable',
+  'star-shard',
+  'rank-1',
+  'rank-2',
+  'rank-3',
+  'rank-4',
+  'rank-5',
+  'rank-6',
+] as const;
 
 export const playerCommonImageKindSchema = z.enum(PLAYER_COMMON_IMAGE_KINDS);
 export type PlayerCommonImageKind = z.infer<typeof playerCommonImageKindSchema>;
 
 const PLAYER_ICON_KIND_PATTERN =
-  /^(?:playstyle--?[A-Za-z0-9_]+(?:-l\d+)?|trait--?[A-Za-z0-9_]+)$/;
+  /^(?:playstyle--?[A-Za-z0-9_]+(?:-l\d+)?|trait--?[A-Za-z0-9_]+|skill--?[A-Za-z0-9_]+)$/;
 
 export const playerIconImageKindSchema = z
   .string()
@@ -202,6 +211,18 @@ export function traitImageKind(id: string): PlayerImageKind | undefined {
   return safe ? `trait-${safe}` : undefined;
 }
 
+export function skillImageKind(id: string): PlayerImageKind | undefined {
+  const safe = sanitizeIconId(id);
+  return safe ? `skill-${safe}` : undefined;
+}
+
+export function rankImageKind(rank: number): PlayerCommonImageKind | undefined {
+  if (!Number.isInteger(rank) || rank < 1 || rank > 6) {
+    return undefined;
+  }
+  return `rank-${rank}` as PlayerCommonImageKind;
+}
+
 export const playerStatSchema = z.object({
   key: z.string().min(1),
   value: z.number(),
@@ -243,11 +264,26 @@ export function sortPlayStylesByLevelDesc<
   });
 }
 
+export const skillLevelSchema = z.object({
+  level: z.number().int().positive(),
+  unlockedPositions: z.array(z.string().min(1)).default([]),
+  abilityModifiers: z.record(z.string().min(1), z.number()).default({}),
+});
+export type SkillLevel = z.infer<typeof skillLevelSchema>;
+
+export const skillRequirementSchema = z.object({
+  skillId: z.string().min(1),
+  level: z.number().int().positive(),
+});
+export type SkillRequirement = z.infer<typeof skillRequirementSchema>;
+
 export const skillNodeSchema = z.object({
   id: z.string().min(1),
   key: z.string().min(1).optional(),
   name: z.string().min(1).optional(),
   level: z.number().int().optional(),
+  levels: z.array(skillLevelSchema).optional(),
+  requirement: skillRequirementSchema.nullable().optional(),
 });
 export type SkillNode = z.infer<typeof skillNodeSchema>;
 

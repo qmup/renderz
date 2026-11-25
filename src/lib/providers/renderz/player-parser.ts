@@ -14,6 +14,7 @@ import {
   playStyleLevelFromUpstreamUrl,
   playerImageKindSchema,
   playerSchema,
+  skillImageKind,
   sortPlayStylesByLevelDesc,
   traitImageKind,
   type AvailableImageKind,
@@ -23,8 +24,10 @@ import {
   type PlayerStat,
   type PlayStyle,
   type PlayerTrait,
+  type SkillLevel,
   type SkillNode,
 } from '@/lib/domain/player';
+import { SKILL_NAME_BY_KEY } from '@/lib/skill-names';
 import { ParseError } from '@/lib/http/errors';
 import { extractJsAssignment } from '@/lib/providers/renderz/js-literal';
 import {
@@ -152,6 +155,46 @@ function playStylesFromUnknown(value: unknown): PlayStyle[] {
   return sortPlayStylesByLevelDesc(styles);
 }
 
+function skillLevelsFromUnknown(value: unknown): SkillLevel[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const levels: SkillLevel[] = [];
+  for (const rawLevel of value) {
+    if (!isRecord(rawLevel)) {
+      continue;
+    }
+    const levelNum = asNumber(rawLevel.level);
+    if (levelNum === undefined || !Number.isInteger(levelNum) || levelNum < 1) {
+      continue;
+    }
+    const unlockedPositions = Array.isArray(rawLevel.unlockedPositions)
+      ? rawLevel.unlockedPositions
+          .filter((pos): pos is string => typeof pos === 'string')
+          .map((pos) => pos.trim())
+          .filter((pos) => pos.length > 0)
+      : [];
+    const abilityModifiers: Record<string, number> = {};
+    if (isRecord(rawLevel.abilityModifiers)) {
+      for (const [statKey, amount] of Object.entries(rawLevel.abilityModifiers)) {
+        if (typeof amount === 'number' && Number.isFinite(amount) && statKey.trim()) {
+          abilityModifiers[statKey.trim()] = amount;
+        }
+      }
+    }
+    levels.push({
+      level: levelNum,
+      unlockedPositions,
+      abilityModifiers,
+    });
+  }
+  if (levels.length === 0) {
+    return undefined;
+  }
+  levels.sort((a, b) => a.level - b.level);
+  return levels;
+}
+
 function skillsFromUnknown(value: unknown): SkillNode[] {
   if (!Array.isArray(value)) {
     return [];
@@ -165,11 +208,39 @@ function skillsFromUnknown(value: unknown): SkillNode[] {
     if (id === undefined || id === null) {
       return [];
     }
+    const idStr = String(id);
+    const key = asString(skill.name);
+    const resolved = asString(skill.resolvedName);
+    const knownName =
+      resolved ??
+      (key ? SKILL_NAME_BY_KEY[key] : undefined) ??
+      SKILL_NAME_BY_KEY[`NAME_SKILL_${idStr}`];
+    const levels = skillLevelsFromUnknown(skill.levels);
+    const rawReq =
+      isRecord(item) && isRecord(item.requirement)
+        ? item.requirement
+        : undefined;
+    const reqSkillId =
+      rawReq?.skillId !== undefined && rawReq.skillId !== null
+        ? String(rawReq.skillId)
+        : undefined;
+    const reqLevel = rawReq ? asNumber(rawReq.level) : undefined;
+    const requirement =
+      reqSkillId &&
+      reqLevel !== undefined &&
+      Number.isInteger(reqLevel) &&
+      reqLevel >= 1
+        ? { skillId: reqSkillId, level: reqLevel }
+        : isRecord(item) && item.requirement === null
+          ? null
+          : undefined;
     return [
       {
-        id: String(id),
-        key: asString(skill.name),
-        name: asString(skill.resolvedName),
+        id: idStr,
+        key,
+        name: knownName && !looksLikeI18nKey(knownName) ? knownName : undefined,
+        ...(levels ? { levels } : {}),
+        ...(requirement !== undefined ? { requirement } : {}),
       },
     ];
   });
@@ -278,6 +349,7 @@ function iconAssetsFromCollections(
   playerId: string,
   playStyles: unknown,
   traits: unknown,
+  skillsData: unknown,
   fetchedAt: number,
 ): PlayerAssetRow[] {
   const assets: PlayerAssetRow[] = [];
@@ -318,6 +390,19 @@ function iconAssetsFromCollections(
         continue;
       }
       push(traitImageKind(String(item.id)), asHttpsUrl(item.image));
+    }
+  }
+  if (Array.isArray(skillsData)) {
+    for (const item of skillsData) {
+      const skill = isRecord(item) && isRecord(item.skill) ? item.skill : item;
+      if (!isRecord(skill)) {
+        continue;
+      }
+      const id = skill.id ?? skill.name;
+      if (id === undefined || id === null) {
+        continue;
+      }
+      push(skillImageKind(String(id)), asHttpsUrl(skill.image));
     }
   }
   return assets;
@@ -400,6 +485,16 @@ function collectionHasIconUrls(value: unknown): boolean {
   );
 }
 
+function skillsDataHasLevels(value: unknown): boolean {
+  if (!Array.isArray(value)) {
+    return false;
+  }
+  return value.some((item) => {
+    const skill = isRecord(item) && isRecord(item.skill) ? item.skill : item;
+    return isRecord(skill) && Array.isArray(skill.levels) && skill.levels.length > 0;
+  });
+}
+
 function mergePlayerRaw(
   fromData?: Record<string, unknown>,
   fromHtml?: Record<string, unknown>,
@@ -422,6 +517,9 @@ function mergePlayerRaw(
     traits: collectionHasIconUrls(fromHtml.traits)
       ? fromHtml.traits
       : fromData.traits,
+    skillsData: skillsDataHasLevels(fromHtml.skillsData)
+      ? fromHtml.skillsData
+      : fromData.skillsData,
   };
 }
 
@@ -553,6 +651,11 @@ type HtmlTraitHit = {
   imageUrl?: string;
 };
 
+type HtmlSkillHit = {
+  name?: string;
+  imageUrl?: string;
+};
+
 type HtmlPlayerLabels = {
   clubName?: string;
   leagueName?: string;
@@ -563,6 +666,7 @@ type HtmlPlayerLabels = {
   playStyles: HtmlPlayStyleHit[];
   playStyleImages: HtmlPlayStyleHit[];
   traits: HtmlTraitHit[];
+  skillImages: HtmlSkillHit[];
 };
 
 export function extractHtmlLabels(html: string): HtmlPlayerLabels {
@@ -661,6 +765,22 @@ export function extractHtmlLabels(html: string): HtmlPlayerLabels {
     }
   });
 
+  const skillImages: HtmlSkillHit[] = [];
+  const seenSkillImageKeys = new Set<string>();
+  $('img[src*="skill_"]').each((_, el) => {
+    const imageUrl = decodeHttpsUrl($(el).attr('src'));
+    if (!imageUrl) {
+      return;
+    }
+    const key = imageUrl.split('?')[0] ?? imageUrl;
+    if (seenSkillImageKeys.has(key)) {
+      return;
+    }
+    seenSkillImageKeys.add(key);
+    const name = sanitizeLabel($(el).attr('alt'));
+    skillImages.push({ name, imageUrl });
+  });
+
   return {
     clubName: labeledValue($, 'TEAM'),
     leagueName: labeledValue($, 'LEAGUE'),
@@ -671,6 +791,7 @@ export function extractHtmlLabels(html: string): HtmlPlayerLabels {
     playStyles,
     playStyleImages,
     traits,
+    skillImages,
   };
 }
 
@@ -750,9 +871,17 @@ function applyExtractedLabels(
       name: resolveHtmlName(trait.name, byId?.name ?? labels.traitNames[index]),
     };
   });
+  const skills = player.skills.map((skill, index) => {
+    const htmlName = labels.skillImages[index]?.name;
+    return {
+      ...skill,
+      name: resolveHtmlName(skill.name, htmlName),
+    };
+  });
   return {
     ...player,
     playStyles,
+    skills,
     clubName:
       labels.clubName && looksLikeI18nKey(player.clubName)
         ? labels.clubName
@@ -804,6 +933,9 @@ function iconAssetsFromHtmlLabels(
     const byId = labels.traits.find((hit) => hit.id === trait.id);
     push(traitImageKind(trait.id), byId?.imageUrl);
   }
+  for (const [index, skill] of player.skills.entries()) {
+    push(skillImageKind(skill.id), labels.skillImages[index]?.imageUrl);
+  }
   return assets;
 }
 
@@ -830,6 +962,7 @@ function playerFromRaw(
       playerId,
       raw.playStyles,
       raw.traits,
+      raw.skillsData,
       fetchedAt,
     ),
   ];

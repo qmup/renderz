@@ -1,5 +1,5 @@
 import { MarketRefresh } from '@/components/players/market-refresh';
-import { displayLabel } from '@/lib/display';
+import { displayLabel, formatStarRating } from '@/lib/display';
 import type { Player } from '@/lib/domain/player';
 import { messages, type Messages } from '@/lib/i18n/messages';
 import { getLocale } from '@/lib/i18n/server';
@@ -25,9 +25,19 @@ function itemsFromPlayer(player: Player, copy: Messages): BioItem[] {
     },
     {
       label: copy.feet,
-      value: displayLabel(player.foot) + ' / ' + displayLabel(player.weakFoot),
+      value: (() => {
+        const foot = displayLabel(player.foot);
+        const weak = formatStarRating(player.weakFoot);
+        if (foot && weak) {
+          return `${foot} / ${weak}`;
+        }
+        return foot ?? weak;
+      })(),
     },
-    { label: copy.skillMoves, value: displayLabel(player.skillMovesLevel) },
+    {
+      label: copy.skillMoves,
+      value: formatStarRating(player.skillMovesLevel),
+    },
     {
       label: copy.workRates,
       value:

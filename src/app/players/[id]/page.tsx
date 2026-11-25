@@ -2,16 +2,14 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { CatalogNotice } from '@/components/catalog-notice';
 import { PlayerBio } from '@/components/players/player-bio';
-import { PlayerCardArt } from '@/components/players/player-card-art';
 import { PlayerFollowButton } from '@/components/players/followed-players';
 import { PlayerDetailBack } from '@/components/players/player-detail-back';
-import { PlayerDetailStats } from '@/components/players/player-detail-stats';
+import { PlayerDetailInteractive } from '@/components/players/player-detail-interactive';
 import {
   PlayerHiddenStats,
   PlayerPlayStyles,
 } from '@/components/players/player-icon-lists';
 import { StarSigningsPrice } from '@/components/players/star-signings-price';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { resolveCardTextColors } from '@/lib/catalog/card-name-color';
 import { enrichDiscoveredPlayer } from '@/lib/catalog/enrichment';
@@ -26,7 +24,6 @@ import {
 } from '@/lib/display';
 import {
   playerIdSchema,
-  cardDisplayName,
   findCardLoopKind,
   type Player,
 } from '@/lib/domain/player';
@@ -40,7 +37,6 @@ import { messages } from '@/lib/i18n/messages';
 import { getLocale } from '@/lib/i18n/server';
 import { RateLimitedError } from '@/lib/http/errors';
 import { getRenderzSource } from '@/lib/providers/renderz/renderz-source';
-import { groupDetailStats } from '@/lib/stats';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -115,7 +111,6 @@ export default async function PlayerDetailPage({
 
   const { player, notice, retryAfterMs } = loaded;
   const stale = isStaleCatalogRow(player);
-  const groupedStats = groupDetailStats(player.stats);
   const program = displayProgramName(player.programName, player.programId);
   const loopKind = findCardLoopKind(player.availableImageKinds);
   const catalog = getPlayerCatalog();
@@ -171,72 +166,30 @@ export default async function PlayerDetailPage({
         </CatalogNotice>
       ) : null}
 
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
-        <div className="mx-auto flex w-64 shrink-0 flex-col items-center sm:mx-0">
-          <PlayerCardArt
-            id={player.id}
-            kinds={player.availableImageKinds}
-            rating={player.rating}
-            position={player.position}
-            auctionable={player.auctionable}
-            displayName={cardDisplayName(player)}
-            playStyles={player.playStyles}
-            price={player.starSigningsBuy}
-            nameColor={overlayColors.name}
-            ratingColor={overlayColors.rating}
-            positionColor={overlayColors.position}
-            size={256}
-            priority
-            animate
-            loopSrc={loopSrc}
-          />
+      <PlayerDetailInteractive
+        player={player}
+        program={program}
+        overlayColors={overlayColors}
+        loopSrc={loopSrc}
+        priceSlot={
           <StarSigningsPrice
             playerId={player.id}
             buy={player.starSigningsBuy}
             sell={player.starSigningsSell}
           />
-        </div>
-        <div className="flex min-w-0 flex-col gap-3 text-center sm:text-left">
-          <div>
-            <p className="text-muted-foreground text-[10px] tracking-[0.18em] uppercase sm:text-xs">
-              {program ?? 'FC Mobile'}
-            </p>
-            <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
-              {player.name}
-            </h1>
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-            <span className="font-heading text-3xl tabular-nums sm:text-4xl">
-              {player.rating}
-            </span>
-            {player.position ? <Badge>{player.position}</Badge> : null}
-            {player.altPositions.map((position) => (
-              <Badge key={position} variant="secondary">
-                {position}
-              </Badge>
-            ))}
-            {player.auctionable === true ? (
-              <Badge variant="outline">{copy.auctionable}</Badge>
-            ) : player.auctionable === false ? (
-              <Badge variant="outline">{copy.untradeable}</Badge>
-            ) : null}
-          </div>
+        }
+        playStylesSlot={
           <PlayerPlayStyles
             playerId={player.id}
             styles={player.playStyles}
             compact
           />
-        </div>
-      </header>
-
-      <PlayerBio player={player} />
-      <PlayerHiddenStats playerId={player.id} traits={player.traits} />
-
-      {groupedStats.length > 0 ? (
-        <PlayerDetailStats stats={player.stats} />
-      ) : (
-        <p className="text-muted-foreground text-sm">{copy.statsMissing}</p>
-      )}
+        }
+        bioSlot={<PlayerBio player={player} />}
+        hiddenStatsSlot={
+          <PlayerHiddenStats playerId={player.id} traits={player.traits} />
+        }
+      />
 
       {isDev ? (
         <>

@@ -162,6 +162,34 @@ const en = {
   pagination: "pagination",
   close: "Close",
   morePages: "More pages",
+  selectRank: "Select rank",
+  resetRank: "Reset rank",
+  rankBase: "Base",
+  rankOption: (rank: number) => (rank === 0 ? "Rank 0 (Base)" : `Rank ${rank}`),
+  skillPointsToSpend: (remaining: number, total: number) =>
+    total > 0
+      ? `Skillpoints to spend: ${remaining} / ${total}`
+      : `Skillpoints to spend: ${remaining}`,
+  skills: "Skills",
+  resetSkills: "Reset skills",
+  skillLevelShort: (level: number) => `LVL ${level}`,
+  skillUnlocksAfter: (skillName: string, level: number) =>
+    `Unlocks after ${skillName} is LVL ${level}.`,
+  skillRequiresRankHint: "Select a rank (1–6) to unlock skill points.",
+  editSkillTitle: (name: string) => `Edit ${name}`,
+  skillAcquired: "Acquired",
+  skillAvailable: "Available",
+  skillLocked: "Locked",
+  skillClickToRemove: "Click to remove",
+  skillPositions: "Positions",
+  skillPointsCost: (cost: number) => `${cost} SP`,
+  selectTraining: "Select training",
+  resetTraining: "Reset training",
+  trainingMinLabel: "Level 0",
+  trainingMinSub: "Min",
+  trainingMaxLabel: "Level 30",
+  trainingMaxSub: "Max",
+  trainingLevelBadge: (level: number) => `Training ${level}`,
 };
 
 export type Messages = typeof en;
@@ -328,6 +356,34 @@ const vi: Messages = {
   pagination: "phân trang",
   close: "Đóng",
   morePages: "Thêm trang",
+  selectRank: "Chọn Rank",
+  resetRank: "Đặt lại rank",
+  rankBase: "Gốc",
+  rankOption: (rank: number) => (rank === 0 ? "Rank 0 (Gốc)" : `Rank ${rank}`),
+  skillPointsToSpend: (remaining: number, total: number) =>
+    total > 0
+      ? `Điểm kỹ năng còn lại: ${remaining} / ${total}`
+      : `Điểm kỹ năng còn lại: ${remaining}`,
+  skills: "Kỹ năng",
+  resetSkills: "Đặt lại kỹ năng",
+  skillLevelShort: (level: number) => `LVL ${level}`,
+  skillUnlocksAfter: (skillName: string, level: number) =>
+    `Mở khóa sau khi ${skillName} đạt LVL ${level}.`,
+  skillRequiresRankHint: "Chọn Rank (1–6) để có điểm nâng kỹ năng.",
+  editSkillTitle: (name: string) => `Nâng kỹ năng ${name}`,
+  skillAcquired: "Đã nâng",
+  skillAvailable: "Có thể nâng",
+  skillLocked: "Chưa mở",
+  skillClickToRemove: "Bấm để gỡ",
+  skillPositions: "Vị trí mở khóa",
+  skillPointsCost: (cost: number) => `${cost} điểm`,
+  selectTraining: "Chọn Training",
+  resetTraining: "Đặt lại",
+  trainingMinLabel: "Level 0",
+  trainingMinSub: "Tối thiểu",
+  trainingMaxLabel: "Level 30",
+  trainingMaxSub: "Tối đa",
+  trainingLevelBadge: (level: number) => `Training ${level}`,
 };
 
 export const messages: Record<Locale, Messages> = { en, vi };

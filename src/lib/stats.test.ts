@@ -134,4 +134,35 @@ describe("groupDetailStats", () => {
       "jmp",
     ]);
   });
+
+  it("groups GK stats under DIV–PHY when position is GK", () => {
+    const groups = groupDetailStats(
+      [
+        { key: "avg1", value: 140 },
+        { key: "avg2", value: 138 },
+        { key: "avg3", value: 136 },
+        { key: "avg4", value: 142 },
+        { key: "avg5", value: 130 },
+        { key: "avg6", value: 120 },
+        { key: "gkd", value: 140 },
+        { key: "gkp", value: 138 },
+        { key: "han", value: 136 },
+        { key: "ref", value: 142 },
+        { key: "gkk", value: 130 },
+        { key: "rea", value: 130 },
+        { key: "agi", value: 110 },
+        { key: "spd", value: 90 },
+        { key: "str", value: 100 },
+      ],
+      "GK",
+    );
+    expect(groups.map((g) => [g.label, g.children.map((c) => c.key)])).toEqual([
+      ["DIV", ["gkd"]],
+      ["POS", ["gkp"]],
+      ["HAN", ["han"]],
+      ["REF", ["ref"]],
+      ["KIC", ["gkk"]],
+      ["PHY", ["rea", "agi", "spd", "str"]],
+    ]);
+  });
 });

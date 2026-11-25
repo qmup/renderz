@@ -10,6 +10,7 @@ import {
   formatRefreshClock,
   formatRefreshDate,
   formatRetryAfter,
+  formatStarRating,
   isStaleCatalogRow,
 } from '@/lib/display';
 import {
@@ -49,6 +50,15 @@ describe('displayLabel', () => {
     expect(displayLabel('Team of The Year 26 Player')).toBe(
       'Team of The Year 26 Player',
     );
+  });
+
+  it('formats star ratings compactly like 5★', () => {
+    expect(formatStarRating('(5) ★★★★★')).toBe('5★');
+    expect(formatStarRating('(4) ★★★★')).toBe('4★');
+    expect(formatStarRating('(3) ★★★')).toBe('3★');
+    expect(formatStarRating('5 ★')).toBe('5★');
+    expect(formatStarRating('★★★★')).toBe('4★');
+    expect(formatStarRating(undefined)).toBeUndefined();
   });
 });
 

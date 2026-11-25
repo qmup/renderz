@@ -275,6 +275,36 @@ describe("parsePlayerPage", () => {
     ).toContain("B_STORY26_NETHERLANDS_ICON");
     expect(player.availableImageKinds).toContain("loop-f45");
   });
+
+  it("parses skillsData with levels, abilityModifiers, requirements, and skill icon assets", () => {
+    const html = `<h1>Essien</h1>
+<img src="https://images-v2.renderz.app/skill_S10_HOLDING_3?verify=1-abc" alt="Holding" />
+<script>kit.start(app, element, {data:[null,{type:"data",data:{player:{id:30924201,cardName:"Essien",firstName:"Michael",lastName:"Essien",rating:124,position:"CDM",images:{},skillsData:[{skill:{id:32021,name:"NAME_SKILL_32020",image:"https://images-v2.renderz.app/skill_S10_HOLDING_3?verify=1-abc",levels:[{id:32021,level:1,unlockedPositions:[],abilityModifiers:{acc:10,spd:10}},{id:32021,level:2,unlockedPositions:[],abilityModifiers:{acc:20,spd:20}}]},requirement:null},{skill:{id:39010,name:"NAME_SKILL_39010",image:"https://images-v2.renderz.app/skill_S10_SHOOTING_3?verify=1-abc",levels:[{id:39010,level:1,unlockedPositions:["CM",""],abilityModifiers:{fin:20,sho:20}}]},requirement:{skillId:32021,level:2}}]}}}]});</script>`;
+    const { player, assets } = parsePlayerPage({ html });
+    expect(player.skills).toHaveLength(2);
+    expect(player.skills[0]).toEqual({
+      id: "32021",
+      key: "NAME_SKILL_32020",
+      name: "Holding",
+      requirement: null,
+      levels: [
+        { level: 1, unlockedPositions: [], abilityModifiers: { acc: 10, spd: 10 } },
+        { level: 2, unlockedPositions: [], abilityModifiers: { acc: 20, spd: 20 } },
+      ],
+    });
+    expect(player.skills[1]).toEqual({
+      id: "39010",
+      key: "NAME_SKILL_39010",
+      name: "SCORING",
+      requirement: { skillId: "32021", level: 2 },
+      levels: [
+        { level: 1, unlockedPositions: ["CM"], abilityModifiers: { fin: 20, sho: 20 } },
+      ],
+    });
+    expect(assets.some((asset) => asset.kind === "skill-32021")).toBe(true);
+    expect(assets.some((asset) => asset.kind === "skill-39010")).toBe(true);
+    expect(JSON.stringify(player)).not.toContain("images-v2.renderz.app");
+  });
 });
 
 describe("sitemap parsers", () => {

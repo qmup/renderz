@@ -9,6 +9,7 @@ import {
   fm23Cqw,
   fm23NameLineBox,
   fm23Pct,
+  fm23RankLayout,
 } from "@/lib/catalog/card-layout";
 
 describe("fm23 layout", () => {
@@ -55,5 +56,10 @@ describe("fm23 layout", () => {
       league: { left: 116, top: 188, width: 24, height: 24 },
       club: { left: 168, top: 188, width: 24, height: 24 },
     });
+  });
+
+  it("scales Rank 6 badge to 1.5x (48px) compared to Ranks 1–5 (32px)", () => {
+    expect(fm23RankLayout(5)).toEqual({ left: 128, top: 232, width: 32, height: 32 });
+    expect(fm23RankLayout(6)).toEqual({ left: 128, top: 232, width: 48, height: 48 });
   });
 });
